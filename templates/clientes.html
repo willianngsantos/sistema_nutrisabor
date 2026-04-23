@@ -154,34 +154,34 @@
                 <td class="ps-4">
                     <div class="d-flex align-items-center">
                         <div class="client-avatar me-3 d-none d-md-flex">
-                            {{ cli[1][0]|upper }}
+                            {{ cli['nome_empresa'][0]|upper }}
                         </div>
                         <div>
-                            <div class="fw-bold text-dark">{{ cli[1] }}</div>
-                            {% if cli[7] %}
-                                <div class="apelido-tag mb-1"><i class="bi bi-tag-fill me-1"></i>{{ cli[7] }}</div>
+                            <div class="fw-bold text-dark">{{ cli['nome_empresa'] }}</div>
+                            {% if cli['apelido'] %}
+                                <div class="apelido-tag mb-1"><i class="bi bi-tag-fill me-1"></i>{{ cli['apelido'] }}</div>
                             {% endif %}
                             <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
-                                <small class="text-muted">ID: #{{ cli[0] }}</small>
-                                {% if cli[5] %}
-                                    <span class="badge-grupo"><i class="bi bi-diagram-3-fill"></i> {{ cli[5] }}</span>
+                                <small class="text-muted">ID: #{{ cli['id'] }}</small>
+                                {% if cli['nome_grupo'] %}
+                                    <span class="badge-grupo"><i class="bi bi-diagram-3-fill"></i> {{ cli['nome_grupo'] }}</span>
                                 {% endif %}
-                                {% if cli[8] %}
+                                {% if cli['atende_local'] %}
                                     <span class="badge-unidade-local"><i class="bi bi-building-check"></i> Unidade de Trabalho</span>
                                 {% endif %}
                             </div>
                             <!-- Contato resumido visível só no celular -->
                             <div class="d-md-none mt-1" style="font-size:.72rem;color:#64748b;">
-                                {% if cli[4] %}<i class="bi bi-whatsapp text-success me-1"></i>{{ cli[4] }}{% endif %}
-                                {% if cli[2] %} &nbsp;·&nbsp; <span class="font-monospace">{{ cli[2] }}</span>{% endif %}
+                                {% if cli['celular'] %}<i class="bi bi-whatsapp text-success me-1"></i>{{ cli['celular'] }}{% endif %}
+                                {% if cli['cnpj'] %} &nbsp;·&nbsp; <span class="font-monospace">{{ cli['cnpj'] }}</span>{% endif %}
                             </div>
                         </div>
                     </div>
                 </td>
                 <td class="d-none d-md-table-cell">
-                    {% if cli[2] %}
+                    {% if cli['cnpj'] %}
                         <span class="text-dark font-monospace bg-light px-2 py-1 rounded small border">
-                            {{ cli[2] }}
+                            {{ cli['cnpj'] }}
                         </span>
                     {% else %}
                         <span class="text-muted small">-</span>
@@ -189,47 +189,47 @@
                 </td>
                 <td class="d-none d-md-table-cell">
                     <div class="d-flex flex-column gap-1">
-                        {% if cli[4] %}
-                        <a href="https://wa.me/55{{ cli[4]|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '') }}"
+                        {% if cli['celular'] %}
+                        <a href="https://wa.me/55{{ cli['celular']|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '') }}"
                            target="_blank" class="badge-whatsapp w-auto" style="width: fit-content;">
-                            <i class="bi bi-whatsapp"></i> {{ cli[4] }}
+                            <i class="bi bi-whatsapp"></i> {{ cli['celular'] }}
                         </a>
                         {% endif %}
                         
-                        {% if cli[3] %}
-                        <div class="small text-muted"><i class="bi bi-envelope me-1"></i> {{ cli[3] }}</div>
+                        {% if cli['email'] %}
+                        <div class="small text-muted"><i class="bi bi-envelope me-1"></i> {{ cli['email'] }}</div>
                         {% endif %}
                     </div>
                 </td>
                 <td class="text-end pe-4">
                     <div class="btn-group">
-                        <a href="/negociar/{{ cli[0] }}" class="btn btn-sm btn-light text-success border me-1" title="Tabela de Preços Individual">
+                        <a href="/negociar/{{ cli['id'] }}" class="btn btn-sm btn-light text-success border me-1" title="Tabela de Preços Individual">
                             <i class="bi bi-cash-coin"></i>
                         </a>
-                        <form method="POST" action="{{ url_for('cadastros.toggle_unidade', id_cliente=cli[0]) }}"
+                        <form method="POST" action="{{ url_for('cadastros.toggle_unidade', id_cliente=cli['id']) }}"
                               style="display:inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit"
-                                    class="btn btn-sm border me-1 {% if cli[8] %}btn-success text-white{% else %}btn-light text-muted{% endif %}"
-                                    title="{{ 'Remover como Unidade de Trabalho' if cli[8] else 'Marcar como Unidade de Trabalho' }}">
-                                <i class="bi bi-building{% if cli[8] %}-check{% endif %}"></i>
+                                    class="btn btn-sm border me-1 {% if cli['atende_local'] %}btn-success text-white{% else %}btn-light text-muted{% endif %}"
+                                    title="{{ 'Remover como Unidade de Trabalho' if cli['atende_local'] else 'Marcar como Unidade de Trabalho' }}">
+                                <i class="bi bi-building{% if cli['atende_local'] %}-check{% endif %}"></i>
                             </button>
                         </form>
                         <button class="btn btn-sm btn-light text-primary border me-1" 
                                 data-bs-toggle="modal" 
                                 data-bs-target="#modalEditarCliente"
-                                data-id="{{ cli[0] }}"
-                                data-nome="{{ cli[1] }}"
-                                data-apelido="{{ cli[7] if cli[7] else '' }}"
-                                data-cnpj="{{ cli[2] }}"
-                                data-email="{{ cli[3] }}"
-                                data-celular="{{ cli[4] }}"
-                                data-grupo="{{ cli[6] if cli[6] else '' }}"
-                                data-logo="{{ cli[9] if cli[9] else '' }}"
+                                data-id="{{ cli['id'] }}"
+                                data-nome="{{ cli['nome_empresa'] }}"
+                                data-apelido="{{ cli['apelido'] if cli['apelido'] else '' }}"
+                                data-cnpj="{{ cli['cnpj'] }}"
+                                data-email="{{ cli['email'] }}"
+                                data-celular="{{ cli['celular'] }}"
+                                data-grupo="{{ cli['id_grupo'] if cli['id_grupo'] else '' }}"
+                                data-logo="{{ cli['logo_path'] if cli['logo_path'] else '' }}"
                                 title="Editar">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
-                        <form method="POST" action="/excluir_cliente/{{ cli[0] }}"
+                        <form method="POST" action="/excluir_cliente/{{ cli['id'] }}"
                               style="display:inline"
                               onsubmit="return confirm('ATENÇÃO: Excluir este cliente pode afetar o histórico de pedidos.\n\nDeseja continuar?')">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -281,7 +281,7 @@
                         <select name="id_grupo" class="form-select border-0 shadow-sm text-dark">
                             <option value="">Nenhum (Usar preço padrão/individual)</option>
                             {% for g in grupos %}
-                                <option value="{{ g[0] }}">{{ g[1] }}</option>
+                                <option value="{{ g['id'] }}">{{ g['nome'] }}</option>
                             {% endfor %}
                         </select>
                         <div class="form-text small">Ao selecionar um grupo, este cliente adotará os preços e o PIX definidos nele.</div>
@@ -343,7 +343,7 @@
                         <select name="id_grupo" id="edit_grupo" class="form-select border-0 shadow-sm text-dark">
                             <option value="">Nenhum (Usar preço padrão/individual)</option>
                             {% for g in grupos %}
-                                <option value="{{ g[0] }}">{{ g[1] }}</option>
+                                <option value="{{ g['id'] }}">{{ g['nome'] }}</option>
                             {% endfor %}
                         </select>
                     </div>

@@ -54,10 +54,10 @@ def add_grupo():
     pix_banco = request.form.get("pix_banco", "").strip()
     
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     # CORRIGIDO PARA PLURAL AQUI
     cursor.execute("""
-        INSERT INTO grupos_clientes (nome, chave_pix, pix_nome, pix_banco) 
+        INSERT INTO grupos_clientes (nome, chave_pix, pix_nome, pix_banco)
         VALUES (%s, %s, %s, %s)
     """, (nome, 
           chave_pix if chave_pix else None,
@@ -79,10 +79,10 @@ def editar_grupo():
     pix_banco = request.form.get("pix_banco", "").strip()
     
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     # CORRIGIDO PARA PLURAL AQUI
     cursor.execute("""
-        UPDATE grupos_clientes 
+        UPDATE grupos_clientes
         SET nome=%s, chave_pix=%s, pix_nome=%s, pix_banco=%s 
         WHERE id=%s
     """, (nome, 
@@ -100,7 +100,7 @@ def editar_grupo():
 @login_required
 def excluir_grupo(id_grupo):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         # CORRIGIDO PARA PLURAL AQUI
         cursor.execute("DELETE FROM grupos_clientes WHERE id=%s", (id_grupo,))
@@ -120,9 +120,8 @@ def excluir_grupo(id_grupo):
 @login_required
 def clientes():
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # CORRIGIDO PARA PLURAL AQUI
+    cursor = conn.cursor(dictionary=True)
+
     cursor.execute("""
         SELECT c.id, c.nome_empresa, c.cnpj, c.email, c.celular, g.nome AS nome_grupo, c.id_grupo, c.apelido, c.atende_local, c.logo_path
         FROM clientes c
@@ -130,11 +129,10 @@ def clientes():
         ORDER BY c.nome_empresa
     """)
     lista_clientes = cursor.fetchall()
-    
-    # CORRIGIDO PARA PLURAL AQUI
+
     cursor.execute("SELECT id, nome FROM grupos_clientes ORDER BY nome")
     lista_grupos = cursor.fetchall()
-    
+
     conn.close()
     return render_template("clientes.html", clientes=lista_clientes, grupos=lista_grupos)
 
@@ -152,7 +150,7 @@ def add_cliente():
     if not id_grupo: id_grupo = None
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         INSERT INTO clientes (nome_empresa, cnpj, email, celular, id_grupo, apelido, logo_path)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -202,7 +200,7 @@ def editar_cliente():
     else:
         logo_path = logo_atual  # mantém o logo existente
 
-    cursor2 = conn.cursor()
+    cursor2 = conn.cursor(dictionary=True)
     cursor2.execute("""
         UPDATE clientes SET nome_empresa=%s, cnpj=%s, email=%s, celular=%s, id_grupo=%s, apelido=%s, logo_path=%s
         WHERE id=%s
@@ -221,7 +219,7 @@ def toggle_unidade(id_cliente):
     cliente = cursor.fetchone()
     if cliente:
         novo = 0 if cliente['atende_local'] else 1
-        cursor2 = conn.cursor()
+        cursor2 = conn.cursor(dictionary=True)
         cursor2.execute("UPDATE clientes SET atende_local = %s WHERE id = %s", (novo, id_cliente))
         conn.commit()
         acao = "marcado como Unidade de Trabalho" if novo else "removido das Unidades de Trabalho"
@@ -234,7 +232,7 @@ def toggle_unidade(id_cliente):
 @login_required
 def excluir_cliente(id_cliente):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("DELETE FROM tabela_precos WHERE id_cliente=%s", (id_cliente,))
         cursor.execute("DELETE FROM clientes WHERE id=%s", (id_cliente,))
@@ -255,8 +253,8 @@ def excluir_cliente(id_cliente):
 @login_required
 def produtos():
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM produtos ORDER BY nome")
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, nome, unidade, custo_base FROM produtos ORDER BY nome")
     lista_produtos = cursor.fetchall()
     conn.close()
     return render_template("produtos.html", produtos=lista_produtos)
@@ -277,7 +275,7 @@ def add_produto():
             custo = 0.00
             
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("INSERT INTO produtos (nome, unidade, custo_base) VALUES (%s, %s, %s)", (nome, unidade, custo))
     conn.commit()
     conn.close()
@@ -302,7 +300,7 @@ def editar_produto():
             custo = 0.00
             
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("UPDATE produtos SET nome=%s, unidade=%s, custo_base=%s WHERE id=%s", (nome, unidade, custo, id_produto))
     conn.commit()
     conn.close()
@@ -314,7 +312,7 @@ def editar_produto():
 @login_required
 def excluir_produto(id_prod):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("DELETE FROM produtos WHERE id=%s", (id_prod,))
         conn.commit()
@@ -354,15 +352,15 @@ def negociar_grupo(id_grupo):
 @login_required
 def salvar_precos_grupo(id_grupo):
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
+    cursor = conn.cursor(dictionary=True)
+
     cursor.execute("DELETE FROM tabela_precos_grupos WHERE id_grupo = %s", (id_grupo,))
-    
+
     cursor.execute("SELECT id FROM produtos")
     produtos = cursor.fetchall()
-    
+
     for p in produtos:
-        prod_id = p[0]
+        prod_id = p['id']
         preco_str = request.form.get(f"preco_{prod_id}", "").strip()
         
         if preco_str:

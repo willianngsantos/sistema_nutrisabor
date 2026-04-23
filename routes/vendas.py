@@ -216,7 +216,7 @@ def salvar_pedido():
     flash("✅ Fatura salva!", "success")
     return redirect(url_for('home'))
 
-@vendas_bp.route("/mudar_status/<int:id_pedido>/<string:novo_status>")
+@vendas_bp.route("/mudar_status/<int:id_pedido>/<string:novo_status>", methods=["POST"])
 @login_required
 def mudar_status(id_pedido, novo_status):
     conn = get_db_connection()
@@ -227,7 +227,7 @@ def mudar_status(id_pedido, novo_status):
     flash(f"Status da fatura #{id_pedido} atualizado!", "success")
     return redirect(url_for('home'))
 
-@vendas_bp.route("/excluir_pedido/<int:id_pedido>")
+@vendas_bp.route("/excluir_pedido/<int:id_pedido>", methods=["POST"])
 @login_required
 def excluir_pedido(id_pedido):
     conn = get_db_connection()

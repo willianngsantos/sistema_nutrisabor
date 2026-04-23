@@ -178,32 +178,45 @@
                                         <a href="{{ url_for('vendas.fazer_pedido', id_pedido=ped.id) }}" class="btn btn-sm btn-outline-warning" title="Editar">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <a href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}" class="btn btn-sm btn-primary" title="Aprovar Fatura">
-                                            Aprovar
-                                        </a>
-                                        <a href="{{ url_for('vendas.excluir_pedido', id_pedido=ped.id) }}" 
-                                           class="btn btn-sm btn-outline-danger" 
-                                           title="Excluir Pedido"
-                                           onclick="return confirm('Tem certeza que deseja apagar este pedido permanentemente?')">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
+                                        <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}" style="display:inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-primary" title="Aprovar Fatura">
+                                                Aprovar
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('vendas.excluir_pedido', id_pedido=ped.id) }}" style="display:inline"
+                                              onsubmit="return confirm('Tem certeza que deseja apagar este pedido permanentemente?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir Pedido">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     {% elif ped.status == 'Aprovado' %}
                                         <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}" title="Informar Nota Fiscal">
                                             <i class="bi bi-file-earmark-text"></i> NF
                                         </button>
-                                        <a href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pago') }}" class="btn btn-sm btn-success" title="Marcar como Pago">
-                                            <i class="bi bi-currency-dollar"></i> Receber
-                                        </a>
-                                        <a href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pendente') }}" class="btn btn-sm btn-outline-secondary" title="Voltar para Rascunho">
-                                            <i class="bi bi-arrow-counterclockwise"></i>
-                                        </a>
+                                        <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pago') }}" style="display:inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-success" title="Marcar como Pago">
+                                                <i class="bi bi-currency-dollar"></i> Receber
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pendente') }}" style="display:inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Voltar para Rascunho">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        </form>
                                     {% elif ped.status == 'Pago' %}
                                         <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}" title="Editar Nota Fiscal">
                                             <i class="bi bi-file-earmark-text"></i> NF
                                         </button>
-                                        <a href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}" class="btn btn-sm btn-outline-secondary" title="Estornar Recebimento">
-                                            <i class="bi bi-arrow-counterclockwise"></i>
-                                        </a>
+                                        <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}" style="display:inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Estornar Recebimento">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        </form>
                                     {% endif %}
                                 </div>
 
@@ -218,17 +231,43 @@
                                         {% if ped.status == 'Pendente' or not ped.status %}
                                         <li><hr class="dropdown-divider my-1"></li>
                                         <li><a class="dropdown-item small" href="{{ url_for('vendas.fazer_pedido', id_pedido=ped.id) }}"><i class="bi bi-pencil text-warning me-2"></i>Editar</a></li>
-                                        <li><a class="dropdown-item small text-primary" href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}"><i class="bi bi-lock-fill me-2"></i>Aprovar</a></li>
-                                        <li><a class="dropdown-item small text-danger" href="{{ url_for('vendas.excluir_pedido', id_pedido=ped.id) }}" onclick="return confirm('Apagar este pedido?')"><i class="bi bi-trash me-2"></i>Excluir</a></li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item small text-primary"><i class="bi bi-lock-fill me-2"></i>Aprovar</button>
+                                            </form>
+                                        </li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('vendas.excluir_pedido', id_pedido=ped.id) }}"
+                                                  onsubmit="return confirm('Apagar este pedido?')">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item small text-danger"><i class="bi bi-trash me-2"></i>Excluir</button>
+                                            </form>
+                                        </li>
                                         {% elif ped.status == 'Aprovado' %}
                                         <li><hr class="dropdown-divider my-1"></li>
                                         <li><a class="dropdown-item small" href="#" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}"><i class="bi bi-file-earmark-text me-2"></i>Nota Fiscal</a></li>
-                                        <li><a class="dropdown-item small text-success" href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pago') }}"><i class="bi bi-currency-dollar me-2"></i>Receber</a></li>
-                                        <li><a class="dropdown-item small" href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pendente') }}"><i class="bi bi-arrow-counterclockwise me-2"></i>Voltar Rascunho</a></li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pago') }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item small text-success"><i class="bi bi-currency-dollar me-2"></i>Receber</button>
+                                            </form>
+                                        </li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pendente') }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item small"><i class="bi bi-arrow-counterclockwise me-2"></i>Voltar Rascunho</button>
+                                            </form>
+                                        </li>
                                         {% elif ped.status == 'Pago' %}
                                         <li><hr class="dropdown-divider my-1"></li>
                                         <li><a class="dropdown-item small" href="#" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}"><i class="bi bi-file-earmark-text me-2"></i>Nota Fiscal</a></li>
-                                        <li><a class="dropdown-item small" href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}"><i class="bi bi-arrow-counterclockwise me-2"></i>Estornar</a></li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item small"><i class="bi bi-arrow-counterclockwise me-2"></i>Estornar</button>
+                                            </form>
+                                        </li>
                                         {% endif %}
                                     </ul>
                                 </div>

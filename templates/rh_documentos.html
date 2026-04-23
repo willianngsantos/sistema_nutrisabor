@@ -67,10 +67,14 @@
                     <i class="bi bi-download"></i>
                   </a>
                   {% endif %}
-                  <a href="/rh/documentos/excluir/{{ d['id'] }}" class="btn btn-sm btn-outline-danger"
-                     onclick="return confirm('Remover este documento?')">
-                    <i class="bi bi-trash3"></i>
-                  </a>
+                  <form method="POST" action="/rh/documentos/excluir/{{ d['id'] }}"
+                        style="display:inline"
+                        onsubmit="return confirm('Remover este documento?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="bi bi-trash3"></i>
+                    </button>
+                  </form>
                 </div>
               </td>
             </tr>

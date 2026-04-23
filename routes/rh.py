@@ -240,7 +240,7 @@ def editar_exame():
     return redirect(url_for('rh.exames'))
 
 
-@rh_bp.route("/rh/exames/excluir/<int:id_exame>")
+@rh_bp.route("/rh/exames/excluir/<int:id_exame>", methods=["POST"])
 @login_required
 @admin_required
 def excluir_exame(id_exame):
@@ -369,7 +369,7 @@ def upload_documento():
     return redirect(url_for('rh.documentos'))
 
 
-@rh_bp.route("/rh/documentos/excluir/<int:id_doc>")
+@rh_bp.route("/rh/documentos/excluir/<int:id_doc>", methods=["POST"])
 @login_required
 @admin_required
 def excluir_documento(id_doc):
@@ -450,7 +450,7 @@ def editar_jornada():
     return redirect(url_for('rh.jornadas'))
 
 
-@rh_bp.route("/rh/jornadas/excluir/<int:id_jornada>")
+@rh_bp.route("/rh/jornadas/excluir/<int:id_jornada>", methods=["POST"])
 @login_required
 @admin_required
 def excluir_jornada(id_jornada):
@@ -514,7 +514,7 @@ def add_ferias():
     return redirect(url_for('rh.ferias'))
 
 
-@rh_bp.route("/rh/ferias/status/<int:id_ferias>/<string:novo_status>")
+@rh_bp.route("/rh/ferias/status/<int:id_ferias>/<string:novo_status>", methods=["POST"])
 @login_required
 @admin_required
 def status_ferias(id_ferias, novo_status):
@@ -529,7 +529,7 @@ def status_ferias(id_ferias, novo_status):
     return redirect(url_for('rh.ferias'))
 
 
-@rh_bp.route("/rh/ferias/excluir/<int:id_ferias>")
+@rh_bp.route("/rh/ferias/excluir/<int:id_ferias>", methods=["POST"])
 @login_required
 @admin_required
 def excluir_ferias(id_ferias):

@@ -13,8 +13,9 @@
 </div>
 
 <!-- Alertas -->
-{% set vencidos = exames | selectattr('dias_vencimento', 'lt', 0) | list %}
-{% set vencendo = exames | selectattr('dias_vencimento', '>=', 0) | selectattr('dias_vencimento', 'le', 30) | list %}
+{% set exames_com_venc = exames | rejectattr('dias_vencimento', 'none') | list %}
+{% set vencidos = exames_com_venc | selectattr('dias_vencimento', 'lt', 0) | list %}
+{% set vencendo = exames_com_venc | selectattr('dias_vencimento', '>=', 0) | selectattr('dias_vencimento', 'le', 30) | list %}
 {% if vencidos %}
 <div class="alert alert-danger border-0 shadow-sm mb-3 py-2">
   <i class="bi bi-exclamation-triangle-fill me-2"></i><strong>{{ vencidos|length }} exame(s) vencido(s)</strong> — regularize o quanto antes.
@@ -86,13 +87,17 @@
           </td>
           <td class="text-end pe-4">
             <div class="d-flex gap-1 justify-content-end">
-              <button class="btn btn-sm btn-outline-primary" onclick="editarExame({{ e | tojson }})">
+              <button class="btn btn-sm btn-outline-primary" onclick='editarExame({{ e | tojson }})'>
                 <i class="bi bi-pencil"></i>
               </button>
-              <a href="/rh/exames/excluir/{{ e['id'] }}" class="btn btn-sm btn-outline-danger"
-                 onclick="return confirm('Remover este exame?')">
-                <i class="bi bi-trash3"></i>
-              </a>
+              <form method="POST" action="/rh/exames/excluir/{{ e['id'] }}"
+                    style="display:inline"
+                    onsubmit="return confirm('Remover este exame?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
             </div>
           </td>
         </tr>

@@ -37,10 +37,14 @@
                     onclick="editarJornada(this)" title="Editar">
               <i class="bi bi-pencil" style="font-size:.8rem;"></i>
             </button>
-            <a href="/rh/jornadas/excluir/{{ j['id'] }}" class="btn btn-sm btn-outline-danger p-1"
-               onclick="return confirm('Remover esta jornada?')" style="line-height:1;" title="Excluir">
-              <i class="bi bi-trash3" style="font-size:.8rem;"></i>
-            </a>
+            <form method="POST" action="/rh/jornadas/excluir/{{ j['id'] }}"
+                  style="display:inline"
+                  onsubmit="return confirm('Remover esta jornada?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger p-1" style="line-height:1;" title="Excluir">
+                <i class="bi bi-trash3" style="font-size:.8rem;"></i>
+              </button>
+            </form>
           </div>
         </div>
         <div class="d-flex align-items-center gap-2 mb-2">

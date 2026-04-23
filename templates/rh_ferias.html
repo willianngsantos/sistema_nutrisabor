@@ -60,16 +60,40 @@
                   Status
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                  <li><a class="dropdown-item small" href="/rh/ferias/status/{{ f['id'] }}/agendado"><i class="bi bi-calendar-check me-2 text-warning"></i>Agendado</a></li>
-                  <li><a class="dropdown-item small" href="/rh/ferias/status/{{ f['id'] }}/em_andamento"><i class="bi bi-person-walking me-2 text-primary"></i>Em Andamento</a></li>
-                  <li><a class="dropdown-item small" href="/rh/ferias/status/{{ f['id'] }}/concluido"><i class="bi bi-check-circle me-2 text-success"></i>Concluído</a></li>
-                  <li><a class="dropdown-item small" href="/rh/ferias/status/{{ f['id'] }}/cancelado"><i class="bi bi-x-circle me-2 text-secondary"></i>Cancelado</a></li>
+                  <li>
+                    <form method="POST" action="/rh/ferias/status/{{ f['id'] }}/agendado">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="dropdown-item small"><i class="bi bi-calendar-check me-2 text-warning"></i>Agendado</button>
+                    </form>
+                  </li>
+                  <li>
+                    <form method="POST" action="/rh/ferias/status/{{ f['id'] }}/em_andamento">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="dropdown-item small"><i class="bi bi-person-walking me-2 text-primary"></i>Em Andamento</button>
+                    </form>
+                  </li>
+                  <li>
+                    <form method="POST" action="/rh/ferias/status/{{ f['id'] }}/concluido">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="dropdown-item small"><i class="bi bi-check-circle me-2 text-success"></i>Concluído</button>
+                    </form>
+                  </li>
+                  <li>
+                    <form method="POST" action="/rh/ferias/status/{{ f['id'] }}/cancelado">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="dropdown-item small"><i class="bi bi-x-circle me-2 text-secondary"></i>Cancelado</button>
+                    </form>
+                  </li>
                 </ul>
               </div>
-              <a href="/rh/ferias/excluir/{{ f['id'] }}" class="btn btn-sm btn-outline-danger"
-                 onclick="return confirm('Remover este registro de férias?')">
-                <i class="bi bi-trash3"></i>
-              </a>
+              <form method="POST" action="/rh/ferias/excluir/{{ f['id'] }}"
+                    style="display:inline"
+                    onsubmit="return confirm('Remover este registro de férias?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash3"></i>
+                </button>
+              </form>
             </div>
           </td>
         </tr>

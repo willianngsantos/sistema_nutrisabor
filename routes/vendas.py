@@ -73,7 +73,7 @@ def negociar(id_cliente):
 @login_required
 def salvar_precos(id_cliente):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     for key, valor in request.form.items():
         if key.startswith("preco_"):
             id_produto = key.split("_")[1]
@@ -81,7 +81,7 @@ def salvar_precos(id_cliente):
                 cursor.execute("SELECT id FROM tabela_precos WHERE id_cliente=%s AND id_produto=%s", (id_cliente, id_produto))
                 existe = cursor.fetchone()
                 if existe:
-                    cursor.execute("UPDATE tabela_precos SET preco_venda=%s WHERE id=%s", (valor, existe[0]))
+                    cursor.execute("UPDATE tabela_precos SET preco_venda=%s WHERE id=%s", (valor, existe['id']))
                 else:
                     cursor.execute("INSERT INTO tabela_precos (id_cliente, id_produto, preco_venda) VALUES (%s, %s, %s)", (id_cliente, id_produto, valor))
     conn.commit()
@@ -93,19 +93,19 @@ def salvar_precos(id_cliente):
 @login_required
 def selecionar_cliente_pedido():
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
+    cursor = conn.cursor(dictionary=True)
+
     cursor.execute("SELECT id, nome_empresa FROM clientes ORDER BY nome_empresa")
     clientes = cursor.fetchall()
-    
+
     cursor.execute("""
-        SELECT p.id, c.nome_empresa, p.codigo_fatura, DATE_FORMAT(p.data_emissao, '%d/%m/%Y')
+        SELECT p.id, c.nome_empresa, p.codigo_fatura, DATE_FORMAT(p.data_emissao, '%d/%m/%Y') AS data_emissao_fmt
         FROM pedidos p
         JOIN clientes c ON p.id_cliente = c.id
         ORDER BY p.id DESC LIMIT 5
     """)
     recentes = cursor.fetchall()
-    
+
     conn.close()
     return render_template("selecionar_cliente.html", clientes=clientes, recentes=recentes)
 
@@ -270,44 +270,42 @@ def salvar_nf(id_pedido):
 def baixar_pdf(id_pedido):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    
+
     cursor.execute("""
         SELECT id, id_cliente, DATE_FORMAT(data_emissao, '%d/%m/%Y') as emissao,
                DATE_FORMAT(data_inicio, '%d/%m/%Y') as inicio, DATE_FORMAT(data_fim, '%d/%m/%Y') as fim,
-               codigo_fatura, status, numero_nf 
+               codigo_fatura, status, numero_nf
         FROM pedidos WHERE id = %s""", (id_pedido,))
     pedido = cursor.fetchone()
-    
-    cursor_tuple = conn.cursor()
-    # Adicionada a coluna apelido (índice 6)
-    cursor_tuple.execute("SELECT id, nome_empresa, cnpj, email, celular, id_grupo, apelido FROM clientes WHERE id = %s", (pedido['id_cliente'],))
-    cliente = cursor_tuple.fetchone()
-    
+
+    cursor.execute("SELECT id, nome_empresa, cnpj, email, celular, id_grupo, apelido FROM clientes WHERE id = %s", (pedido['id_cliente'],))
+    cliente = cursor.fetchone()
+
     grupo_info = None
-    if cliente and cliente[5]:
-        cursor.execute("SELECT chave_pix, pix_nome, pix_banco FROM grupos_clientes WHERE id = %s", (cliente[5],))
+    if cliente and cliente['id_grupo']:
+        cursor.execute("SELECT chave_pix, pix_nome, pix_banco FROM grupos_clientes WHERE id = %s", (cliente['id_grupo'],))
         grupo_info = cursor.fetchone()
-    
-    cursor_tuple.execute("""
+
+    cursor.execute("""
         SELECT prod.nome, prod.unidade, i.quantidade, i.preco_praticado, (i.quantidade * i.preco_praticado) as subtotal
         FROM itens_pedido i JOIN produtos prod ON i.id_produto = prod.id
         WHERE i.id_pedido = %s""", (id_pedido,))
-    itens = cursor_tuple.fetchall()
-    
-    cursor_tuple.execute("SELECT * FROM empresa WHERE id = 1")
-    empresa = cursor_tuple.fetchone()
+    itens = cursor.fetchall()
+
+    cursor.execute("SELECT * FROM empresa WHERE id = 1")
+    empresa = cursor.fetchone()
     conn.close()
-    
-    total = sum(item[4] for item in itens)
+
+    total = sum(item['subtotal'] for item in itens)
     total_whatsapp = f"R$ {total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    
+
     html = render_template("fatura.html", pedido=pedido, cliente=cliente, itens=itens,
                            empresa=empresa, total_geral=total, total_whatsapp=total_whatsapp,
                            grupo_info=grupo_info)
     html = _fix_static_paths(html)   # resolve logo e assets locais para wkhtmltopdf
 
     nome_doc = 'RESUMO' if pedido['status'] == 'Pendente' else 'FATURA'
-    nome_cliente_arquivo = cliente[6] if cliente[6] else cliente[1]
+    nome_cliente_arquivo = cliente['apelido'] if cliente['apelido'] else cliente['nome_empresa']
     nome_cliente_limpo = "".join(x for x in nome_cliente_arquivo if x.isalnum() or x in " _-").strip().replace(" ", "_")
     nome_arquivo_final = f"{nome_doc}_{nome_cliente_limpo}_Ref{pedido['codigo_fatura']}.pdf"
 
@@ -327,35 +325,31 @@ def baixar_pdf(id_pedido):
 @login_required
 def ver_fatura(id_pedido):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("""
-        SELECT id, id_cliente, DATE_FORMAT(data_emissao, '%d/%m/%Y'), 
-               DATE_FORMAT(data_inicio, '%d/%m/%Y'), DATE_FORMAT(data_fim, '%d/%m/%Y'),
-               codigo_fatura, status, numero_nf 
+        SELECT id, id_cliente, DATE_FORMAT(data_emissao, '%d/%m/%Y') as emissao,
+               DATE_FORMAT(data_inicio, '%d/%m/%Y') as inicio, DATE_FORMAT(data_fim, '%d/%m/%Y') as fim,
+               codigo_fatura, status, numero_nf
         FROM pedidos WHERE id = %s
     """, (id_pedido,))
     pedido = cursor.fetchone()
-    
+
     if not pedido:
         conn.close()
         flash("Fatura não encontrada.", "danger")
         return redirect(url_for('home'))
 
-    # Adicionada a coluna apelido (índice 6)
-    cursor.execute("SELECT id, nome_empresa, cnpj, email, celular, id_grupo, apelido FROM clientes WHERE id = %s", (pedido[1],))
+    cursor.execute("SELECT id, nome_empresa, cnpj, email, celular, id_grupo, apelido FROM clientes WHERE id = %s", (pedido['id_cliente'],))
     cliente = cursor.fetchone()
 
     grupo_info = None
-    if cliente and cliente[5]:
-        cursor_dict = conn.cursor(dictionary=True)
-        cursor_dict.execute("SELECT chave_pix, pix_nome, pix_banco FROM grupos_clientes WHERE id = %s", (cliente[5],))
-        grupo_info = cursor_dict.fetchone()
+    if cliente and cliente['id_grupo']:
+        cursor.execute("SELECT chave_pix, pix_nome, pix_banco FROM grupos_clientes WHERE id = %s", (cliente['id_grupo'],))
+        grupo_info = cursor.fetchone()
 
     cursor.execute("""
-        SELECT i.id, i.id_pedido, i.quantidade, i.preco_praticado, i.id_produto,
-               p.nome, p.unidade, (i.quantidade * i.preco_praticado) as subtotal
-        FROM itens_pedido i
-        JOIN produtos p ON i.id_produto = p.id
+        SELECT prod.nome, prod.unidade, i.quantidade, i.preco_praticado, (i.quantidade * i.preco_praticado) as subtotal
+        FROM itens_pedido i JOIN produtos prod ON i.id_produto = prod.id
         WHERE i.id_pedido = %s
     """, (id_pedido,))
     itens = cursor.fetchall()
@@ -363,8 +357,8 @@ def ver_fatura(id_pedido):
     cursor.execute("SELECT * FROM empresa WHERE id = 1")
     empresa = cursor.fetchone()
     conn.close()
-    
-    total_geral = sum(item[7] for item in itens)
+
+    total_geral = sum(item['subtotal'] for item in itens)
     total_formatado = f"R$ {total_geral:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
     return render_template("fatura.html", pedido=pedido, cliente=cliente, itens=itens, empresa=empresa, total_geral=total_geral, total_whatsapp=total_formatado, grupo_info=grupo_info)

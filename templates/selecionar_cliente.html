@@ -96,11 +96,11 @@
         <div class="row g-2">
             {% for c in clientes[:4] %}
             <div class="col-6 col-md-6">
-                <div class="card card-hover-effect border-0 h-100 p-2" onclick="selecionarAtalho('{{ c[0] }}', '{{ c[1] }}')">
+                <div class="card card-hover-effect border-0 h-100 p-2" onclick="selecionarAtalho('{{ c['id'] }}', '{{ c['nome_empresa'] }}')">
                     <div class="d-flex align-items-center">
-                        <div class="avatar-initial me-3 d-none d-md-flex">{{ c[1][0]|upper }}</div>
+                        <div class="avatar-initial me-3 d-none d-md-flex">{{ c['nome_empresa'][0]|upper }}</div>
                         <div class="text-truncate">
-                            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">{{ c[1] }}</div>
+                            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">{{ c['nome_empresa'] }}</div>
                             <small class="text-success fw-bold" style="font-size: 0.65rem;">
                                 <i class="bi bi-plus-circle me-1"></i>Novo Pedido
                             </small>
@@ -121,12 +121,12 @@
                 <div class="list-group list-group-flush">
                     {% if recentes %}
                         {% for ped in recentes %}
-                        <a href="{{ url_for('vendas.fazer_pedido', id_pedido=ped[0]) }}" class="list-group-item list-group-item-action recent-list-item">
+                        <a href="{{ url_for('vendas.fazer_pedido', id_pedido=ped['id']) }}" class="list-group-item list-group-item-action recent-list-item">
                             <div class="d-flex w-100 justify-content-between align-items-center mb-1">
-                                <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">{{ ped[2] }}</span>
-                                <small class="text-muted" style="font-size: 0.7rem;">{{ ped[3] }}</small>
+                                <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">{{ ped['codigo_fatura'] }}</span>
+                                <small class="text-muted" style="font-size: 0.7rem;">{{ ped['data_emissao_fmt'] }}</small>
                             </div>
-                            <h6 class="mb-0 fw-bold text-primary" style="font-size: 0.9rem;">{{ ped[1] }}</h6>
+                            <h6 class="mb-0 fw-bold text-primary" style="font-size: 0.9rem;">{{ ped['nome_empresa'] }}</h6>
                             <small class="text-muted" style="font-size: 0.75rem;"><i class="bi bi-pencil-square me-1"></i>Continuar editando</small>
                         </a>
                         {% endfor %}
@@ -146,7 +146,7 @@
 // Base de clientes para filtro dinâmico
 const CLIENTES_DB = [
     {% for c in clientes %}
-    { id: {{ c[0] }}, nome: "{{ c[1]|replace('"', '\\"')|replace('\n','') }}" }{% if not loop.last %},{% endif %}
+    { id: {{ c['id'] }}, nome: "{{ c['nome_empresa']|replace('"', '\\"')|replace('\n','') }}" }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
 

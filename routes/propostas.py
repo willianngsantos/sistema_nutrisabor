@@ -317,7 +317,7 @@ def atualizar_status(id_proposta):
         return jsonify({'ok': False, 'msg': 'Status inválido'}), 400
 
     conn = get_db_connection()
-    cur  = conn.cursor()
+    cur  = conn.cursor(dictionary=True)
     cur.execute("UPDATE propostas SET status=%s WHERE id=%s", (novo_status, id_proposta))
     conn.commit()
     conn.close()

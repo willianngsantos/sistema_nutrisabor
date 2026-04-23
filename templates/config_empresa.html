@@ -22,37 +22,37 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label fw-bold">Razão Social (Ou deixe espaço em branco)</label>
-                        <input type="text" name="razao_social" class="form-control" value="{{ empresa[1] }}" required>
+                        <input type="text" name="razao_social" class="form-control" value="{{ empresa['razao_social'] }}" required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold">CNPJ</label>
-                        <input type="text" name="cnpj" class="form-control" value="{{ empresa[2] }}" oninput="mascaraDocumento(this)">
+                        <input type="text" name="cnpj" class="form-control" value="{{ empresa['cnpj'] }}" oninput="mascaraDocumento(this)">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-bold">CEP</label>
                         <div class="input-group">
-                            <input type="text" id="cep" name="cep" class="form-control" value="{{ empresa[6] }}" onblur="buscarCep()">
+                            <input type="text" id="cep" name="cep" class="form-control" value="{{ empresa['cep'] }}" onblur="buscarCep()">
                             <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                         </div>
                     </div>
                     <div class="col-md-5">
                         <label class="form-label fw-bold">Endereço</label>
-                        <input type="text" id="endereco" name="endereco" class="form-control" value="{{ empresa[3] }}">
+                        <input type="text" id="endereco" name="endereco" class="form-control" value="{{ empresa['endereco'] }}">
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold">Cidade/UF</label>
                         <div class="input-group">
-                            <input type="text" id="cidade" name="cidade" class="form-control" value="{{ empresa[4] }}">
-                            <input type="text" id="estado" name="estado" class="form-control" style="max-width: 60px;" value="{{ empresa[5] }}">
+                            <input type="text" id="cidade" name="cidade" class="form-control" value="{{ empresa['cidade'] }}">
+                            <input type="text" id="estado" name="estado" class="form-control" style="max-width: 60px;" value="{{ empresa['estado'] }}">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold">Telefone</label>
-                        <input type="text" name="telefone" class="form-control" value="{{ empresa[7] }}" oninput="mascaraTelefone(this)">
+                        <input type="text" name="telefone" class="form-control" value="{{ empresa['telefone'] }}" oninput="mascaraTelefone(this)">
                     </div>
                     <div class="col-md-8">
                         <label class="form-label fw-bold">Email</label>
-                        <input type="email" name="email" class="form-control" value="{{ empresa[8] }}">
+                        <input type="email" name="email" class="form-control" value="{{ empresa['email'] }}">
                     </div>
                 </div>
 
@@ -62,28 +62,28 @@
                         <label class="form-label fw-bold">Instituição Financeira</label>
                         <select name="banco_nome" class="form-select">
                             <option value="">Selecione...</option>
-                            <option value="Santander" {% if empresa[10] == 'Santander' %}selected{% endif %}>Santander</option>
-                            <option value="Banco do Brasil" {% if empresa[10] == 'Banco do Brasil' %}selected{% endif %}>Banco do Brasil</option>
-                            <option value="Bradesco" {% if empresa[10] == 'Bradesco' %}selected{% endif %}>Bradesco</option>
-                            <option value="Itau" {% if empresa[10] == 'Itau' %}selected{% endif %}>Itaú</option>
-                            <option value="Caixa" {% if empresa[10] == 'Caixa' %}selected{% endif %}>Caixa Econômica</option>
-                            <option value="Nubank" {% if empresa[10] == 'Nubank' %}selected{% endif %}>Nubank</option>
-                            <option value="Inter" {% if empresa[10] == 'Inter' %}selected{% endif %}>Banco Inter</option>
-                            <option value="Sicredi" {% if empresa[10] == 'Sicredi' %}selected{% endif %}>Sicredi</option>
-                            <option value="Sicoob" {% if empresa[10] == 'Sicoob' %}selected{% endif %}>Sicoob</option>
+                            <option value="Santander" {% if empresa['banco_nome'] == 'Santander' %}selected{% endif %}>Santander</option>
+                            <option value="Banco do Brasil" {% if empresa['banco_nome'] == 'Banco do Brasil' %}selected{% endif %}>Banco do Brasil</option>
+                            <option value="Bradesco" {% if empresa['banco_nome'] == 'Bradesco' %}selected{% endif %}>Bradesco</option>
+                            <option value="Itau" {% if empresa['banco_nome'] == 'Itau' %}selected{% endif %}>Itaú</option>
+                            <option value="Caixa" {% if empresa['banco_nome'] == 'Caixa' %}selected{% endif %}>Caixa Econômica</option>
+                            <option value="Nubank" {% if empresa['banco_nome'] == 'Nubank' %}selected{% endif %}>Nubank</option>
+                            <option value="Inter" {% if empresa['banco_nome'] == 'Inter' %}selected{% endif %}>Banco Inter</option>
+                            <option value="Sicredi" {% if empresa['banco_nome'] == 'Sicredi' %}selected{% endif %}>Sicredi</option>
+                            <option value="Sicoob" {% if empresa['banco_nome'] == 'Sicoob' %}selected{% endif %}>Sicoob</option>
                         </select>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-bold">Agência</label>
-                        <input type="text" name="agencia" class="form-control" value="{{ empresa[11] }}" placeholder="0000">
+                        <input type="text" name="agencia" class="form-control" value="{{ empresa['agencia'] }}" placeholder="0000">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-bold">Conta Corrente</label>
-                        <input type="text" name="conta" class="form-control" value="{{ empresa[12] }}" placeholder="00000-0">
+                        <input type="text" name="conta" class="form-control" value="{{ empresa['conta'] }}" placeholder="00000-0">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fw-bold">Chave PIX</label>
-                        <input type="text" name="pix_chave" class="form-control" value="{{ empresa[13] }}" placeholder="CPF, CNPJ ou Email">
+                        <input type="text" name="pix_chave" class="form-control" value="{{ empresa['pix_chave'] }}" placeholder="CPF, CNPJ ou Email">
                     </div>
                 </div>
 

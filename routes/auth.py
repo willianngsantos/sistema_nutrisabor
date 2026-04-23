@@ -350,7 +350,7 @@ def configuracao_empresa():
         return redirect(url_for('home'))
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
 
     if request.method == "POST":
         dados = (

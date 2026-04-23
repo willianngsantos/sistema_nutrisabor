@@ -108,21 +108,21 @@ def salvar_itens(id_cardapio):
     observacoes = request.form.get("observacoes", "")
     
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
+    cursor = conn.cursor(dictionary=True)
+
     # Atualiza observações + registra quem editou e quando
     cursor.execute("""
         UPDATE cardapios
         SET observacoes = %s, editado_por = %s, editado_em = NOW()
         WHERE id = %s
     """, (observacoes, current_user.nome, id_cardapio))
-    
+
     # Atualiza cada dia
     cursor.execute("SELECT id FROM itens_cardapio WHERE id_cardapio = %s", (id_cardapio,))
     dias = cursor.fetchall()
-    
+
     for dia in dias:
-        dia_id = dia[0]
+        dia_id = dia['id']
         base = request.form.get(f"base_{dia_id}")
         p1 = request.form.get(f"p1_{dia_id}")
         p2 = request.form.get(f"p2_{dia_id}")

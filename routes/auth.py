@@ -262,7 +262,7 @@ def add_usuario():
     tipo = request.form["tipo"]
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         if senha_plana:
             senha_segura = generate_password_hash(senha_plana)
@@ -298,7 +298,7 @@ def editar_usuario():
     senha      = request.form.get("senha", "").strip()
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         if senha:
             senha_hash = generate_password_hash(senha)
@@ -330,7 +330,7 @@ def excluir_usuario(id_user):
         return redirect(url_for('auth.listar_usuarios'))
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("DELETE FROM usuarios WHERE id = %s", (id_user,))
         conn.commit()

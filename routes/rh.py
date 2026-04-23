@@ -221,7 +221,7 @@ def add_exame():
 @admin_required
 def editar_exame():
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         UPDATE rh_exames SET tipo=%s, data_realizado=%s, data_vencimento=%s,
                resultado=%s, clinica=%s, observacoes=%s WHERE id=%s
@@ -245,7 +245,7 @@ def editar_exame():
 @admin_required
 def excluir_exame(id_exame):
     conn = get_db_connection()
-    conn.cursor().execute("DELETE FROM rh_exames WHERE id = %s", (id_exame,))
+    conn.cursor(dictionary=True).execute("DELETE FROM rh_exames WHERE id = %s", (id_exame,))
     conn.commit()
     conn.close()
     flash("Exame removido.", "success")
@@ -298,7 +298,7 @@ def aplicar_reajuste():
         cursor.execute("SELECT id, salario_bruto FROM colaboradores WHERE status != 'inativo'")
     colaboradores = cursor.fetchall()
 
-    cursor2 = conn.cursor()
+    cursor2 = conn.cursor(dictionary=True)
     qtd = 0
     for col in colaboradores:
         sal = float(col['salario_bruto'] or 0)
@@ -351,7 +351,7 @@ def upload_documento():
         arquivo_path = f"uploads/rh_docs/{filename}"
 
     conn = get_db_connection()
-    conn.cursor().execute("""
+    conn.cursor(dictionary=True).execute("""
         INSERT INTO rh_documentos (nome, categoria, arquivo_path, validade, responsavel, observacoes, criado_por)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (
@@ -381,7 +381,7 @@ def excluir_documento(id_doc):
         full = os.path.join(current_app.root_path, 'static', doc['arquivo_path'])
         if os.path.exists(full):
             os.remove(full)
-    conn.cursor().execute("DELETE FROM rh_documentos WHERE id = %s", (id_doc,))
+    conn.cursor(dictionary=True).execute("DELETE FROM rh_documentos WHERE id = %s", (id_doc,))
     conn.commit()
     conn.close()
     flash("Documento removido.", "success")
@@ -410,7 +410,7 @@ def jornadas():
 def add_jornada():
     dias = ','.join(request.form.getlist('dias_semana'))
     conn = get_db_connection()
-    conn.cursor().execute("""
+    conn.cursor(dictionary=True).execute("""
         INSERT INTO rh_jornadas (nome, hora_entrada, hora_saida, intervalo_min, dias_semana)
         VALUES (%s, %s, %s, %s, %s)
     """, (
@@ -432,7 +432,7 @@ def add_jornada():
 def editar_jornada():
     dias = ','.join(request.form.getlist('dias_semana'))
     conn = get_db_connection()
-    conn.cursor().execute("""
+    conn.cursor(dictionary=True).execute("""
         UPDATE rh_jornadas
         SET nome=%s, hora_entrada=%s, hora_saida=%s, intervalo_min=%s, dias_semana=%s
         WHERE id=%s
@@ -455,7 +455,7 @@ def editar_jornada():
 @admin_required
 def excluir_jornada(id_jornada):
     conn = get_db_connection()
-    conn.cursor().execute("DELETE FROM rh_jornadas WHERE id = %s", (id_jornada,))
+    conn.cursor(dictionary=True).execute("DELETE FROM rh_jornadas WHERE id = %s", (id_jornada,))
     conn.commit()
     conn.close()
     flash("Jornada removida.", "success")
@@ -500,7 +500,7 @@ def add_ferias():
         dias = int(request.form.get('dias', 30))
 
     conn = get_db_connection()
-    conn.cursor().execute("""
+    conn.cursor(dictionary=True).execute("""
         INSERT INTO rh_ferias (id_colaborador, data_inicio, data_fim, dias, observacoes)
         VALUES (%s, %s, %s, %s, %s)
     """, (
@@ -522,7 +522,7 @@ def status_ferias(id_ferias, novo_status):
         flash("Status inválido.", "danger")
         return redirect(url_for('rh.ferias'))
     conn = get_db_connection()
-    conn.cursor().execute("UPDATE rh_ferias SET status=%s WHERE id=%s", (novo_status, id_ferias))
+    conn.cursor(dictionary=True).execute("UPDATE rh_ferias SET status=%s WHERE id=%s", (novo_status, id_ferias))
     conn.commit()
     conn.close()
     flash("Status atualizado.", "success")
@@ -534,7 +534,7 @@ def status_ferias(id_ferias, novo_status):
 @admin_required
 def excluir_ferias(id_ferias):
     conn = get_db_connection()
-    conn.cursor().execute("DELETE FROM rh_ferias WHERE id=%s", (id_ferias,))
+    conn.cursor(dictionary=True).execute("DELETE FROM rh_ferias WHERE id=%s", (id_ferias,))
     conn.commit()
     conn.close()
     flash("Registro de férias removido.", "success")
@@ -582,7 +582,7 @@ def registrar_ponto():
     ano = request.form.get('ano', date.today().year)
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     # Processa cada dia enviado no form
     for key, value in request.form.items():
         if key.startswith('tipo_'):

@@ -57,8 +57,8 @@ def novo_cardapio():
         data_fim = data_inicio + timedelta(days=(dias_qnt - 1))
         
         conn = get_db_connection()
-        cursor = conn.cursor()
-        
+        cursor = conn.cursor(dictionary=True)
+
         # Cria o Cardápio "Pai"
         cursor.execute("INSERT INTO cardapios (id_cliente, data_inicio, data_fim) VALUES (%s, %s, %s)", 
                        (id_cliente, data_inicio.strftime('%Y-%m-%d'), data_fim.strftime('%Y-%m-%d')))
@@ -174,7 +174,7 @@ def excluir_cardapio(id_cardapio):
         return redirect(url_for('cardapios.index'))
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("DELETE FROM itens_cardapio WHERE id_cardapio = %s", (id_cardapio,))
     cursor.execute("DELETE FROM cardapios WHERE id = %s", (id_cardapio,))
     conn.commit()

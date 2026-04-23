@@ -174,8 +174,8 @@ def salvar_pedido():
     codigo_fatura = gerar_codigo_quinzena(data_fim)
     
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
+    cursor = conn.cursor(dictionary=True)
+
     itens_para_salvar = []
     total_pedido = 0
 
@@ -220,7 +220,7 @@ def salvar_pedido():
 @login_required
 def mudar_status(id_pedido, novo_status):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("UPDATE pedidos SET status = %s WHERE id = %s", (novo_status, id_pedido))
     conn.commit()
     conn.close()
@@ -231,7 +231,7 @@ def mudar_status(id_pedido, novo_status):
 @login_required
 def excluir_pedido(id_pedido):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("DELETE FROM itens_pedido WHERE id_pedido = %s", (id_pedido,))
         cursor.execute("DELETE FROM pedidos WHERE id = %s", (id_pedido,))
@@ -250,7 +250,7 @@ def salvar_nf(id_pedido):
     numero_nf = request.form.get("numero_nf", "").strip()
     
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     cursor.execute("UPDATE pedidos SET numero_nf = %s WHERE id = %s", (numero_nf if numero_nf else None, id_pedido))
     conn.commit()
     conn.close()

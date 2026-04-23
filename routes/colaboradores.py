@@ -139,7 +139,7 @@ def add_colaborador():
         status = 'ativo'
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("""
             INSERT INTO colaboradores
@@ -183,7 +183,7 @@ def editar_colaborador():
         status = 'ativo'
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("""
             UPDATE colaboradores
@@ -222,7 +222,7 @@ def mudar_status(id_colab, novo_status):
     colab = cursor.fetchone()
 
     if colab:
-        cursor2 = conn.cursor()
+        cursor2 = conn.cursor(dictionary=True)
         cursor2.execute("UPDATE colaboradores SET status = %s WHERE id = %s", (novo_status, id_colab))
         conn.commit()
         labels = {'ativo': 'Ativo', 'afastado': 'Afastado', 'ferias': 'Férias', 'inativo': 'Inativo'}
@@ -475,7 +475,7 @@ def recibos_vt_lote():
 @admin_required
 def excluir_colaborador(id_colab):
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("DELETE FROM colaboradores WHERE id = %s", (id_colab,))
         conn.commit()

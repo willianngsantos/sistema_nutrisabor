@@ -424,7 +424,7 @@
 
                 <!-- Declaração -->
                 <div class="declaracao">
-                    Declaro ter recebido da empresa <strong>{{ empresa[1] if empresa else 'NutriSabor' }}</strong>
+                    Declaro ter recebido da empresa <strong>{{ empresa['razao_social'] if empresa else 'NutriSabor' }}</strong>
                     a importância acima descrita, referente ao período de <strong>{{ periodo }}</strong>,
                     conforme discriminado neste recibo.
                 </div>
@@ -444,7 +444,7 @@
                     <div class="assinatura-bloco">
                         <div class="assinatura-linha"></div>
                         <div class="assinatura-label">Responsável pela Empresa</div>
-                        <div class="assinatura-nome">{{ empresa[1] if empresa else 'NutriSabor' }}</div>
+                        <div class="assinatura-nome">{{ empresa['razao_social'] if empresa else 'NutriSabor' }}</div>
                     </div>
                 </div>
 
@@ -452,8 +452,8 @@
                 <div class="via-footer">
                     <div class="via-footer-empresa">
                         {% if empresa %}
-                            {{ empresa[1] }}
-                            {% if empresa[2] %} · CNPJ {{ empresa[2] | cpf_cnpj }}{% endif %}
+                            {{ empresa['razao_social'] }}
+                            {% if empresa['cnpj'] %} · CNPJ {{ empresa['cnpj'] | cpf_cnpj }}{% endif %}
                         {% endif %}
                         <br>Sistema NutriSabor · Documento gerado eletronicamente
                     </div>

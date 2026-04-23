@@ -282,9 +282,9 @@ def recibo_vt(id_colab):
         flash(f"{colab['nome']} não está configurado para receber Vale Transporte.", "warning")
         return redirect(url_for('colaboradores.listar'))
 
-    cursor_tuple = conn.cursor()
-    cursor_tuple.execute("SELECT * FROM empresa WHERE id = 1")
-    empresa = cursor_tuple.fetchone()
+    cursor2 = conn.cursor(dictionary=True)
+    cursor2.execute("SELECT * FROM empresa WHERE id = 1")
+    empresa = cursor2.fetchone()
     conn.close()
 
     periodo = f"{MESES_PT[mes - 1]}/{ano}"
@@ -337,9 +337,9 @@ def download_recibo_vt(id_colab):
         flash("Colaborador não encontrado ou não recebe VT.", "warning")
         return redirect(url_for('colaboradores.listar'))
 
-    cursor_tuple = conn.cursor()
-    cursor_tuple.execute("SELECT * FROM empresa WHERE id = 1")
-    empresa = cursor_tuple.fetchone()
+    cursor2 = conn.cursor(dictionary=True)
+    cursor2.execute("SELECT * FROM empresa WHERE id = 1")
+    empresa = cursor2.fetchone()
     conn.close()
 
     periodo = f"{MESES_PT[mes - 1]}/{ano}"
@@ -444,9 +444,9 @@ def recibos_vt_lote():
             grupos.append(grupo_atual)
         grupo_atual['colaboradores'].append(colab)
 
-    cursor_tuple = conn.cursor()
-    cursor_tuple.execute("SELECT * FROM empresa WHERE id = 1")
-    empresa = cursor_tuple.fetchone()
+    cursor2 = conn.cursor(dictionary=True)
+    cursor2.execute("SELECT * FROM empresa WHERE id = 1")
+    empresa = cursor2.fetchone()
     conn.close()
 
     periodo = f"{MESES_PT[mes - 1]}/{ano}"

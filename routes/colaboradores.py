@@ -85,7 +85,6 @@ def listar():
             col.id, col.nome, col.funcao, col.status,
             col.salario_bruto, col.vale_transporte,
             col.vale_refeicao, col.diversos,
-            DATE_FORMAT(col.data_admissao, '%%d/%%m/%%Y') AS data_admissao_fmt,
             col.data_admissao,
             GROUP_CONCAT(c.nome_empresa ORDER BY c.nome_empresa SEPARATOR '||') AS unidades_nomes,
             GROUP_CONCAT(c.id            ORDER BY c.id           SEPARATOR ',')  AS unidades_ids,
@@ -101,6 +100,8 @@ def listar():
     for c in colaboradores:
         c['unidades_lista']   = c['unidades_nomes'].split('||') if c['unidades_nomes'] else []
         c['unidades_ids_set'] = set(c['unidades_ids'].split(',')) if c['unidades_ids'] else set()
+        # Formata data em Python (evita bug com DATE_FORMAT + %% no mysql-connector)
+        c['data_admissao_fmt'] = c['data_admissao'].strftime('%d/%m/%Y') if c.get('data_admissao') else ''
 
     # Apenas clientes marcados como unidade de trabalho
     cursor.execute("""

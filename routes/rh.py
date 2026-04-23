@@ -46,6 +46,17 @@ def _allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def _fmt_date(d):
+    """Formata um objeto date/datetime como dd/mm/aaaa. Retorna '' se None."""
+    if not d:
+        return ''
+    try:
+        return d.strftime('%d/%m/%Y')
+    except AttributeError:
+        # Se já for string (raro), devolve como está
+        return str(d)
+
+
 # ══════════════════════════════════════════════════════════════════
 # HUB
 # ══════════════════════════════════════════════════════════════════
@@ -141,9 +152,7 @@ def exames():
 
     sql_exames = """
         SELECT e.*, col.nome AS nome_colaborador, col.funcao,
-               DATEDIFF(e.data_vencimento, CURDATE()) AS dias_vencimento,
-               DATE_FORMAT(e.data_realizado, '%%d/%%m/%%Y') AS data_realizado_fmt,
-               DATE_FORMAT(e.data_vencimento, '%%d/%%m/%%Y') AS data_vencimento_fmt
+               DATEDIFF(e.data_vencimento, CURDATE()) AS dias_vencimento
         FROM rh_exames e
         JOIN colaboradores col ON e.id_colaborador = col.id
         {where}
@@ -152,9 +161,12 @@ def exames():
     if filtro_colab:
         cursor.execute(sql_exames.format(where="WHERE e.id_colaborador = %s"), (filtro_colab,))
     else:
-        # Sempre passa tupla vazia para que Python converta %% → % antes de enviar ao MySQL
-        cursor.execute(sql_exames.format(where=""), ())
+        cursor.execute(sql_exames.format(where=""))
     lista_exames = cursor.fetchall()
+    # Formata datas em Python (evita bug de %%/%% com mysql-connector)
+    for ex in lista_exames:
+        ex['data_realizado_fmt']   = _fmt_date(ex.get('data_realizado'))
+        ex['data_vencimento_fmt']  = _fmt_date(ex.get('data_vencimento'))
 
     cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
     colaboradores = cursor.fetchall()
@@ -252,10 +264,12 @@ def reajuste():
     cursor.execute("SELECT id, nome, funcao, salario_bruto, status FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
     colaboradores = cursor.fetchall()
     cursor.execute("""
-        SELECT *, DATE_FORMAT(data_reajuste, '%%d/%%m/%%Y') AS data_fmt
+        SELECT *
         FROM rh_reajustes ORDER BY data_reajuste DESC LIMIT 15
     """)
     historico = cursor.fetchall()
+    for r in historico:
+        r['data_fmt'] = _fmt_date(r.get('data_reajuste'))
     conn.close()
     return render_template('rh_reajuste.html', colaboradores=colaboradores, historico=historico)
 
@@ -314,12 +328,13 @@ def documentos():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
-        SELECT *, DATEDIFF(validade, CURDATE()) AS dias_validade,
-               DATE_FORMAT(validade, '%%d/%%m/%%Y') AS validade_fmt,
-               DATE_FORMAT(criado_em, '%%d/%%m/%%Y') AS criado_fmt
+        SELECT *, DATEDIFF(validade, CURDATE()) AS dias_validade
         FROM rh_documentos ORDER BY categoria, nome
     """)
     docs = cursor.fetchall()
+    for d in docs:
+        d['validade_fmt'] = _fmt_date(d.get('validade'))
+        d['criado_fmt']   = _fmt_date(d.get('criado_em'))
     conn.close()
     return render_template('rh_documentos.html', documentos=docs, categorias=CATEGORIAS_DOC)
 
@@ -458,14 +473,15 @@ def ferias():
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT f.*, col.nome AS nome_colaborador, col.funcao,
-               DATE_FORMAT(f.data_inicio, '%%d/%%m/%%Y') AS inicio_fmt,
-               DATE_FORMAT(f.data_fim, '%%d/%%m/%%Y') AS fim_fmt,
                DATEDIFF(f.data_inicio, CURDATE()) AS dias_ate_inicio
         FROM rh_ferias f
         JOIN colaboradores col ON f.id_colaborador = col.id
         ORDER BY FIELD(f.status,'em_andamento','agendado','concluido','cancelado'), f.data_inicio DESC
     """)
     lista = cursor.fetchall()
+    for f in lista:
+        f['inicio_fmt'] = _fmt_date(f.get('data_inicio'))
+        f['fim_fmt']    = _fmt_date(f.get('data_fim'))
     cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
     colaboradores = cursor.fetchall()
     conn.close()

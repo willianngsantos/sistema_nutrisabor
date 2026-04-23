@@ -17,6 +17,7 @@
             {% endwith %}
 
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <h5 class="text-primary border-bottom pb-2 mb-3">Dados Gerais</h5>
                 <div class="row g-3">
                     <div class="col-md-6">

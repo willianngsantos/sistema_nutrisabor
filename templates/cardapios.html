@@ -200,6 +200,7 @@
             <div class="modal-footer border-0 justify-content-center gap-2">
                 <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancelar</button>
                 <form id="formExcluir" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold">
                         <i class="bi bi-trash3 me-1"></i> Excluir
                     </button>
@@ -218,6 +219,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="/cardapios/novo" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body bg-light p-4">
                     <div class="mb-3">
                         <label class="form-label text-secondary small fw-bold text-uppercase">Cliente / Contrato</label>

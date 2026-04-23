@@ -102,6 +102,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form action="/rh/documentos/upload" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-body bg-light p-4">
           <div class="mb-3">
             <label class="form-label small fw-bold text-uppercase text-secondary">Nome do Documento *</label>

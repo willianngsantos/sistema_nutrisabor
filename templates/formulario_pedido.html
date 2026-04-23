@@ -60,6 +60,7 @@
 </style>
 
 <form action="/salvar_pedido" method="POST" id="pedidoForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="id_cliente" value="{{ cliente['id'] }}">
     {% if pedido %}
         <input type="hidden" name="id_pedido" value="{{ pedido['id'] }}">

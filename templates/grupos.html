@@ -123,6 +123,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="/add_grupo" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body bg-light p-4">
                     <div class="mb-4">
                         <label class="form-label fw-bold text-secondary small text-uppercase">Nome do Grupo</label>
@@ -164,6 +165,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="/editar_grupo" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body bg-light p-4">
                     <input type="hidden" name="id_grupo" id="edit_id">
                     

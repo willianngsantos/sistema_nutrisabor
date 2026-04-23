@@ -63,7 +63,7 @@
 </div>
 
 <form action="/cardapios/salvar_itens/{{ cardapio['id'] }}" method="POST">
-    
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <ul class="nav nav-pills mb-4 flex-nowrap overflow-x-auto pb-2" id="diasTab" role="tablist" style="white-space: nowrap; -webkit-overflow-scrolling: touch;">
         {% for item in itens %}
         <li class="nav-item" role="presentation">

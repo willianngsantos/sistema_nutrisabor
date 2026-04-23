@@ -2,6 +2,7 @@ import os
 from flask import Flask, render_template, redirect, url_for, request, session
 from datetime import datetime, timedelta
 from flask_login import LoginManager, login_required, current_user
+from flask_wtf.csrf import CSRFProtect
 from dotenv import load_dotenv
 from database import get_db_connection
 from models import User
@@ -18,6 +19,9 @@ app = Flask(__name__)
 app.secret_key = os.environ['SECRET_KEY']
 
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30) # Expira em 30 minutos
+
+# --- CSRF PROTECTION ---
+csrf = CSRFProtect(app)
 
 # --- FILTROS ---
 @app.template_filter('real')

@@ -64,6 +64,7 @@
             <h3 class="fw-bold mb-1 text-white">Nova Fatura</h3> <p class="text-white-50 small mb-3">Selecione um cliente para iniciar o fechamento.</p>
             
             <form action="/abrir_pedido" method="POST" class="bg-white p-3 rounded-3 shadow-sm text-dark" id="formPedido">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label class="form-label fw-bold text-uppercase text-secondary small" style="font-size: 0.7rem;">Cliente / Empresa</label>
                 <div class="position-relative mb-2">
                     <div class="input-group">

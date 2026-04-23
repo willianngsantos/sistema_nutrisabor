@@ -348,6 +348,7 @@
             </div>
 
             <form action="/add_colaborador" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body px-4 py-3" style="background:#f8f9fa;">
                     <div class="row g-3">
 
@@ -499,6 +500,7 @@
             </div>
 
             <form action="/editar_colaborador" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body px-4 py-3" style="background:#f8f9fa;">
                     <input type="hidden" name="id_colaborador" id="edit_id">
                     <div class="row g-3">

@@ -65,6 +65,7 @@
         {% endwith %}
 
         <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label class="form-label text-secondary small fw-bold text-uppercase">Código de Verificação</label>
                 <input type="text" name="codigo" class="form-control bg-light border-0 shadow-sm codigo-input"

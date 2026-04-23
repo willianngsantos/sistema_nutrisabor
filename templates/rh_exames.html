@@ -115,6 +115,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form action="/rh/exames/add" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-body bg-light p-4">
           <div class="mb-3">
             <label class="form-label small fw-bold text-uppercase text-secondary">Colaborador</label>
@@ -184,6 +185,7 @@
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form action="/rh/exames/editar" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="id_exame" id="edit_exame_id">
         <div class="modal-body bg-light p-4">
           <div class="mb-3">

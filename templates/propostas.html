@@ -227,6 +227,7 @@
                             <li>
                                 <form method="post" action="{{ url_for('propostas.deletar', id_proposta=p.id) }}"
                                       onsubmit="return confirm('Excluir proposta {{ p.numero }}?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button class="dropdown-item small text-danger"><i class="bi bi-trash me-2"></i>Excluir</button>
                                 </form>
                             </li>
@@ -327,6 +328,7 @@
                             <form method="post"
                                   action="{{ url_for('propostas.deletar', id_proposta=p.id) }}"
                                   onsubmit="return confirm('Excluir proposta {{ p.numero }}?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button class="btn btn-sm btn-outline-danger" title="Excluir">
                                     <i class="bi bi-trash"></i>
                                 </button>
@@ -350,6 +352,7 @@
                                 <li>
                                     <form method="post" action="{{ url_for('propostas.deletar', id_proposta=p.id) }}"
                                           onsubmit="return confirm('Excluir proposta {{ p.numero }}?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button class="dropdown-item small text-danger"><i class="bi bi-trash me-2"></i>Excluir</button>
                                     </form>
                                 </li>
@@ -395,9 +398,14 @@ async function mudarStatus(sel) {
     const novoStatus  = sel.value;
     const form        = new FormData();
     form.append('status', novoStatus);
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
     try {
-        const resp = await fetch(`/propostas/status/${id}`, { method:'POST', body: form });
+        const resp = await fetch(`/propostas/status/${id}`, {
+            method:'POST',
+            body: form,
+            headers: { 'X-CSRFToken': csrfToken }
+        });
         const data = await resp.json();
         if (data.ok) {
             // Atualiza a cor do select sem recarregar
@@ -415,8 +423,13 @@ async function mudarStatus(sel) {
 async function mudarStatusDireto(id, novoStatus) {
     const form = new FormData();
     form.append('status', novoStatus);
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     try {
-        const resp = await fetch(`/propostas/status/${id}`, { method:'POST', body: form });
+        const resp = await fetch(`/propostas/status/${id}`, {
+            method:'POST',
+            body: form,
+            headers: { 'X-CSRFToken': csrfToken }
+        });
         const data = await resp.json();
         if (data.ok) {
             showToast('Status: ' + novoStatus, '#27ae60');

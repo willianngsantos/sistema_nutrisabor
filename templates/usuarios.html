@@ -27,6 +27,7 @@
             </div>
             <div class="card-body">
                 <form action="/add_usuario" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label class="form-label text-secondary small fw-bold text-uppercase">Nome Completo</label>
                         <input type="text" name="nome" class="form-control bg-light border-0 shadow-sm" required placeholder="Ex: João da Silva">
@@ -161,6 +162,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <form action="/editar_usuario" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body p-4">
                     <input type="hidden" name="id_usuario" id="edit_user_id">
                     <div class="mb-3">

@@ -20,6 +20,9 @@ rsync -avz --progress \
   --exclude '.git/' \
   "$LOCAL_PATH/" "$SERVER:$REMOTE_PATH/"
 
+echo "📦 Instalando/atualizando dependências Python..."
+ssh "$SERVER" "cd $REMOTE_PATH && source venv/bin/activate && pip install -r requirements.txt"
+
 echo "🔄 Rodando migrações pendentes..."
 ssh "$SERVER" "cd $REMOTE_PATH && source venv/bin/activate && python scripts/add_tokens_acesso.py 2>/dev/null || true && python scripts/add_feriado_cardapio.py 2>/dev/null || true && python scripts/add_editado_por_cardapio.py 2>/dev/null || true && python scripts/add_rh_tables.py 2>/dev/null || true && python scripts/add_ponto_almoco.py 2>/dev/null || true"
 

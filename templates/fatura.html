@@ -130,6 +130,11 @@
 
                     <div class="invoice-label">Emissão</div>
                     <div class="text-dark fw-bold mb-3 small">{{ pedido['emissao'] }}</div>
+
+                    {% if status_pedido == 'Pago' and pedido['pagamento'] %}
+                        <div class="invoice-label text-success"><i class="bi bi-check2-circle"></i> Pago em</div>
+                        <div class="text-success fw-bold mb-3 small">{{ pedido['pagamento'] }}</div>
+                    {% endif %}
                 </div>
 
             <div class="client-box">

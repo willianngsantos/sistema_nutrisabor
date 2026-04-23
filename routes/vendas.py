@@ -221,7 +221,18 @@ def salvar_pedido():
 def mudar_status(id_pedido, novo_status):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("UPDATE pedidos SET status = %s WHERE id = %s", (novo_status, id_pedido))
+    # data_pagamento: auto-preenche com CURDATE() ao marcar Pago;
+    # limpa (NULL) ao sair de Pago para qualquer outro status.
+    if novo_status == 'Pago':
+        cursor.execute(
+            "UPDATE pedidos SET status = %s, data_pagamento = CURDATE() WHERE id = %s",
+            (novo_status, id_pedido)
+        )
+    else:
+        cursor.execute(
+            "UPDATE pedidos SET status = %s, data_pagamento = NULL WHERE id = %s",
+            (novo_status, id_pedido)
+        )
     conn.commit()
     conn.close()
     flash(f"Status da fatura #{id_pedido} atualizado!", "success")
@@ -274,6 +285,7 @@ def baixar_pdf(id_pedido):
     cursor.execute("""
         SELECT id, id_cliente, DATE_FORMAT(data_emissao, '%d/%m/%Y') as emissao,
                DATE_FORMAT(data_inicio, '%d/%m/%Y') as inicio, DATE_FORMAT(data_fim, '%d/%m/%Y') as fim,
+               DATE_FORMAT(data_pagamento, '%d/%m/%Y') as pagamento,
                codigo_fatura, status, numero_nf
         FROM pedidos WHERE id = %s""", (id_pedido,))
     pedido = cursor.fetchone()
@@ -329,6 +341,7 @@ def ver_fatura(id_pedido):
     cursor.execute("""
         SELECT id, id_cliente, DATE_FORMAT(data_emissao, '%d/%m/%Y') as emissao,
                DATE_FORMAT(data_inicio, '%d/%m/%Y') as inicio, DATE_FORMAT(data_fim, '%d/%m/%Y') as fim,
+               DATE_FORMAT(data_pagamento, '%d/%m/%Y') as pagamento,
                codigo_fatura, status, numero_nf
         FROM pedidos WHERE id = %s
     """, (id_pedido,))

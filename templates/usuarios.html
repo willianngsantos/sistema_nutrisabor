@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<div class="row align-items-center mb-4 mt-3">
+    <div class="col-md-12">
+        <h3 class="fw-bold text-dark mb-0"><i class="bi bi-shield-lock me-2 text-primary"></i>Gerenciar Equipe</h3>
+        <p class="text-muted small mb-0">Adicione e gerencie os acessos ao sistema NutriSabor.</p>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'message' else 'info' }} shadow-sm border-0 border-start border-4 border-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row g-4">
+    <div class="col-12 col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="fw-bold text-dark mb-0"><i class="bi bi-person-plus-fill me-2 text-success"></i>Novo Usuário</h5>
+            </div>
+            <div class="card-body">
+                <form action="/add_usuario" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Nome Completo</label>
+                        <input type="text" name="nome" class="form-control bg-light border-0 shadow-sm" required placeholder="Ex: João da Silva">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Email de Acesso</label>
+                        <input type="email" name="email" class="form-control bg-light border-0 shadow-sm" required placeholder="joao@nutrisabor.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Permissão</label>
+                        <select name="tipo" class="form-select bg-light border-0 shadow-sm" required>
+                            <option value="vendedor">Vendedor (Operacional)</option>
+                            <option value="gerencial">Gerencial (Sem Equipe)</option>
+                            <option value="admin">Administrador (Acesso Total)</option>
+                            <option value="nutricionista">Nutricionista (Apenas Cardápios)</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Senha Inicial</label>
+                        <input type="password" name="senha" class="form-control bg-light border-0 shadow-sm" placeholder="Deixe em branco → usuário define no 1º acesso">
+                        <div class="form-text small text-muted">
+                            <i class="bi bi-info-circle me-1"></i>Se não preenchida, o usuário define a senha pelo link <strong>Primeiro Acesso</strong> na tela de login.
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success fw-bold shadow-sm">Cadastrar Usuário</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="fw-bold text-dark mb-0">Usuários Ativos</h5>
+            </div>
+            <div class="card-body p-0 mt-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">
+                            <tr>
+                                <th class="ps-4 border-0">Usuário</th>
+                                <th class="border-0 d-none d-md-table-cell">Permissão</th>
+                                <th class="text-end pe-4 border-0">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in usuarios %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-primary text-white rounded-circle d-none d-md-flex align-items-center justify-content-center fw-bold me-3 shadow-sm" style="width: 35px; height: 35px; font-size: 0.9rem;">
+                                            {{ user['nome'][0]|upper }}
+                                        </div>
+                                        <div>
+                                            <strong class="text-dark d-block">{{ user['nome'] }}</strong>
+                                            <small class="text-muted">{{ user['email'] }}</small>
+                                            {% if not user['senha_hash'] %}
+                                                <small class="text-warning d-block"><i class="bi bi-exclamation-triangle-fill me-1"></i>Aguardando 1º acesso</small>
+                                            {% endif %}
+                                            <!-- Permissão inline no mobile -->
+                                            <div class="d-md-none mt-1">
+                                                {% if user['tipo'] == 'admin' %}
+                                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size:.68rem;"><i class="bi bi-star-fill me-1"></i>Admin</span>
+                                                {% elif user['tipo'] == 'nutricionista' %}
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.68rem;"><i class="bi bi-clipboard2-pulse me-1"></i>Nutricionista</span>
+                                                {% elif user['tipo'] == 'gerencial' %}
+                                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle" style="font-size:.68rem;"><i class="bi bi-briefcase me-1"></i>Gerencial</span>
+                                                {% else %}
+                                                    <span class="badge bg-info-subtle text-dark border border-info-subtle" style="font-size:.68rem;"><i class="bi bi-person-badge me-1"></i>Vendedor</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    {% if user['tipo'] == 'admin' %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-star-fill me-1"></i> Admin</span>
+                                    {% elif user['tipo'] == 'nutricionista' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-clipboard2-pulse me-1"></i> Nutricionista</span>
+                                    {% elif user['tipo'] == 'gerencial' %}
+                                        <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="bi bi-briefcase me-1"></i> Gerencial</span>
+                                    {% else %}
+                                        <span class="badge bg-info-subtle text-dark border border-info-subtle"><i class="bi bi-person-badge me-1"></i> Vendedor</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-light text-primary border me-1"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalEditarUsuario"
+                                            data-id="{{ user['id'] }}"
+                                            data-nome="{{ user['nome'] }}"
+                                            data-email="{{ user['email'] }}"
+                                            data-tipo="{{ user['tipo'] }}"
+                                            title="Editar Usuário">
+                                        <i class="bi bi-pencil-fill"></i>
+                                    </button>
+                                    {% if user['id'] != current_user.id %}
+                                        <a href="/excluir_usuario/{{ user['id'] }}"
+                                           class="btn btn-sm btn-light text-danger border"
+                                           onclick="return confirm('Tem certeza que deseja excluir o usuário {{ user['nome'] }}?')"
+                                           title="Excluir Usuário">
+                                            <i class="bi bi-trash-fill"></i>
+                                        </a>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border">Você</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-5">
+                                    <div class="text-muted mb-3"><i class="bi bi-people fs-1 opacity-25"></i></div>
+                                    <h6 class="text-secondary fw-normal">Nenhum usuário cadastrado.</h6>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Modal Editar Usuário -->
+<div class="modal fade" id="modalEditarUsuario" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Editar Usuário</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/editar_usuario" method="POST">
+                <div class="modal-body p-4">
+                    <input type="hidden" name="id_usuario" id="edit_user_id">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Nome Completo</label>
+                        <input type="text" name="nome" id="edit_user_nome" class="form-control bg-light border-0 shadow-sm" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Email de Acesso</label>
+                        <input type="email" name="email" id="edit_user_email" class="form-control bg-light border-0 shadow-sm" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Permissão</label>
+                        <select name="tipo" id="edit_user_tipo" class="form-select bg-light border-0 shadow-sm" required>
+                            <option value="vendedor">Vendedor (Operacional)</option>
+                            <option value="gerencial">Gerencial (Sem Equipe)</option>
+                            <option value="admin">Administrador (Acesso Total)</option>
+                            <option value="nutricionista">Nutricionista (Apenas Cardápios)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Nova Senha</label>
+                        <input type="password" name="senha" class="form-control bg-light border-0 shadow-sm" placeholder="Deixe em branco para manter a atual">
+                        <div class="form-text small">Só preencha se quiser alterar a senha.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    var modalEditarUsuario = document.getElementById('modalEditarUsuario');
+    modalEditarUsuario.addEventListener('show.bs.modal', function(event) {
+        var btn = event.relatedTarget;
+        document.getElementById('edit_user_id').value    = btn.getAttribute('data-id');
+        document.getElementById('edit_user_nome').value  = btn.getAttribute('data-nome');
+        document.getElementById('edit_user_email').value = btn.getAttribute('data-email');
+        document.getElementById('edit_user_tipo').value  = btn.getAttribute('data-tipo');
+    });
+</script>
+{% endblock %}

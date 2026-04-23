@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% from "_rh_nav.html" import rh_nav %}
+{% block conteudo %}
+{{ rh_nav('ferias') }}
+
+<div class="row align-items-center mb-4 g-2">
+  <div class="col"><h4 class="fw-bold mb-0"><i class="bi bi-calendar-heart me-2 text-success"></i>Controle de Férias</h4></div>
+  <div class="col-auto">
+    <button class="btn btn-success rounded-pill btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#modalAddFerias">
+      <i class="bi bi-plus-lg me-1"></i> Agendar Férias
+    </button>
+  </div>
+</div>
+
+{% set status_cfg = {
+  'em_andamento': ('primary','Em Andamento'),
+  'agendado': ('warning text-dark','Agendado'),
+  'concluido': ('success','Concluído'),
+  'cancelado': ('secondary','Cancelado')
+} %}
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="bg-light text-secondary small text-uppercase" style="font-weight:600;">
+        <tr>
+          <th class="ps-4 border-0">Colaborador</th>
+          <th class="border-0">Período</th>
+          <th class="border-0 d-none d-md-table-cell">Dias</th>
+          <th class="border-0">Status</th>
+          <th class="border-0 text-end pe-4">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in ferias %}
+        {% set cfg = status_cfg.get(f['status'], ('secondary','—')) %}
+        <tr>
+          <td class="ps-4">
+            <div class="fw-semibold small">{{ f['nome_colaborador'] }}</div>
+            <div class="text-muted" style="font-size:.75rem;">{{ f['funcao'] or '—' }}</div>
+          </td>
+          <td>
+            <span class="small fw-semibold">{{ f['inicio_fmt'] }}</span>
+            <span class="text-muted small"> → </span>
+            <span class="small fw-semibold">{{ f['fim_fmt'] }}</span>
+            {% if f['status'] == 'agendado' and f['dias_ate_inicio'] is not none and f['dias_ate_inicio'] > 0 %}
+            <div style="font-size:.7rem;" class="text-muted">em {{ f['dias_ate_inicio'] }} dia(s)</div>
+            {% endif %}
+          </td>
+          <td class="d-none d-md-table-cell">
+            <span class="badge bg-light text-dark border">{{ f['dias'] }} dias</span>
+          </td>
+          <td>
+            <span class="badge bg-{{ cfg[0] }}">{{ cfg[1] }}</span>
+          </td>
+          <td class="text-end pe-4">
+            <div class="d-flex gap-1 justify-content-end">
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle fw-bold" type="button" data-bs-toggle="dropdown">
+                  Status
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                  <li><a class="dropdown-item small" href="/rh/ferias/status/{{ f['id'] }}/agendado"><i class="bi bi-calendar-check me-2 text-warning"></i>Agendado</a></li>
+                  <li><a class="dropdown-item small" href="/rh/ferias/status/{{ f['id'] }}/em_andamento"><i class="bi bi-person-walking me-2 text-primary"></i>Em Andamento</a></li>
+                  <li><a class="dropdown-item small" href="/rh/ferias/status/{{ f['id'] }}/concluido"><i class="bi bi-check-circle me-2 text-success"></i>Concluído</a></li>
+                  <li><a class="dropdown-item small" href="/rh/ferias/status/{{ f['id'] }}/cancelado"><i class="bi bi-x-circle me-2 text-secondary"></i>Cancelado</a></li>
+                </ul>
+              </div>
+              <a href="/rh/ferias/excluir/{{ f['id'] }}" class="btn btn-sm btn-outline-danger"
+                 onclick="return confirm('Remover este registro de férias?')">
+                <i class="bi bi-trash3"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center py-5 text-muted">
+          <i class="bi bi-calendar-heart fs-1 opacity-25 d-block mb-2"></i>Nenhum registro de férias.
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalAddFerias" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-success text-white border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2"></i>Agendar Férias</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/rh/ferias/add" method="POST">
+        <div class="modal-body bg-light p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Colaborador</label>
+            <select name="id_colaborador" class="form-select border-0 shadow-sm" required>
+              <option value="">Selecione...</option>
+              {% for c in colaboradores %}
+              <option value="{{ c['id'] }}">{{ c['nome'] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Início</label>
+              <input type="date" name="data_inicio" id="ferias_inicio" class="form-control border-0 shadow-sm" required onchange="calcDias()">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Fim</label>
+              <input type="date" name="data_fim" id="ferias_fim" class="form-control border-0 shadow-sm" required onchange="calcDias()">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Total de Dias</label>
+            <input type="number" name="dias" id="ferias_dias" class="form-control border-0 shadow-sm bg-white" value="30" readonly>
+          </div>
+          <div class="mb-1">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Observações</label>
+            <textarea name="observacoes" class="form-control border-0 shadow-sm" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">Agendar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function calcDias() {
+  const inicio = document.getElementById('ferias_inicio').value;
+  const fim = document.getElementById('ferias_fim').value;
+  if (inicio && fim) {
+    const diff = Math.round((new Date(fim) - new Date(inicio)) / 86400000) + 1;
+    document.getElementById('ferias_dias').value = diff > 0 ? diff : '';
+  }
+}
+</script>
+{% endblock %}

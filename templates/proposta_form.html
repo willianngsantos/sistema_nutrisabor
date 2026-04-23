@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+/* ── Layout geral ──────────────────────────────────────────── */
+.form-header {
+    background: linear-gradient(135deg, #1a2942 0%, #2c3e50 60%, #1a3a2a 100%);
+    border-radius: 16px; padding: 24px 32px; margin-bottom: 28px;
+    position: relative; overflow: hidden;
+}
+.form-header::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, #27ae60 0%, #2c3e50 50%, #e67e22 100%);
+}
+.form-header h2 { color: #fff; font-weight: 700; margin: 0; font-size: 1.4rem; }
+.form-header p  { color: rgba(255,255,255,.55); margin: 4px 0 0; font-size: .88rem; }
+
+/* ── Seções do formulário ──────────────────────────────────── */
+.section-card {
+    background: #fff; border-radius: 14px;
+    border: 1px solid #e9ecef;
+    margin-bottom: 20px; overflow: hidden;
+}
+.section-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 22px; border-bottom: 1px solid #f1f5f9;
+    background: #fafbfc;
+}
+.section-icon {
+    width: 34px; height: 34px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+}
+.section-title { font-weight: 700; font-size: .95rem; color: #1e293b; }
+.section-body  { padding: 22px; }
+
+/* ── Tabela de itens ───────────────────────────────────────── */
+.items-table { width: 100%; border-collapse: collapse; }
+.items-table th {
+    font-size: .72rem; font-weight: 700; text-transform: uppercase;
+    color: #64748b; padding: 8px 10px; border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+.items-table td { padding: 6px 6px; vertical-align: middle; }
+.item-row { background: #fff; transition: .15s; }
+.item-row:hover { background: #f8fafc; }
+
+.item-row input,
+.item-row select {
+    font-size: .88rem; padding: 7px 10px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+    width: 100%; transition: .15s;
+}
+.item-row input:focus,
+.item-row select:focus {
+    border-color: #27ae60; box-shadow: 0 0 0 3px rgba(39,174,96,.1);
+    outline: none;
+}
+.item-row .subtotal {
+    font-size: .88rem; font-weight: 700; color: #e67e22;
+    min-width: 90px; text-align: right; padding-right: 4px;
+}
+.btn-remove-item {
+    background: none; border: none; color: #94a3b8;
+    padding: 4px; border-radius: 6px; cursor: pointer;
+    transition: .15s;
+}
+.btn-remove-item:hover { color: #dc3545; background: #fee2e2; }
+
+/* ── Total ─────────────────────────────────────────────────── */
+.total-row {
+    display: flex; justify-content: flex-end; align-items: center;
+    gap: 16px; padding: 16px 8px 0;
+    border-top: 2px solid #e2e8f0; margin-top: 10px;
+}
+.total-label { font-size: .88rem; color: #64748b; font-weight: 600; }
+.total-value { font-size: 1.5rem; font-weight: 800; color: #e67e22; }
+
+/* ── Label input ──────────────────────────────────────────── */
+.form-label { font-size: .82rem; font-weight: 600; color: #374151; margin-bottom: 5px; }
+.form-control, .form-select {
+    border: 1px solid #e2e8f0; border-radius: 10px;
+    font-size: .9rem; padding: 9px 14px;
+    transition: .15s;
+}
+.form-control:focus, .form-select:focus {
+    border-color: #27ae60; box-shadow: 0 0 0 3px rgba(39,174,96,.12);
+}
+</style>
+
+<!-- ── Header ──────────────────────────────────────────────────── -->
+<div class="form-header d-flex align-items-center gap-3">
+    <a href="{{ url_for('propostas.listar') }}"
+       class="btn btn-sm btn-outline-light rounded-circle me-1">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <div>
+        <h2>
+            {% if proposta %}
+                <i class="bi bi-pencil-square me-2"></i>Editar Proposta
+                <span class="badge bg-success ms-2" style="font-size:.7rem;">{{ proposta.numero }}</span>
+            {% else %}
+                <i class="bi bi-file-earmark-plus me-2"></i>Nova Proposta
+            {% endif %}
+        </h2>
+        <p>Preencha os dados e adicione os itens da proposta</p>
+    </div>
+</div>
+
+<form method="post" id="formProposta">
+
+<div class="row g-4">
+    <!-- ── Coluna principal ───────────────────────────────────── -->
+    <div class="col-lg-8">
+
+        <!-- Dados gerais -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-card-text"></i>
+                </div>
+                <span class="section-title">Dados da Proposta</span>
+            </div>
+            <div class="section-body">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <label class="form-label">Cliente *</label>
+                        <select name="id_cliente" class="form-select" required>
+                            <option value="">Selecione o cliente...</option>
+                            {% for c in clientes %}
+                            <option value="{{ c.id }}"
+                                {% if proposta and proposta.id_cliente == c.id %}selected{% endif %}>
+                                {{ c.nome_empresa }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Data da Proposta *</label>
+                        <input type="date" name="data_proposta" class="form-control" required
+                               value="{{ proposta.data_proposta.isoformat() if proposta and proposta.data_proposta else hoje }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Válido até</label>
+                        <input type="date" name="validade" class="form-control"
+                               value="{{ proposta.validade.isoformat() if proposta and proposta.validade else '' }}">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">Condições de Pagamento</label>
+                        <input type="text" name="condicoes_pagamento" class="form-control"
+                               placeholder="Ex: 50% no ato, 50% na entrega"
+                               value="{{ proposta.condicoes_pagamento or '' if proposta else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Itens -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-list-check"></i>
+                </div>
+                <span class="section-title">Itens / Serviços</span>
+                <button type="button" class="btn btn-sm btn-success rounded-pill ms-auto px-3"
+                        onclick="adicionarItem()">
+                    <i class="bi bi-plus-lg me-1"></i>Adicionar Item
+                </button>
+            </div>
+            <div class="section-body p-0">
+                <div class="table-responsive px-3 pt-3">
+                    <table class="items-table" id="tabelaItens">
+                        <thead>
+                            <tr>
+                                <th style="width:40%">Descrição</th>
+                                <th style="width:10%">Qtd</th>
+                                <th style="width:15%">Unidade</th>
+                                <th style="width:16%">Valor Unit.</th>
+                                <th style="width:14%">Subtotal</th>
+                                <th style="width:5%"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="corpoItens">
+                            <!-- preenchido por JS ou Jinja -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Totais -->
+                <div class="total-row px-3 pb-4">
+                    <span class="total-label">TOTAL DA PROPOSTA</span>
+                    <span class="total-value" id="totalGeral">R$ 0,00</span>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /col-lg-8 -->
+
+    <!-- ── Coluna lateral ─────────────────────────────────────── -->
+    <div class="col-lg-4">
+
+        <!-- Observações -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon bg-warning bg-opacity-10 text-warning">
+                    <i class="bi bi-chat-left-text"></i>
+                </div>
+                <span class="section-title">Observações / Escopo</span>
+            </div>
+            <div class="section-body">
+                <textarea name="observacoes" class="form-control" rows="6"
+                          placeholder="Descreva o que está incluído, exclusões, detalhes do escopo...">{{ proposta.observacoes or '' if proposta else '' }}</textarea>
+            </div>
+        </div>
+
+        {% if proposta %}
+        <!-- Status (somente no edit) -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon bg-info bg-opacity-10 text-info">
+                    <i class="bi bi-flag"></i>
+                </div>
+                <span class="section-title">Status da Proposta</span>
+            </div>
+            <div class="section-body">
+                <select name="status" class="form-select">
+                    {% for s in ['Rascunho','Enviada','Aceita','Recusada','Expirada'] %}
+                    <option value="{{ s }}"
+                        {% if proposta.status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Ações -->
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success btn-lg rounded-pill fw-bold">
+                <i class="bi bi-check-lg me-2"></i>
+                {{ 'Salvar Alterações' if proposta else 'Criar Proposta' }}
+            </button>
+            <a href="{{ url_for('propostas.listar') }}"
+               class="btn btn-outline-secondary rounded-pill">
+                <i class="bi bi-x me-1"></i>Cancelar
+            </a>
+        </div>
+
+    </div><!-- /col-lg-4 -->
+</div><!-- /row -->
+</form>
+
+<!-- ── Template de linha de item (hidden) ──────────────────── -->
+<template id="templateItem">
+    <tr class="item-row">
+        <td><input type="text"   name="descricao[]"      placeholder="Descrição do item ou serviço..." required></td>
+        <td><input type="number" name="quantidade[]"      value="1" min="0.01" step="0.01" oninput="calcSubtotal(this)"></td>
+        <td>
+            <select name="unidade[]">
+                {% for v, l in unidades %}
+                <option value="{{ v }}">{{ v }} — {{ l }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td><input type="number" name="valor_unitario[]"  value="0" min="0" step="0.01" oninput="calcSubtotal(this)"></td>
+        <td><span class="subtotal">R$ 0,00</span></td>
+        <td>
+            <button type="button" class="btn-remove-item" onclick="removerItem(this)" title="Remover">
+                <i class="bi bi-trash3"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<script>
+// ── Inicialização ───────────────────────────────────────────────────────────
+const unidades = {{ unidades | tojson }};
+
+{% if proposta and itens %}
+// Edição: preenche os itens existentes
+window.addEventListener('DOMContentLoaded', () => {
+    const itensExistentes = {{ itens | tojson }};
+    itensExistentes.forEach(item => adicionarItem(item));
+    atualizarTotal();
+});
+{% else %}
+// Nova proposta: começa com 1 linha em branco
+window.addEventListener('DOMContentLoaded', () => adicionarItem());
+{% endif %}
+
+// ── Adicionar linha ─────────────────────────────────────────────────────────
+function adicionarItem(dados) {
+    const corpo = document.getElementById('corpoItens');
+    const tmpl  = document.getElementById('templateItem').content.cloneNode(true);
+    const tr    = tmpl.querySelector('tr');
+
+    if (dados) {
+        tr.querySelector('[name="descricao[]"]').value       = dados.descricao      || '';
+        tr.querySelector('[name="quantidade[]"]').value      = dados.quantidade     || 1;
+        tr.querySelector('[name="valor_unitario[]"]').value  = dados.valor_unitario || 0;
+        // Seleciona unidade correta
+        const sel = tr.querySelector('[name="unidade[]"]');
+        [...sel.options].forEach(o => { if (o.value === dados.unidade) o.selected = true; });
+        atualizarSubtotalRow(tr);
+    }
+
+    corpo.appendChild(tr);
+    atualizarTotal();
+}
+
+// ── Remover linha ───────────────────────────────────────────────────────────
+function removerItem(btn) {
+    const tr = btn.closest('tr');
+    if (document.querySelectorAll('#corpoItens tr').length <= 1) {
+        alert('A proposta deve ter pelo menos 1 item.');
+        return;
+    }
+    tr.remove();
+    atualizarTotal();
+}
+
+// ── Calcular subtotal da linha ──────────────────────────────────────────────
+function calcSubtotal(input) {
+    atualizarSubtotalRow(input.closest('tr'));
+    atualizarTotal();
+}
+
+function atualizarSubtotalRow(tr) {
+    const qtd   = parseFloat(tr.querySelector('[name="quantidade[]"]').value)      || 0;
+    const vunit = parseFloat(tr.querySelector('[name="valor_unitario[]"]').value)  || 0;
+    const sub   = qtd * vunit;
+    tr.querySelector('.subtotal').textContent = formatBRL(sub);
+    tr.dataset.subtotal = sub;
+}
+
+// ── Total geral ─────────────────────────────────────────────────────────────
+function atualizarTotal() {
+    let total = 0;
+    document.querySelectorAll('#corpoItens tr').forEach(tr => {
+        const qtd   = parseFloat(tr.querySelector('[name="quantidade[]"]')?.value)     || 0;
+        const vunit = parseFloat(tr.querySelector('[name="valor_unitario[]"]')?.value) || 0;
+        total += qtd * vunit;
+    });
+    document.getElementById('totalGeral').textContent = formatBRL(total);
+}
+
+// ── Formatação BRL ──────────────────────────────────────────────────────────
+function formatBRL(v) {
+    return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+</script>
+
+{% endblock %}

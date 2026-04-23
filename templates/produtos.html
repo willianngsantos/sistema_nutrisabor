@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    /* Estilos exclusivos para esta página */
+    .table-products {
+        border-collapse: separate;
+        border-spacing: 0 8px; /* Espaço entre as linhas */
+    }
+    
+    .table-products tbody tr {
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        transition: all 0.2s ease;
+    }
+
+    .table-products tbody tr:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-left: 3px solid #e67e22; /* Laranja da marca */
+    }
+
+    .table-products td {
+        border: none;
+        padding: 15px 20px;
+        vertical-align: middle;
+    }
+
+    .table-products td:first-child {
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+    }
+
+    .table-products td:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
+    }
+
+    .badge-unit {
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+        font-weight: 600;
+        padding: 6px 12px;
+        border-radius: 6px;
+    }
+
+    .price-tag {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        color: #2c3e50; /* Azul escuro da marca */
+        background-color: #f8f9fa;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.95rem;
+    }
+</style>
+
+<div class="row align-items-center mb-4 mt-3 g-2">
+    <div class="col-12 col-md-5">
+        <h3 class="fw-bold text-dark mb-0"><i class="bi bi-box-seam me-2 text-primary"></i>Catálogo de Produtos</h3>
+        <p class="text-muted small mb-0">Gerencie os itens disponíveis para venda.</p>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="position-relative">
+            <i class="bi bi-search position-absolute top-50 translate-middle-y ms-3 text-muted"></i>
+            <input type="text" id="buscaProduto" class="form-control border-0 shadow-sm ps-5 py-2 rounded-pill" placeholder="Buscar produto por nome..." autocomplete="off">
+        </div>
+    </div>
+
+    <div class="col-12 col-md-3 text-end">
+        <button class="btn btn-primary shadow-sm px-4 py-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalAddProduto">
+            <i class="bi bi-plus-lg me-1"></i> Novo Produto
+        </button>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'message' else 'info' }} shadow-sm border-0 border-start border-4 border-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="table-responsive">
+    <table class="table table-products mb-0" id="tabelaProdutos">
+        <thead class="text-secondary small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">
+            <tr>
+                <th class="ps-4 border-0">Produto</th>
+                <th class="text-center border-0 d-none d-md-table-cell">Unidade</th>
+                <th class="text-center border-0 d-none d-md-table-cell">Custo Base</th>
+                <th class="text-end pe-4 border-0">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for prod in produtos %}
+            <tr class="linha-produto">
+                <td class="ps-4">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-light rounded p-2 me-3 text-secondary">
+                            <i class="bi bi-box fs-4"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark nome-produto" style="font-size: 1rem;">{{ prod[1] }}</div>
+                            <small class="text-muted">ID: #{{ prod[0] }}</small>
+                            <div class="d-md-none text-muted mt-1" style="font-size:.72rem;">
+                                <span class="badge-unit" style="font-size:.68rem;padding:2px 7px;">{{ prod[2] }}</span>
+                                &nbsp;·&nbsp; R$ {{ "{:,.2f}".format(prod[3]).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="text-center d-none d-md-table-cell">
+                    <span class="badge-unit">{{ prod[2] }}</span>
+                </td>
+                <td class="text-center d-none d-md-table-cell">
+                    <span class="price-tag">R$ {{ "{:,.2f}".format(prod[3]).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
+                </td>
+                <td class="text-end pe-4">
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-light text-primary border me-1" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalEditarProduto"
+                                data-id="{{ prod[0] }}"
+                                data-nome="{{ prod[1] }}"
+                                data-unidade="{{ prod[2] }}"
+                                data-custo="{{ prod[3] }}"
+                                title="Editar">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                        
+                        <a href="/excluir_produto/{{ prod[0] }}" 
+                           class="btn btn-sm btn-light text-danger border" 
+                           onclick="return confirm('Tem certeza que deseja excluir {{ prod[1] }}?')"
+                           title="Excluir">
+                            <i class="bi bi-trash-fill"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center py-5">
+                    <div class="text-muted mb-3"><i class="bi bi-inbox fs-1 opacity-25"></i></div>
+                    <h6 class="text-secondary fw-normal">Nenhum produto cadastrado ainda.</h6>
+                    <button class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#modalAddProduto">
+                        Cadastrar Primeiro Produto
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="modalAddProduto" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-box-seam me-2"></i>Novo Produto</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/add_produto" method="POST">
+                <div class="modal-body bg-light p-4">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Nome do Produto</label>
+                        <input type="text" name="nome" class="form-control form-control-lg border-0 shadow-sm" placeholder="Ex: Café Premium" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">Unidade</label>
+                            <select name="unidade" class="form-select border-0 shadow-sm h-100">
+                                <option value="UN">Unidade (UN)</option>
+                                <option value="KG">Quilo (KG)</option>
+                                <option value="LT">Litro (LT)</option>
+                                <option value="PC">Porção (PC)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">Custo Base (R$)</label>
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text border-0 bg-white text-muted">R$</span>
+                                <input type="number" step="0.01" name="custo" class="form-control border-0" placeholder="0,00">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">Salvar Produto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditarProduto" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Editar Produto</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/editar_produto" method="POST">
+                <div class="modal-body bg-light p-4">
+                    <input type="hidden" name="id_produto" id="edit_id">
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Nome do Produto</label>
+                        <input type="text" name="nome" id="edit_nome" class="form-control form-control-lg border-0 shadow-sm" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">Unidade</label>
+                            <select name="unidade" id="edit_unidade" class="form-select border-0 shadow-sm h-100">
+                                <option value="UN">Unidade (UN)</option>
+                                <option value="KG">Quilo (KG)</option>
+                                <option value="LT">Litro (LT)</option>
+                                <option value="PC">Porção (PC)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">Custo Base (R$)</label>
+                            <div class="input-group shadow-sm">
+                                <span class="input-group-text border-0 bg-white text-muted">R$</span>
+                                <input type="number" step="0.01" name="custo" id="edit_custo" class="form-control border-0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script do Modal de Edição
+    var modalEditar = document.getElementById('modalEditarProduto');
+    modalEditar.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        
+        var id = button.getAttribute('data-id');
+        var nome = button.getAttribute('data-nome');
+        var unidade = button.getAttribute('data-unidade');
+        var custo = button.getAttribute('data-custo');
+
+        document.getElementById('edit_id').value = id;
+        document.getElementById('edit_nome').value = nome;
+        document.getElementById('edit_unidade').value = unidade;
+        document.getElementById('edit_custo').value = custo;
+    });
+
+    // Script da Barra de Busca Inteligente
+    document.addEventListener("DOMContentLoaded", function() {
+        const inputBusca = document.getElementById("buscaProduto");
+        
+        if (inputBusca) {
+            inputBusca.addEventListener("keyup", function() {
+                let filtro = this.value.toUpperCase();
+                let linhas = document.querySelectorAll(".linha-produto");
+
+                linhas.forEach(linha => {
+                    // Pega apenas o texto da coluna com a classe 'nome-produto' para a busca ser mais precisa
+                    let nomeProduto = linha.querySelector(".nome-produto").innerText.toUpperCase();
+                    
+                    if (nomeProduto.includes(filtro)) {
+                        linha.style.display = "";
+                    } else {
+                        linha.style.display = "none";
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

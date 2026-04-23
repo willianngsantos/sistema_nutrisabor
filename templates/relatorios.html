@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    /* --- ESTILOS DE TELA (PADRÃO) --- */
+    
+    .filter-bar {
+        background: white;
+        border-radius: 12px;
+        padding: 15px 20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        margin-bottom: 30px;
+        border: 1px solid #eef2f6;
+    }
+
+    .kpi-card {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        border: 1px solid #eef2f6;
+        position: relative;
+        overflow: hidden;
+        height: 100%;
+        transition: transform 0.2s;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    
+    .kpi-card:hover { transform: translateY(-3px); }
+
+    .kpi-icon {
+        position: absolute;
+        right: -10px;
+        bottom: -10px;
+        font-size: 6rem;
+        opacity: 0.08;
+        transform: rotate(-15deg);
+        pointer-events: none;
+    }
+
+    .kpi-value {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #2c3e50;
+        line-height: 1;
+        margin-top: 10px;
+    }
+
+    @media (max-width: 767px) {
+        .kpi-value { font-size: 1.5rem; }
+        .kpi-card { padding: 16px; }
+    }
+
+    .kpi-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #64748b;
+        font-weight: 700;
+    }
+
+    .report-table thead th {
+        background: #f8fafc;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #64748b;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 12px 16px;
+    }
+    
+    .report-table tbody td {
+        vertical-align: middle;
+        padding: 12px 16px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.95rem;
+    }
+    
+    .report-row:hover { background-color: #f8fafc; }
+
+    /* --- ESTILOS EXCLUSIVOS DE IMPRESSÃO --- */
+    @media print {
+        @page { size: A4; margin: 0; }
+
+        body {
+            background-color: white !important;
+            font-family: 'Inter', sans-serif !important;
+            color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 10pt !important; 
+        }
+
+        .print-wrapper {
+            padding: 15mm 15mm !important;
+            width: 100% !important;
+        }
+
+        .navbar-custom, .filter-bar, .btn, .no-print, .page-header-actions {
+            display: none !important;
+        }
+
+        .container, .container-fluid, .row:not(.kpi-row) {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .print-only-header {
+            display: flex !important;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #000;
+            padding-bottom: 10px;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .kpi-row {
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            margin-bottom: 20px !important;
+            gap: 10px !important;
+        }
+        
+        .kpi-col {
+            flex: 1 !important;
+            width: 32% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .kpi-card {
+            border: 1px solid #64748b !important;
+            box-shadow: none !important;
+            background-color: #fff !important; 
+            padding: 12px 8px !important;
+            text-align: center;
+            border-radius: 8px !important;
+        }
+        
+        .kpi-value {
+            font-size: 1.5rem !important; 
+            color: #000 !important;
+            margin-top: 5px !important;
+        }
+        
+        .kpi-label { 
+            color: #000 !important; 
+            font-size: 0.65rem !important;
+        }
+
+        .card { border: none !important; box-shadow: none !important; width: 100% !important; }
+        .table-responsive { overflow: visible !important; }
+        
+        .report-table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 10px;
+        }
+        
+        .report-table th {
+            background-color: #f1f5f9 !important;
+            color: black !important;
+            border: 1px solid #000 !important;
+            font-weight: bold;
+            font-size: 9pt !important; 
+            padding: 8px !important;
+        }
+        
+        .report-table td {
+            border: 1px solid #000 !important;
+            padding: 8px !important; 
+            font-size: 9pt !important;
+        }
+        
+        a { text-decoration: none !important; color: black !important; }
+    }
+</style>
+
+<div class="print-wrapper">
+
+    <div class="print-only-header d-none">
+        <div class="d-flex align-items-center">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" style="height: 40px; margin-right: 15px;">
+            <div>
+                <h3 class="m-0 fw-bold" style="color: #000; font-size: 1.2rem;">NutriSabor</h3>
+                <small class="text-uppercase fw-bold" style="font-size: 0.7rem;">Relatório Financeiro</small>
+            </div>
+        </div>
+        <div class="text-end">
+            <small class="d-block text-muted text-uppercase" style="font-size: 0.6rem;">Período</small>
+            <strong style="font-size: 0.8rem;">{{ f_inicio if f_inicio else 'Início' }}</strong> até <strong style="font-size: 0.8rem;">{{ f_fim if f_fim else 'Hoje' }}</strong>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4 mt-3 page-header-actions">
+        <div>
+            <h3 class="fw-bold text-dark mb-1"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Relatórios Financeiros</h3>
+            <p class="text-muted small mb-0">Analise o desempenho de vendas e faturamento.</p>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm shadow-sm bg-white" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i> Imprimir
+        </button>
+    </div>
+
+    <div class="filter-bar">
+        <form method="POST" class="row g-3 align-items-end">
+            <div class="col-6 col-md-3">
+                <label class="form-label text-secondary small fw-bold text-uppercase">Data Início</label>
+                <input type="date" name="data_inicio" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" value="{{ f_inicio }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label text-secondary small fw-bold text-uppercase">Data Fim</label>
+                <input type="date" name="data_fim" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" value="{{ f_fim }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label text-secondary small fw-bold text-uppercase">Cliente</label>
+                <select name="cliente_id" class="form-select form-select-sm border-0 bg-light fw-bold">
+                    <option value="">Todos os Clientes</option>
+                    {% for c in clientes %}
+                    <option value="{{ c['id'] }}" {% if f_cliente == c['id']|string %}selected{% endif %}>{{ c['nome_empresa'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label text-secondary small fw-bold text-uppercase">Status</label>
+                <select name="status" class="form-select form-select-sm border-0 bg-light fw-bold">
+                    <option value="">Todos</option>
+                    <option value="Pendente" {% if f_status == 'Pendente' %}selected{% endif %}>Pendente</option>
+                    <option value="Aprovado" {% if f_status == 'Aprovado' %}selected{% endif %}>Aprovado</option>
+                    <option value="Pago" {% if f_status == 'Pago' %}selected{% endif %}>Pago</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100 shadow-sm fw-bold">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if resultados %}
+    <div class="row g-4 mb-4 kpi-row">
+        
+        <div class="col-12 col-md-4 kpi-col">
+            <div class="kpi-card shadow-sm border-start border-4 border-success">
+                <i class="bi bi-check-circle-fill kpi-icon text-success no-print"></i>
+                <div class="kpi-label text-success">Total Recebido (Pago)</div>
+                <div class="kpi-value text-success valor-sigiloso">{{ total_recebido | real }}</div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4 kpi-col">
+            <div class="kpi-card shadow-sm border-start border-4 border-warning">
+                <i class="bi bi-clock-history kpi-icon text-warning no-print"></i>
+                <div class="kpi-label text-warning" style="color: #d97706 !important;">A Receber (Na Rua)</div>
+                <div class="kpi-value text-warning valor-sigiloso" style="color: #d97706 !important;">{{ total_a_receber | real }}</div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4 kpi-col">
+            <div class="kpi-card shadow-sm border-start border-4 border-primary">
+                <i class="bi bi-cash-stack kpi-icon text-primary no-print"></i>
+                <div class="kpi-label text-primary">Faturamento do Período</div>
+                <div class="kpi-value text-primary valor-sigiloso">{{ total_periodo | real }}</div>
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table report-table mb-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Status</th>
+                        <th class="d-none d-md-table-cell">Fatura</th>
+                        <th>Cliente</th>
+                        <th class="d-none d-md-table-cell">Competência</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end pe-4 no-print" style="width: 80px;">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in resultados %}
+                    <tr class="report-row">
+                        <td class="ps-4">
+                            {% if r['status'] == 'Pago' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle no-print">Pago</span>
+                                <span class="d-none d-print-inline fw-bold text-dark">PAGO</span>
+                            {% elif r['status'] == 'Aprovado' %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle no-print">Aprovado</span>
+                                <span class="d-none d-print-inline fw-bold text-dark">APROVADO</span>
+                            {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-dark no-print">Pendente</span>
+                                <span class="d-none d-print-inline fw-bold text-dark">PENDENTE</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-dark font-monospace d-none d-md-table-cell">#{{ r['codigo_fatura'] }}</td>
+                        <td class="fw-bold text-secondary">
+                            {{ r['nome_empresa'] }}
+                            <div class="d-md-none text-muted font-monospace" style="font-size:.72rem;">#{{ r['codigo_fatura'] }} · {{ r['data'] }}</div>
+                        </td>
+                        <td class="text-muted small d-none d-md-table-cell">{{ r['data'] }}</td>
+                        <td class="text-end fw-bold text-dark">{{ r['total'] | real }}</td>
+                        <td class="text-end pe-4 no-print">
+                            <a href="/fatura/{{ r['id'] }}" class="btn btn-sm btn-light border text-primary shadow-sm" title="Abrir Fatura">
+                                <i class="bi bi-box-arrow-up-right"></i> Abrir
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-none d-print-block text-center mt-4 pt-2 border-top">
+        <small class="text-muted" style="font-size: 8pt;">Documento interno - NutriSabor</small>
+    </div>
+
+    {% elif request.method == 'POST' %}
+    <div class="text-center py-5 no-print">
+        <div class="mb-3"><i class="bi bi-search fs-1 text-muted opacity-25"></i></div>
+        <h5 class="text-muted fw-normal">Nenhum resultado encontrado.</h5>
+        <a href="/relatorios" class="btn btn-link text-decoration-none">Limpar Filtros</a>
+    </div>
+    {% else %}
+    <div class="text-center py-5 no-print">
+        <div class="mb-3"><i class="bi bi-bar-chart-line fs-1 text-primary opacity-25"></i></div>
+        <h5 class="text-muted fw-normal">Selecione um período acima para gerar o relatório.</h5>
+    </div>
+    {% endif %}
+
+</div> 
+{% endblock %}

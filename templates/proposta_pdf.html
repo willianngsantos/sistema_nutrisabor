@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Proposta {{ proposta.numero }} – {{ proposta.nome_empresa }}</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Inter', sans-serif;
+    background: #525659;
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    color: #2c3e50;
+}
+
+/* ── Página A4 ────────────────────────────────────────────── */
+.page {
+    background: white;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 30px auto;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    box-shadow: 0 15px 40px rgba(0,0,0,.22);
+    overflow: hidden;
+}
+
+/* ── Barra superior degradê (identidade visual) ──────────── */
+.top-bar {
+    height: 8px;
+    background: linear-gradient(90deg, #27ae60 0%, #2c3e50 50%, #e67e22 100%);
+    flex-shrink: 0;
+}
+
+/* ── Conteúdo com padding ─────────────────────────────────── */
+.content-wrap {
+    padding: 9mm 16mm 8mm;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── Cabeçalho: logo + número/data ───────────────────────── */
+.doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+.logo-img    { max-height: 82px; max-width: 180px; }
+.company-sub { font-size: .76rem; color: #6c757d; line-height: 1.5; margin-top: 6px; }
+
+.doc-meta { text-align: right; }
+.doc-label {
+    font-size: .62rem; text-transform: uppercase;
+    font-weight: 700; color: #9ca3af; letter-spacing: 1px; margin-bottom: 1px;
+}
+.doc-value { font-size: .95rem; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
+.badge-status-pdf {
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    font-size: .72rem; font-weight: 700;
+}
+.st-rascunho { background:#f1f5f9; color:#475569; }
+.st-enviada  { background:#dbeafe; color:#1e40af; }
+.st-aceita   { background:#dcfce7; color:#166534; }
+.st-recusada { background:#fee2e2; color:#991b1b; }
+.st-expirada { background:#fef3c7; color:#92400e; }
+
+/* ── Divider com título ───────────────────────────────────── */
+.section-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 12px 0 8px;
+}
+.section-divider span {
+    font-size: .68rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 1.5px;
+    color: #94a3b8; white-space: nowrap;
+}
+.section-divider::after {
+    content: ''; flex: 1; height: 1px; background: #e2e8f0;
+}
+
+/* ── Box do cliente ───────────────────────────────────────── */
+.client-box {
+    background: #f8f9fa;
+    border-left: 4px solid #e67e22;
+    border-radius: 0 10px 10px 0;
+    padding: 7px 14px;
+    margin-bottom: 10px;
+    display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start;
+}
+.client-field-label { font-size: .63rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .8px; }
+.client-field-value { font-size: .83rem; color: #1e293b; font-weight: 600; margin-top: 1px; }
+
+/* ── Tabela de itens ───────────────────────────────────────── */
+.items-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+.items-table thead tr {
+    background: #f1f5f9;
+}
+.items-table th {
+    font-size: .66rem; font-weight: 800; text-transform: uppercase;
+    color: #475569; padding: 7px 10px; letter-spacing: .8px;
+    border-bottom: 2px solid #e2e8f0;
+}
+.items-table td {
+    padding: 8px 10px; font-size: .86rem;
+    border-bottom: 1px solid #f1f5f9; color: #334155;
+}
+.items-table tbody tr:last-child td { border-bottom: none; }
+.items-table tbody tr:nth-child(even) td { background: #fafbfc; }
+.col-r { text-align: right; font-variant-numeric: tabular-nums; }
+.col-c { text-align: center; }
+.desc-cell { font-weight: 600; color: #1e293b; }
+.unit-badge {
+    display: inline-block; background: #ede9fe; color: #5b21b6;
+    border: 1px solid #ddd6fe; border-radius: 5px;
+    font-size: .65rem; font-weight: 700; padding: 1px 6px;
+}
+
+/* ── Bloco de totais ──────────────────────────────────────── */
+.totals-block { display: flex; justify-content: flex-end; margin-top: 10px; }
+.totals-inner { min-width: 220px; }
+.totals-inner .subtotal-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 0; font-size: .85rem; color: #475569;
+    border-bottom: 1px dashed #e2e8f0;
+}
+.totals-inner .total-final {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0 0;
+}
+.totals-inner .total-final .lbl { font-size: .78rem; font-weight: 700; text-transform: uppercase; color: #6c757d; }
+.totals-inner .total-final .val { font-size: .95rem; font-weight: 800; color: #e67e22; line-height: 1; margin-left: 16px; }
+
+/* ── Rodapé do conteúdo (pagamento + observações) ─────────── */
+.footer-info { display: flex; gap: 16px; margin-top: 16px; flex-wrap: wrap; align-items: flex-start; }
+.footer-block {
+    flex: 1; min-width: 160px; background: #f8f9fa;
+    border-radius: 10px; padding: 10px 14px;
+    align-self: flex-start;
+}
+.footer-block h6 {
+    font-size: .68rem; font-weight: 800; text-transform: uppercase;
+    color: #94a3b8; letter-spacing: 1px; margin-bottom: 6px;
+}
+.footer-block p { font-size: .83rem; color: #374151; line-height: 1.55; margin: 0; }
+
+/* ── Área de assinatura ───────────────────────────────────── */
+.signature-area {
+    margin-top: auto;
+    padding-top: 20px;
+    display: flex; justify-content: space-between; gap: 40px;
+}
+.signature-block { flex: 1; text-align: center; }
+.signature-line {
+    border-top: 1.5px solid #334155; margin: 0 20px 6px;
+}
+.signature-label { font-size: .73rem; color: #64748b; font-weight: 600; }
+.signature-name  { font-size: .78rem; color: #1e293b; font-weight: 700; margin-top: 3px; }
+
+/* ── Validade chip ────────────────────────────────────────── */
+.validity-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f0fdf4; color: #15803d;
+    border: 1px solid #86efac; border-radius: 20px;
+    font-size: .78rem; font-weight: 700; padding: 4px 14px;
+}
+
+/* ── Rodapé da página ─────────────────────────────────────── */
+.page-footer {
+    text-align: center; font-size: .65rem;
+    color: #94a3b8; padding: 10px 0 6px;
+    margin-top: 0;
+}
+
+/* ── Barra lateral colorida (decoração) ──────────────────── */
+.side-accent {
+    position: absolute; left: 0; top: 8px; bottom: 0;
+    width: 5px;
+    background: linear-gradient(180deg, #27ae60 0%, #2c3e50 50%, #e67e22 100%);
+    opacity: .15;
+}
+
+/* ── Toolbar no-print ─────────────────────────────────────── */
+.toolbar-print {
+    background: #2c3e50; padding: 12px 20px;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 100;
+}
+
+/* ── Print / PDF ──────────────────────────────────────────── */
+@page { size: A4; margin: 0; }
+@media print {
+    body { background: white; }
+    .no-print { display: none !important; }
+    .page { box-shadow: none; margin: 0; width: 100%; }
+    .content-wrap { padding: 9mm 16mm 6mm; }
+    .top-bar { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .unit-badge, .badge-status-pdf, .client-box, .footer-block,
+    .validity-chip { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+/* 📱 AJUSTE PARA TELA DE CELULAR (Não afeta a impressão) */
+        @media screen and (max-width: 768px) {
+            .page, .page-a4 {
+                width: 100% !important;
+                min-height: auto !important;
+                margin: 10px auto !important;
+                box-shadow: none !important;
+                border: 1px solid #dee2e6;
+            }
+            .content-wrap, .via-body { padding: 15px !important; }
+            .client-box { flex-direction: column; gap: 10px; padding: 10px; }
+            .header-section { flex-direction: column; text-align: center; }
+            .invoice-details { text-align: center; margin-top: 15px; }
+            .signature-area { flex-direction: column; gap: 25px; }
+            .stamp-paid { font-size: 3rem; padding: 5px 20px; }
+        }
+</style>
+</head>
+<body>
+
+<!-- ── Toolbar (só tela) ─────────────────────────────────────────────── -->
+<div class="toolbar-print no-print">
+    <button onclick="fecharOuVoltar()"
+            class="btn btn-sm btn-outline-light rounded-circle" title="Voltar">
+        <i class="bi bi-arrow-left"></i>
+    </button>
+    <span class="text-white-50 small ms-2">Proposta {{ proposta.numero }}</span>
+
+    <div class="ms-auto d-flex gap-2">
+        {% if modo == 'preview' %}
+        <button onclick="window.print()"
+                class="btn btn-sm btn-success rounded-pill px-4">
+            <i class="bi bi-printer me-1"></i>Imprimir / Salvar PDF
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Página A4 ──────────────────────────────────────────────────────── -->
+<div class="page">
+    <div class="side-accent"></div>
+    <div class="top-bar"></div>
+
+    <div class="content-wrap">
+
+        <!-- CABEÇALHO ──────────────────────────────────────────────────── -->
+        <div class="doc-header">
+            <div>
+                {% if empresa and empresa.logo %}
+                <img src="/static/img/{{ empresa.logo }}" class="logo-img" alt="Logo">
+                {% else %}
+                <img src="/static/img/logo.png" class="logo-img" alt="Logo">
+                {% endif %}
+                <div class="company-sub">
+                    {% if empresa and empresa.cnpj %}CNPJ: {{ empresa.cnpj }}<br>{% endif %}
+                    {% if empresa and empresa.email %}{{ empresa.email }}<br>{% endif %}
+                    {% if empresa and empresa.telefone %}{{ empresa.telefone }}{% endif %}
+                </div>
+            </div>
+
+            <div class="doc-meta">
+                <div class="doc-label">Proposta Comercial</div>
+                <div class="doc-value" style="font-size:1.3rem; color:#27ae60;">
+                    {{ proposta.numero }}
+                </div>
+
+                <div class="doc-label">Data</div>
+                <div class="doc-value">
+                    {{ proposta.data_proposta.strftime('%d/%m/%Y') if proposta.data_proposta else '—' }}
+                </div>
+
+                {% if proposta.validade %}
+                <div class="validity-chip">
+                    <i class="bi bi-calendar-check" style="font-size:.8rem;"></i>
+                    Válido até {{ proposta.validade.strftime('%d/%m/%Y') }}
+                </div>
+                {% endif %}
+
+                <div class="mt-2">
+                    <span class="badge-status-pdf st-{{ proposta.status|lower }}">
+                        {{ proposta.status }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CLIENTE ────────────────────────────────────────────────────── -->
+        <div class="section-divider">
+            <span>Cliente</span>
+        </div>
+
+        <div class="client-box">
+            <div>
+                <div class="client-field-label">Empresa / Cliente</div>
+                <div class="client-field-value" style="font-size:1rem;">{{ proposta.nome_empresa }}</div>
+                {% if proposta.apelido %}
+                <div class="client-field-label mt-2">Apelido</div>
+                <div class="client-field-value">{{ proposta.apelido }}</div>
+                {% endif %}
+            </div>
+            {% if proposta.cnpj %}
+            <div>
+                <div class="client-field-label">CNPJ / CPF</div>
+                <div class="client-field-value">{{ proposta.cnpj | cpf_cnpj }}</div>
+            </div>
+            {% endif %}
+            {% if proposta.email or proposta.celular %}
+            <div>
+                {% if proposta.email %}
+                <div class="client-field-label">E-mail</div>
+                <div class="client-field-value">{{ proposta.email }}</div>
+                {% endif %}
+                {% if proposta.celular %}
+                <div class="client-field-label mt-2">Celular / Telefone</div>
+                <div class="client-field-value">{{ proposta.celular }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ITENS ──────────────────────────────────────────────────────── -->
+        <div class="section-divider">
+            <span>Itens / Serviços</span>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Descrição</th>
+                    <th class="col-c">Qtd</th>
+                    <th class="col-c">Unid.</th>
+                    <th class="col-r">Valor Unit.</th>
+                    <th class="col-r">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in itens %}
+            <tr>
+                <td style="color:#94a3b8; font-size:.75rem; font-weight:700;">{{ loop.index }}</td>
+                <td class="desc-cell">{{ item.descricao }}</td>
+                <td class="col-c">{{ '%g' % item.quantidade }}</td>
+                <td class="col-c"><span class="unit-badge">{{ item.unidade }}</span></td>
+                <td class="col-r">{{ item.valor_unitario | real }}</td>
+                <td class="col-r" style="font-weight:700;">{{ item.subtotal | real }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align:center; color:#94a3b8; padding:20px;">
+                    Nenhum item nesta proposta.
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- TOTAL ──────────────────────────────────────────────────────── -->
+        <div class="totals-block">
+            <div class="totals-inner">
+                <div class="subtotal-row">
+                    <span>{{ itens | length }} {{ 'item' if itens|length == 1 else 'itens' }}</span>
+                    <span>{{ total | real }}</span>
+                </div>
+                <div class="total-final">
+                    <span class="lbl">Total da Proposta</span>
+                    <span class="val">{{ total | real }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONDIÇÕES + OBSERVAÇÕES ────────────────────────────────────── -->
+        {% if proposta.condicoes_pagamento or proposta.observacoes %}
+        <div class="footer-info">
+            {% if proposta.condicoes_pagamento %}
+            <div class="footer-block">
+                <h6><i class="bi bi-credit-card me-1"></i>Condições de Pagamento</h6>
+                <p>{{ proposta.condicoes_pagamento }}</p>
+            </div>
+            {% endif %}
+            {% if proposta.observacoes %}
+            <div class="footer-block">
+                <h6><i class="bi bi-chat-left-text me-1"></i>Observações</h6>
+                <p style="white-space: pre-line;">{{ proposta.observacoes }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ASSINATURA ─────────────────────────────────────────────────── -->
+        <div class="signature-area">
+            <div class="signature-block">
+                <div class="signature-line"></div>
+                <div class="signature-label">
+                    {{ empresa.nome_empresa if empresa and empresa.nome_empresa else 'Prestador de Serviço' }}
+                </div>
+                <div class="signature-name" style="color:#27ae60;">Aceito e aprovado</div>
+            </div>
+            <div class="signature-block">
+                <div class="signature-line"></div>
+                <div class="signature-label">{{ proposta.nome_empresa }}</div>
+                <div class="signature-name">Responsável</div>
+            </div>
+        </div>
+
+        <!-- RODAPÉ ─────────────────────────────────────────────────────── -->
+        <div class="page-footer">
+            Documento gerado em {{ proposta.data_proposta.strftime('%d/%m/%Y') if proposta.data_proposta else '' }}
+            {% if proposta.validade %} · Válido até {{ proposta.validade.strftime('%d/%m/%Y') }}{% endif %}
+            · {{ proposta.numero }}
+        </div>
+
+    </div><!-- /content-wrap -->
+</div><!-- /page -->
+
+<script>
+function fecharOuVoltar() {
+    if (window.history.length > 1) window.history.back();
+    else window.close();
+}
+</script>
+</body>
+</html>

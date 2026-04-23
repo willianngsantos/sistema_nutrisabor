@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Lote de Recibos VT – {{ periodo }}{% if unidade_id_sel %} – {{ grupos[0].unidade_nome if grupos else '' }}{% endif %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --green:  #27ae60;
+            --dark:   #2c3e50;
+            --orange: #e67e22;
+            --gray:   #6c757d;
+            --light:  #f8f9fa;
+        }
+
+        body {
+            background: #525659;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── PÁGINA A4 ── */
+        .page-a4 {
+            background: white;
+            width: 210mm;
+            height: 297mm;
+            margin: 20px auto;
+            box-shadow: 0 12px 30px rgba(0,0,0,.25);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── VIA (meia folha) ── */
+        .via {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .via-top-bar {
+            height: 6px;
+            flex-shrink: 0;
+            background: linear-gradient(90deg, var(--green) 0%, var(--dark) 50%, var(--orange) 100%);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .via-body {
+            padding: 10mm 14mm 8mm 14mm;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .via-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 9px;
+        }
+
+        .logo-img { max-height: 52px; }
+
+        .receipt-title-block { text-align: right; }
+        .receipt-title {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--dark);
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+        .receipt-ref  { font-size: 0.72rem; color: var(--gray); margin-top: 2px; }
+        .receipt-periodo {
+            display: inline-block;
+            background: var(--orange);
+            color: white;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-top: 4px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .via-divider {
+            height: 2px;
+            background: linear-gradient(90deg, var(--green), var(--dark));
+            margin-bottom: 10px;
+            border: none;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .section-label {
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--gray);
+            margin-bottom: 2px;
+        }
+
+        .beneficiario-box {
+            background: var(--light);
+            border-left: 4px solid var(--orange);
+            border-radius: 0 8px 8px 0;
+            padding: 8px 14px;
+            margin-bottom: 10px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .beneficiario-nome { font-size: 1rem; font-weight: 700; color: var(--dark); }
+        .beneficiario-meta { font-size: 0.78rem; color: var(--gray); margin-top: 2px; }
+
+        .valores-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .valores-table td { padding: 5px 0; font-size: 0.88rem; color: var(--dark); border-bottom: 1px solid #f0f0f0; }
+        .valores-table td.val-label { color: var(--gray); }
+        .valores-table td.val-amount { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .total-row td { border-top: 2px solid var(--dark) !important; border-bottom: none !important; padding-top: 7px !important; font-weight: 700 !important; }
+        .total-row td.val-amount { font-size: 1.1rem; color: var(--orange); }
+
+        .declaracao {
+            font-size: 0.78rem;
+            color: #495057;
+            line-height: 1.5;
+            font-style: italic;
+            border-top: 1px dashed #dee2e6;
+            padding-top: 9px;
+            margin-bottom: 10px;
+        }
+
+        .assinaturas { display: flex; gap: 20px; margin-top: auto; padding-top: 8px; }
+        .assinatura-bloco { flex: 1; text-align: center; }
+        .assinatura-linha { border-top: 1.5px solid var(--dark); margin-bottom: 4px; }
+        .assinatura-label { font-size: 0.72rem; color: var(--gray); font-weight: 600; }
+        .assinatura-nome  { font-size: 0.7rem; color: #999; margin-top: 2px; }
+
+        .via-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #e9ecef;
+        }
+        .via-footer-empresa { font-size: 0.68rem; color: #adb5bd; line-height: 1.4; }
+        .via-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--gray);
+            background: var(--light);
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .cut-line {
+            display: flex;
+            align-items: center;
+            color: #adb5bd;
+            font-size: 0.7rem;
+            gap: 6px;
+            flex-shrink: 0;
+            padding: 0 8mm;
+        }
+        .cut-line hr { flex: 1; border: none; border-top: 1.5px dashed #ccc; margin: 0; }
+
+        /* ── SEPARADOR DE UNIDADE (só na tela) ── */
+        .unit-section-header {
+            width: 210mm;
+            margin: 30px auto 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .unit-section-header .unit-badge {
+            background: var(--dark);
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 6px 16px;
+            border-radius: 20px;
+            white-space: nowrap;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .unit-section-header .unit-count {
+            font-size: 0.75rem;
+            color: #adb5bd;
+        }
+        .unit-section-header hr {
+            flex: 1;
+            border: none;
+            border-top: 2px solid #dee2e6;
+            margin: 0;
+        }
+
+        /* ── TOOLBAR ── */
+        .toolbar-noprint {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 8px rgba(0,0,0,.08);
+        }
+        .toolbar-noprint select {
+            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid #dee2e6;
+            background: #f8f9fa;
+            color: var(--dark);
+        }
+
+        /* ── ESTADO VAZIO ── */
+        .empty-state {
+            width: 210mm;
+            margin: 60px auto;
+            text-align: center;
+            color: #adb5bd;
+        }
+        .empty-state i { font-size: 3rem; }
+
+        /* ── PRINT ── */
+        @page { size: A4; margin: 0; }
+
+        @media print {
+            body { background: white !important; margin: 0; padding: 0; }
+            .toolbar-noprint   { display: none !important; }
+            .unit-section-header { display: none !important; }
+
+            .page-a4 {
+                margin: 0 !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                height: 100vh !important;
+                page-break-after: always;
+                break-after: page;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── BARRA DE FERRAMENTAS ── -->
+    <div class="toolbar-noprint">
+        <button onclick="fecharOuVoltar()" class="btn btn-sm btn-outline-secondary rounded-circle" title="Voltar">
+            <i class="bi bi-arrow-left"></i>
+        </button>
+
+        <span class="text-muted small border-start ps-3 me-1">
+            <i class="bi bi-receipt me-1"></i>Lote de Recibos VT
+        </span>
+
+        <!-- Filtros -->
+        <form method="GET" action="" class="d-flex align-items-center gap-2" id="form-filtro">
+            <select name="mes" class="form-select form-select-sm" style="width:130px;border-radius:20px;"
+                    onchange="document.getElementById('form-filtro').submit()">
+                {% for i in range(1, 13) %}
+                    <option value="{{ i }}" {% if i == mes %}selected{% endif %}>{{ MESES[i-1] }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="ano" class="form-select form-select-sm" style="width:90px;border-radius:20px;"
+                    onchange="document.getElementById('form-filtro').submit()">
+                {% for y in range(ano - 2, ano + 2) %}
+                    <option value="{{ y }}" {% if y == ano %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="unidade_id" class="form-select form-select-sm" style="width:200px;border-radius:20px;"
+                    onchange="document.getElementById('form-filtro').submit()">
+                <option value="" {% if not unidade_id_sel %}selected{% endif %}>
+                    Todas as unidades
+                </option>
+                {% for u in unidades %}
+                    <option value="{{ u.id }}" {% if unidade_id_sel == u.id|string %}selected{% endif %}>
+                        {{ u.nome_empresa }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+
+        <!-- Contador -->
+        {% if total_recibos > 0 %}
+        <span class="badge rounded-pill ms-1"
+              style="background:#f0f4f8;color:var(--dark);font-size:.75rem;padding:5px 10px;">
+            <i class="bi bi-files me-1"></i>{{ total_recibos }} recibo{{ 's' if total_recibos != 1 else '' }}
+            · {{ total_recibos }} folha{{ 's A4' if total_recibos != 1 else ' A4' }}
+        </span>
+        {% endif %}
+
+        {% if total_recibos > 0 %}
+        <button onclick="window.print()" class="btn btn-sm btn-dark rounded-pill px-4 ms-auto">
+            <i class="bi bi-printer-fill me-1"></i> Imprimir / Salvar PDF
+        </button>
+        {% endif %}
+    </div>
+
+    <!-- ── CONTEÚDO ── -->
+
+    {% if total_recibos == 0 %}
+        <div class="empty-state">
+            <i class="bi bi-inbox d-block mb-3"></i>
+            <p class="fw-bold text-secondary">Nenhum colaborador ativo encontrado</p>
+            <p class="small">Verifique os filtros ou cadastre colaboradores vinculados a uma unidade.</p>
+        </div>
+
+    {% else %}
+
+        {% for grupo in grupos %}
+
+            <!-- Separador de unidade (não imprime) -->
+            <div class="unit-section-header">
+                <span class="unit-badge">
+                    <i class="bi bi-building me-1"></i>{{ grupo.unidade_nome }}
+                </span>
+                <span class="unit-count">
+                    {{ grupo.colaboradores | length }}
+                    colaborador{{ 'es' if grupo.colaboradores | length != 1 else '' }}
+                </span>
+                <hr>
+            </div>
+
+            {% for colab in grupo.colaboradores %}
+
+            <!-- ── PÁGINA A4 (1 colaborador = 2 vias) ── -->
+            <div class="page-a4">
+
+                {% for via_label in ['1ª Via – Empresa', '2ª Via – Funcionário'] %}
+
+                <div class="via">
+                    <div class="via-top-bar"></div>
+
+                    <div class="via-body">
+
+                        <!-- Cabeçalho -->
+                        <div class="via-header">
+                            <img src="{{ url_for('static', filename='img/logo.png') }}"
+                                 alt="NutriSabor" class="logo-img">
+                            <div class="receipt-title-block">
+                                <div class="receipt-title">Recibo de Vale Transporte</div>
+                                <div class="receipt-ref">
+                                    Ref.: VT-{{ '%04d'|format(colab.id) }}-{{ '%02d'|format(mes) }}-{{ ano }}
+                                </div>
+                                <div><span class="receipt-periodo">{{ periodo }}</span></div>
+                            </div>
+                        </div>
+
+                        <hr class="via-divider">
+
+                        <!-- Beneficiário -->
+                        <div class="section-label">Beneficiário</div>
+                        <div class="beneficiario-box">
+                            <div class="beneficiario-nome">{{ colab.nome }}</div>
+                            <div class="beneficiario-meta">
+                                {% if colab.funcao %}<strong>Função:</strong> {{ colab.funcao }}{% endif %}
+                                {% if colab.unidades %} &nbsp;·&nbsp; <strong>Unidade:</strong> {{ colab.unidades }}{% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Valores -->
+                        <div class="section-label">Valores do período</div>
+                        <table class="valores-table">
+                            <tbody>
+                                {% if colab.vale_transporte and colab.vale_transporte > 0 %}
+                                <tr>
+                                    <td class="val-label">
+                                        <i class="bi bi-bus-front-fill text-success me-1"></i> Vale Transporte
+                                    </td>
+                                    <td class="val-amount">{{ colab.vale_transporte | real }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if colab.diversos and colab.diversos > 0 %}
+                                <tr>
+                                    <td class="val-label">
+                                        <i class="bi bi-plus-circle text-secondary me-1"></i> Diversos
+                                    </td>
+                                    <td class="val-amount">{{ colab.diversos | real }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr class="total-row">
+                                    <td><strong>Total Recebido</strong></td>
+                                    <td class="val-amount">
+                                        {{ ((colab.vale_transporte or 0) + (colab.diversos or 0)) | real }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Declaração -->
+                        <div class="declaracao">
+                            Declaro ter recebido da empresa
+                            <strong>{{ empresa[1] if empresa else 'NutriSabor' }}</strong>
+                            a importância acima descrita, referente ao período de
+                            <strong>{{ periodo }}</strong>, conforme discriminado neste recibo.
+                        </div>
+
+                        <!-- Assinaturas -->
+                        <div class="assinaturas">
+                            <div class="assinatura-bloco">
+                                <div class="assinatura-linha"></div>
+                                <div class="assinatura-label">Assinatura do Funcionário</div>
+                                <div class="assinatura-nome">{{ colab.nome }}</div>
+                            </div>
+                            <div class="assinatura-bloco" style="max-width:130px;">
+                                <div class="assinatura-linha"></div>
+                                <div class="assinatura-label">Data</div>
+                                <div class="assinatura-nome">_____ / _____ / _______</div>
+                            </div>
+                            <div class="assinatura-bloco">
+                                <div class="assinatura-linha"></div>
+                                <div class="assinatura-label">Responsável pela Empresa</div>
+                                <div class="assinatura-nome">{{ empresa[1] if empresa else 'NutriSabor' }}</div>
+                            </div>
+                        </div>
+
+                        <!-- Rodapé da via -->
+                        <div class="via-footer">
+                            <div class="via-footer-empresa">
+                                {% if empresa %}
+                                    {{ empresa[1] }}{% if empresa[2] %} · CNPJ {{ empresa[2] | cpf_cnpj }}{% endif %}
+                                {% endif %}
+                                <br>Sistema NutriSabor · Documento gerado eletronicamente
+                            </div>
+                            <div class="via-label">{{ via_label }}</div>
+                        </div>
+
+                    </div><!-- /via-body -->
+                </div><!-- /via -->
+
+                <!-- Linha de corte (só entre as duas vias) -->
+                {% if loop.first %}
+                <div class="cut-line">
+                    <hr><i class="bi bi-scissors"></i><hr>
+                </div>
+                {% endif %}
+
+                {% endfor %}{# via_label #}
+
+            </div><!-- /page-a4 -->
+
+            {% endfor %}{# colab #}
+
+        {% endfor %}{# grupo #}
+
+    {% endif %}
+
+    <script>
+        function fecharOuVoltar() {
+            if (window.opener)            { window.close(); }
+            else if (window.history.length > 1) { window.history.back(); }
+            else { window.location.href = "/colaboradores"; }
+        }
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') fecharOuVoltar();
+        });
+    </script>
+</body>
+</html>

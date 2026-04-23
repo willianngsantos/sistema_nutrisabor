@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<div class="row align-items-center mb-4 mt-3 g-2">
+    <div class="col-12 col-md-6">
+        <h3 class="fw-bold text-dark mb-0"><i class="bi bi-journal-richtext me-2 text-success"></i>Gestão de Cardápios</h3>
+        <p class="text-muted small mb-0">Planejamento semanal de refeições para os clientes.</p>
+    </div>
+    <div class="col-12 col-md-6 text-end">
+        <button class="btn btn-success shadow-sm px-4 py-2 rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#modalNovoCardapio">
+            <i class="bi bi-plus-lg me-1"></i> Planejar Nova Semana
+        </button>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'message' else 'info' }} shadow-sm border-0 border-start border-4 border-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- ── Cardápios Ativos / Futuros ── -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 pt-3 pb-2 px-4 d-flex align-items-center gap-2">
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" style="font-size:.75rem;">
+            <i class="bi bi-circle-fill me-1" style="font-size:.5rem;"></i> Ativos / Futuros
+        </span>
+        <span class="text-muted small">{{ cardapios_ativos | length }} cardápio(s)</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light text-secondary small text-uppercase" style="font-weight: 600;">
+                <tr>
+                    <th class="ps-4 border-0">Cliente</th>
+                    <th class="border-0 d-none d-md-table-cell">Período da Semana</th>
+                    <th class="border-0 d-none d-md-table-cell">Última Edição</th>
+                    <th class="text-end pe-4 border-0">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in cardapios_ativos %}
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-bold text-dark fs-6">{{ c['nome_empresa'] }}</div>
+                        <small class="text-muted">ID: #{{ c['id'] }}</small>
+                        <div class="d-md-none mt-1">
+                            <span class="badge bg-light text-dark border px-2 py-1" style="font-size:.75rem;">
+                                <i class="bi bi-calendar-range me-1 text-primary"></i>{{ c['inicio'] }} → {{ c['fim'] }}
+                            </span>
+                        </div>
+                        {% if c['editado_por'] %}
+                        <div class="d-md-none mt-1">
+                            <small class="text-muted"><i class="bi bi-pencil me-1"></i>{{ c['editado_por'] }} · {{ c['editado_em'] }}</small>
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                        <span class="badge bg-light text-dark border px-3 py-2" style="font-size: 0.85rem;">
+                            <i class="bi bi-calendar-range me-1 text-primary"></i> {{ c['inicio'] }} até {{ c['fim'] }}
+                        </span>
+                    </td>
+                    <td class="d-none d-md-table-cell">
+                        {% if c['editado_por'] %}
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                 style="width:28px;height:28px;font-size:.8rem;">{{ c['editado_por'][0]|upper }}</div>
+                            <div class="lh-1">
+                                <div class="small fw-semibold text-dark">{{ c['editado_por'] }}</div>
+                                <div style="font-size:.7rem;" class="text-muted">{{ c['editado_em'] }}</div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="/cardapios/montar/{{ c['id'] }}" class="btn btn-sm btn-primary shadow-sm fw-bold">
+                                <i class="bi bi-pencil-square"></i><span class="d-none d-sm-inline ms-1">Editar</span>
+                            </a>
+                            <a href="/cardapios/imprimir/{{ c['id'] }}" target="_blank" class="btn btn-sm btn-dark shadow-sm fw-bold">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                            {% if current_user.tipo == 'admin' %}
+                            <button type="button" class="btn btn-sm btn-outline-danger fw-bold"
+                                    onclick="confirmarExclusao({{ c['id'] }}, '{{ c['nome_empresa'] }}', '{{ c['inicio'] }} → {{ c['fim'] }}')">
+                                <i class="bi bi-trash3"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" class="text-center py-4">
+                        <div class="text-muted"><i class="bi bi-calendar-check fs-2 opacity-25 d-block mb-2"></i>Nenhum cardápio ativo no momento.</div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ── Cardápios Passados (colapsável) ── -->
+{% if cardapios_passados %}
+<div class="mb-4">
+    <button class="btn btn-link text-decoration-none text-muted fw-bold ps-0 d-flex align-items-center gap-2"
+            type="button" data-bs-toggle="collapse" data-bs-target="#collapsePassados" aria-expanded="false">
+        <i class="bi bi-chevron-right" id="iconPassados" style="transition: transform .2s;"></i>
+        <span><i class="bi bi-clock-history me-1 opacity-50"></i> Cardápios Passados</span>
+        <span class="badge bg-secondary bg-opacity-25 text-secondary ms-1">{{ cardapios_passados | length }}</span>
+    </button>
+
+    <div class="collapse" id="collapsePassados">
+        <div class="card border-0 shadow-sm mt-2" style="opacity: .85;">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-secondary small text-uppercase" style="font-weight: 600;">
+                        <tr>
+                            <th class="ps-4 border-0">Cliente</th>
+                            <th class="border-0 d-none d-md-table-cell">Período da Semana</th>
+                            <th class="border-0 d-none d-md-table-cell">Última Edição</th>
+                            <th class="text-end pe-4 border-0">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in cardapios_passados %}
+                        <tr class="text-muted">
+                            <td class="ps-4">
+                                <div class="fw-semibold">{{ c['nome_empresa'] }}</div>
+                                <small class="text-muted opacity-75">ID: #{{ c['id'] }}</small>
+                                <div class="d-md-none mt-1">
+                                    <span class="badge bg-light text-muted border px-2 py-1" style="font-size:.75rem;">
+                                        <i class="bi bi-calendar-range me-1"></i>{{ c['inicio'] }} → {{ c['fim'] }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                <span class="badge bg-light text-muted border px-3 py-2" style="font-size: 0.85rem;">
+                                    <i class="bi bi-calendar-range me-1"></i> {{ c['inicio'] }} até {{ c['fim'] }}
+                                </span>
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                {% if c['editado_por'] %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                         style="width:28px;height:28px;font-size:.8rem;">{{ c['editado_por'][0]|upper }}</div>
+                                    <div class="lh-1">
+                                        <div class="small fw-semibold text-secondary">{{ c['editado_por'] }}</div>
+                                        <div style="font-size:.7rem;" class="text-muted">{{ c['editado_em'] }}</div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="d-flex gap-2 justify-content-end">
+                                    <a href="/cardapios/imprimir/{{ c['id'] }}" target="_blank" class="btn btn-sm btn-outline-secondary fw-bold">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                    {% if current_user.tipo == 'admin' %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger fw-bold"
+                                            onclick="confirmarExclusao({{ c['id'] }}, '{{ c['nome_empresa'] }}', '{{ c['inicio'] }} → {{ c['fim'] }}')">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Modal Confirmar Exclusão ── -->
+<div class="modal fade" id="modalExcluir" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-danger text-white border-0">
+                <h6 class="modal-title fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>Excluir Cardápio</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <p class="mb-1 small text-muted">Você está prestes a excluir o cardápio de</p>
+                <p class="fw-bold mb-1" id="excluir-empresa"></p>
+                <p class="small text-muted mb-3" id="excluir-periodo"></p>
+                <p class="small text-danger fw-semibold">Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer border-0 justify-content-center gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancelar</button>
+                <form id="formExcluir" method="POST">
+                    <button type="submit" class="btn btn-danger btn-sm px-4 fw-bold">
+                        <i class="bi bi-trash3 me-1"></i> Excluir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal Novo Cardápio ── -->
+<div class="modal fade" id="modalNovoCardapio" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2"></i>Nova Semana</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/cardapios/novo" method="POST">
+                <div class="modal-body bg-light p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-secondary small fw-bold text-uppercase">Cliente / Contrato</label>
+                        <select name="id_cliente" class="form-select bg-white border-0 shadow-sm" required>
+                            <option value="">Selecione o Cliente...</option>
+                            {% for cli in clientes %}
+                                <option value="{{ cli['id'] }}">{{ cli['nome_empresa'] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-bold text-uppercase">Data de Início (Segunda)</label>
+                            <input type="date" name="data_inicio" class="form-control bg-white border-0 shadow-sm" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-secondary small fw-bold text-uppercase">Dias Atendidos</label>
+                            <select name="dias_qnt" class="form-select bg-white border-0 shadow-sm">
+                                <option value="5">5 Dias (Seg - Sex)</option>
+                                <option value="6">6 Dias (Seg - Sáb)</option>
+                                <option value="7">7 Dias (Seg - Dom)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold shadow-sm">Gerar Estrutura</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmarExclusao(id, empresa, periodo) {
+    document.getElementById('excluir-empresa').textContent = empresa;
+    document.getElementById('excluir-periodo').textContent = periodo;
+    document.getElementById('formExcluir').action = '/cardapios/excluir/' + id;
+    var modal = new bootstrap.Modal(document.getElementById('modalExcluir'));
+    modal.show();
+}
+
+// Gira o ícone do collapse passados
+document.getElementById('collapsePassados') && document.getElementById('collapsePassados').addEventListener('show.bs.collapse', function () {
+    document.getElementById('iconPassados').style.transform = 'rotate(90deg)';
+});
+document.getElementById('collapsePassados') && document.getElementById('collapsePassados').addEventListener('hide.bs.collapse', function () {
+    document.getElementById('iconPassados').style.transform = 'rotate(0deg)';
+});
+</script>
+{% endblock %}

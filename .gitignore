@@ -1,0 +1,77 @@
+# =============================================
+# NutriSabor — Git Ignore
+# =============================================
+
+# --- Variáveis de ambiente (NUNCA versionar) ---
+.env
+.env.local
+.env.production
+.env.*.local
+# Mantemos .env.example como template (não ignora)
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Flask ---
+instance/
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Uploads de usuários (conteúdo gerado em runtime) ---
+static/uploads/
+
+# --- Logs ---
+*.log
+logs/
+
+# --- macOS ---
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# --- Windows ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- Linux ---
+*~
+.directory
+
+# --- Editores / IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# --- PDFs gerados em testes locais ---
+*.pdf
+!docs/**/*.pdf
+
+# --- Backups e temporários ---
+*.bak
+*.tmp
+*.old
+.cache/

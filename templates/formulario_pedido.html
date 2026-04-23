@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    /* 📱 BARRA FIXA NO RODAPÉ PARA CELULAR */
+    @media (max-width: 991px) {
+        .sticky-sidebar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1050;
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.15);
+            border-radius: 20px 20px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+        }
+        .sticky-sidebar .card { display: none; } /* Esconde os dados do cliente no rodapé mobile */
+        .sticky-sidebar .total-display { margin-bottom: 0; padding: 10px 15px; flex-grow: 1; border-radius: 12px; }
+        .sticky-sidebar .total-display h1 { font-size: 1.3rem; }
+        .sticky-sidebar .total-display small { font-size: 0.65rem; }
+        .sticky-sidebar .d-grid { flex-grow: 1; }
+        .sticky-sidebar .d-grid .btn-lg { padding: 12px; font-size: 1rem; }
+        .sticky-sidebar .d-grid .btn-outline-secondary { display: none; } /* Esconde o cancelar no mobile */
+        
+        /* Dá um espaço no final da lista para o último produto não ficar escondido pela barra */
+        .products-grid-container { padding-bottom: 120px; } 
+    }
+    .products-grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; padding-bottom: 20px; }
+    .product-card { background: white; border: 1px solid #eef2f6; border-radius: 12px; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); position: relative; overflow: hidden; }
+    .product-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.06); border-color: #cbd5e1; }
+    .product-card.active-item { border: 2px solid #27ae60; background-color: #f0fdf4; }
+    
+    /* BADGE EDITÁVEL HIGH TECH (Novo CSS) */
+    .editable-price-badge { position: absolute; top: 10px; right: 10px; background: rgba(30, 60, 114, 0.1); color: #1e3c72; font-weight: 700; padding: 2px 10px; border-radius: 20px; font-size: 0.85rem; display: flex; align-items: center; border: 1px solid transparent; transition: all 0.2s; z-index: 2; }
+    .editable-price-badge:hover, .editable-price-badge:focus-within { background: white; border-color: #27ae60; box-shadow: 0 4px 10px rgba(39, 174, 96, 0.2); color: #27ae60; }
+    .price-input-magic { background: transparent; border: none; color: inherit; font-weight: inherit; width: 60px; text-align: right; outline: none; padding: 0; }
+    .price-input-magic::-webkit-inner-spin-button, .price-input-magic::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .price-input-magic[type=number] { -moz-appearance: textfield; }
+
+    .badge-negociado { position: absolute; top: 10px; left: 10px; background: #fffbeb; color: #d97706; border: 1px solid #fde68a; font-weight: 700; padding: 3px 8px; border-radius: 6px; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .qty-control { display: flex; align-items: center; background: #f8fafc; border-radius: 8px; padding: 4px; border: 1px solid #e2e8f0; }
+    .qty-btn { width: 32px; height: 32px; border: none; background: white; color: #1e3c72; border-radius: 6px; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qty-btn:hover { background: #e2e8f0; }
+    .qty-btn:active { background: #cbd5e1; transform: scale(0.95); }
+    .qty-input { flex-grow: 1; text-align: center; border: none; background: transparent; font-weight: 700; font-size: 1.1rem; color: #334155; min-width: 50px; }
+    .qty-input:focus { outline: none; background-color: rgba(255, 255, 255, 0.5); }
+    .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .qty-input[type=number] { -moz-appearance: textfield; }
+    .sticky-sidebar { position: sticky; top: 20px; z-index: 100; }
+    .total-display { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0 10px 20px rgba(39, 174, 96, 0.2); }
+    .modern-search { position: relative; display: flex; align-items: center; }
+    .modern-search i { position: absolute; left: 12px; color: #94a3b8; }
+    .modern-search input { padding-left: 35px; border: 1px solid #cbd5e1; border-radius: 8px; padding-top: 8px; padding-bottom: 8px; font-size: 0.9rem; width: 280px; transition: all 0.2s; }
+    .modern-search input:focus { border-color: #27ae60; box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1); outline: none; }
+</style>
+
+<form action="/salvar_pedido" method="POST" id="pedidoForm">
+    <input type="hidden" name="id_cliente" value="{{ cliente['id'] }}">
+    {% if pedido %}
+        <input type="hidden" name="id_pedido" value="{{ pedido['id'] }}">
+    {% endif %}
+
+    <div class="row g-4 mt-1">
+        
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-end mb-4">
+                <div>
+                    <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Catálogo</h3>
+                    <div class="text-muted small">Adicione itens ao pedido de <strong>{{ cliente['nome_empresa'] }}</strong></div>
+                    
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input border-secondary" type="checkbox" role="switch" id="toggleNegociados" onchange="filtrar()" checked>
+                        <label class="form-check-label text-secondary small fw-bold" for="toggleNegociados">Mostrar apenas itens com preço negociado</label>
+                    </div>
+                </div>
+                
+                <div class="modern-search">
+                    <i class="bi bi-search"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar produto..." oninput="filtrar()" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="products-grid-container" id="listaProdutos">
+                {% for p in produtos %}
+                    {% set qtd = itens_atuais[p['id']] if p['id'] in itens_atuais else 0 %}
+                    
+                    <div class="product-card p-3 d-flex flex-column justify-content-between item-container {% if qtd > 0 %}active-item{% endif %}" 
+                         data-nome="{{ p['nome']|upper }}" 
+                         data-origem="{{ p['origem_preco'] }}" 
+                         id="card_{{ p['id'] }}">
+                        
+                        {% if p['origem_preco'] != 'PADRÃO' %}
+                            <span class="badge-negociado" title="Preço exclusivo"><i class="bi bi-star-fill text-warning"></i> {{ p['origem_preco'] }}</span>
+                        {% endif %}
+
+                        <div class="editable-price-badge" title="Clique para editar o valor unitário">
+                            R$ <input type="text" class="price-input-magic preco-unit ms-1" 
+                                      name="preco_{{ p['id'] }}" 
+                                      value="{{ '{:,.2f}'.format(p['preco_final']).replace(',', 'X').replace('.', ',').replace('X', '.') }}" 
+                                      oninput="calcular()">
+                        </div>
+
+                        <div class="mb-3 {% if p['origem_preco'] != 'PADRÃO' %}mt-4{% else %}mt-2{% endif %}">
+                            <div class="fw-bold text-dark text-truncate" style="font-size: 1.05rem;" title="{{ p['nome'] }}">{{ p['nome'] }}</div>
+                            <small class="text-muted text-uppercase" style="font-size: 0.75rem; letter-spacing: 0.5px;">{{ p['unidade'] }}</small>
+                        </div>
+
+                        <div class="qty-control justify-content-between">
+                            <button type="button" class="qty-btn text-danger" onclick="alterarQtd({{ p['id'] }}, -1)"><i class="bi bi-dash"></i></button>
+                            
+                            <input type="number" name="qtd_{{ p['id'] }}" id="qtd_{{ p['id'] }}"
+                                   class="qty-input" value="{{ qtd|int if qtd > 0 else '' }}"
+                                   placeholder="0" step="1" min="0" oninput="digitouQtd({{ p['id'] }})">
+                            
+                            <button type="button" class="qty-btn text-success" onclick="alterarQtd({{ p['id'] }}, 1)"><i class="bi bi-plus"></i></button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="sticky-sidebar">
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-header bg-dark text-white py-2">
+                        <small class="fw-bold text-uppercase"><i class="bi bi-gear-fill me-1"></i> Dados da Fatura</small>
+                    </div>
+                    <div class="card-body bg-light">
+                        <div class="mb-3">
+                            <label class="form-label text-secondary small fw-bold">CLIENTE</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white"><i class="bi bi-person-fill text-primary"></i></span>
+                                <input type="text" class="form-control bg-white fw-bold text-dark" value="{{ cliente['nome_empresa'] }}" readonly>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label class="form-label text-secondary small fw-bold">INÍCIO</label>
+                                <input type="date" name="data_inicio" class="form-control form-control-sm font-monospace" value="{{ pedido.data_inicio if pedido else hoje }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-secondary small fw-bold">FIM</label>
+                                <input type="date" name="data_fim" class="form-control form-control-sm font-monospace" value="{{ pedido.data_fim if pedido else hoje }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="total-display">
+                    <small class="text-white-50 text-uppercase fw-bold d-block mb-1">Total Estimado</small>
+                    <h1 class="fw-bold mb-0" id="totalExibicao">R$ 0,00</h1>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-dark btn-lg shadow-sm py-3 fw-bold">
+                        <i class="bi bi-check-circle-fill me-2"></i> Finalizar Fatura
+                    </button>
+                    <a href="/" class="btn btn-outline-secondary btn-sm border-0">Cancelar Operação</a>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</form>
+
+<script>
+    function alterarQtd(id, delta) {
+        let input = document.getElementById('qtd_' + id);
+        if (!input) return;
+        let currentVal = parseInt(input.value) || 0;
+        let newVal = currentVal + delta;
+        if (newVal < 0) newVal = 0;
+        input.value = newVal > 0 ? newVal : '';
+        atualizarVisualCard(id, newVal);
+        calcular();
+    }
+
+    function digitouQtd(id) {
+        let input = document.getElementById('qtd_' + id);
+        if (!input) return;
+        input.value = input.value.replace(/[^0-9]/g, '');
+        let val = parseInt(input.value);
+        if (isNaN(val)) val = 0;
+        atualizarVisualCard(id, val);
+        calcular();
+    }
+
+    function atualizarVisualCard(id, val) {
+        let card = document.getElementById('card_' + id);
+        if (!card) return;
+        if (val > 0) {
+            card.classList.add('active-item');
+        } else {
+            card.classList.remove('active-item');
+        }
+    }
+
+    function filtrar() {
+        let inputBusca = document.getElementById("searchInput");
+        let busca = inputBusca ? inputBusca.value.toUpperCase() : "";
+        let toggle = document.getElementById("toggleNegociados");
+        let mostrarApenasNegociados = toggle ? toggle.checked : false;
+        let itens = document.getElementsByClassName("item-container");
+        
+        for (let i of itens) {
+            let nome = i.getAttribute("data-nome") || "";
+            let origem = i.getAttribute("data-origem") || ""; 
+            
+            let passaNaBusca = nome.includes(busca);
+            let passaNoToggle = true; 
+            
+            if (mostrarApenasNegociados) {
+                passaNoToggle = (origem === 'CLIENTE' || origem === 'GRUPO'); 
+            }
+            
+            if (passaNaBusca && passaNoToggle) {
+                i.classList.remove("d-none");
+                i.classList.add("d-flex");
+            } else {
+                i.classList.remove("d-flex");
+                i.classList.add("d-none");
+            }
+        }
+    }
+
+    function calcular() {
+        let total = 0;
+        let inputs = document.getElementsByClassName("qty-input");
+        let precos = document.getElementsByClassName("preco-unit");
+        for (let i = 0; i < inputs.length; i++) {
+            let qtd = parseInt(inputs[i].value) || 0;
+            
+            let prcTexto = precos[i].value.replace(/\./g, '').replace(',', '.');
+            let prc = parseFloat(prcTexto) || 0;
+            
+            total += (qtd * prc);
+        }
+        
+        let display = document.getElementById("totalExibicao");
+        if(display) {
+            display.innerText = total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+    }
+
+    // ADICIONADO: Aciona a função filtrar junto com o calcular quando a tela abre
+    document.addEventListener("DOMContentLoaded", function() {
+        calcular();
+        filtrar();
+    });
+</script>
+{% endblock %}

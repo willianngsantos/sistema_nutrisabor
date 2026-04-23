@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    .nav-pills .nav-link {
+        color: #475569 !important; /* Força cor escura nas abas inativas */
+        background-color: #f1f5f9; /* Fundo cinza claro */
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 10px 20px;
+        margin-right: 5px;
+        transition: all 0.2s;
+    }
+    .nav-pills .nav-link.active {
+        background-color: var(--brand-green) !important;
+        color: white !important; /* Texto branco só na aba ativa */
+        box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3);
+    }
+    .day-pane {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        border: 1px solid #eef2f6;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+    }
+    .form-floating-custom {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 10px 15px;
+        border: 1px solid #e2e8f0;
+    }
+    .form-floating-custom label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: var(--primary-color);
+        font-weight: 700;
+        display: block;
+        margin-bottom: 5px;
+    }
+    .form-floating-custom input {
+        border: none;
+        background: transparent;
+        width: 100%;
+        outline: none;
+        font-weight: 500;
+        color: var(--text-dark);
+    }
+</style>
+
+<div class="row align-items-center mb-4 mt-3 g-2">
+    <div class="col-12 col-md-7">
+        <h3 class="fw-bold text-dark mb-0">Montagem do Cardápio</h3>
+        <p class="text-muted small mb-0 text-truncate"><i class="bi bi-building me-1"></i> {{ cardapio['nome_empresa'] }} • Ref: #{{ cardapio['id'] }}</p>
+    </div>
+    <div class="col-12 col-md-5 d-flex gap-2 justify-content-end">
+        <a href="/cardapios/imprimir/{{ cardapio['id'] }}" target="_blank" class="btn btn-dark rounded-pill btn-sm fw-bold shadow-sm">
+            <i class="bi bi-printer me-1 d-none d-sm-inline"></i><span class="d-none d-sm-inline">Imprimir / PDF</span><i class="bi bi-printer d-sm-none"></i>
+        </a>
+        <a href="/cardapios" class="btn btn-outline-secondary rounded-pill btn-sm fw-bold">
+            <i class="bi bi-arrow-left me-1"></i><span class="d-none d-sm-inline">Voltar</span>
+        </a>
+    </div>
+</div>
+
+<form action="/cardapios/salvar_itens/{{ cardapio['id'] }}" method="POST">
+    
+    <ul class="nav nav-pills mb-4 flex-nowrap overflow-x-auto pb-2" id="diasTab" role="tablist" style="white-space: nowrap; -webkit-overflow-scrolling: touch;">
+        {% for item in itens %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}" 
+                    id="tab-{{ item['id'] }}" 
+                    data-bs-toggle="pill" 
+                    data-bs-target="#pane-{{ item['id'] }}" 
+                    type="button" role="tab">
+                {{ item['dia_semana'] }} <small class="d-block" style="font-size: 0.7rem; opacity: 0.8;">{{ item['data_dia'].strftime('%d/%m') }}</small>
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="tab-content" id="diasTabContent">
+        {% for item in itens %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %} day-pane" 
+             id="pane-{{ item['id'] }}" role="tabpanel">
+            
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                <h5 class="fw-bold text-dark mb-0">Refeições de {{ item['dia_semana'] }}</h5>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                           name="feriado_{{ item['id'] }}" id="feriado_{{ item['id'] }}"
+                           {% if item.get('feriado') %}checked{% endif %}
+                           onchange="toggleFeriado(this, 'pane-{{ item['id'] }}')">
+                    <label class="form-check-label small fw-bold text-warning" for="feriado_{{ item['id'] }}">
+                        <i class="bi bi-star-fill me-1"></i>Feriado
+                    </label>
+                </div>
+            </div>
+
+            <div class="row g-3" id="campos-{{ item['id'] }}" {% if item.get('feriado') %}style="opacity:.4;pointer-events:none;"{% endif %}>
+                <div class="col-md-12">
+                    <div class="form-floating-custom">
+                        <label><i class="bi bi-egg-fried me-1"></i> Base</label>
+                        <input type="text" name="base_{{ item['id'] }}" value="{{ item['base'] if item['base'] else 'Arroz e Feijão' }}">
+                    </div>
+                </div>
+                
+                <div class="col-12 col-md-6">
+                    <div class="form-floating-custom" style="border-left: 4px solid var(--brand-orange);">
+                        <label><i class="bi bi-fire me-1 text-orange"></i> Prato Principal 1</label>
+                        <input type="text" name="p1_{{ item['id'] }}" value="{{ item['principal1'] if item['principal1'] else '' }}" placeholder="Ex: Strogonoff de Carne">
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-floating-custom" style="border-left: 4px solid var(--brand-green);">
+                        <label><i class="bi bi-flower1 me-1 text-success"></i> Prato Principal 2</label>
+                        <input type="text" name="p2_{{ item['id'] }}" value="{{ item['principal2'] if item['principal2'] else '' }}" placeholder="Ex: Ovos Mexidos com Queijo">
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="form-floating-custom">
+                        <label><i class="bi bi-basket me-1"></i> Guarnição</label>
+                        <input type="text" name="guarnicao_{{ item['id'] }}" value="{{ item['guarnicao'] if item['guarnicao'] else '' }}" placeholder="Ex: Batata Palha">
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-floating-custom">
+                        <label><i class="bi bi-tencent-qq me-1"></i> Salada</label>
+                        <input type="text" name="salada_{{ item['id'] }}" value="{{ item['salada'] if item['salada'] else '' }}" placeholder="Ex: Alface e Tomate">
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <div class="form-floating-custom">
+                        <label><i class="bi bi-cup-straw me-1"></i> Bebida</label>
+                        <input type="text" name="bebida_{{ item['id'] }}" value="{{ item['bebida'] if item['bebida'] else 'Suco de Fruta' }}">
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-floating-custom">
+                        <label><i class="bi bi-cake me-1"></i> Sobremesa</label>
+                        <input type="text" name="sobremesa_{{ item['id'] }}" value="{{ item['sobremesa'] if item['sobremesa'] else 'Fruta' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card mt-4 border-0 shadow-sm">
+        <div class="card-body bg-light rounded-3">
+            <label class="form-label fw-bold text-secondary small text-uppercase">Observações Gerais do Cardápio</label>
+            <textarea name="observacoes" class="form-control border-0 shadow-sm" rows="2" placeholder="Ex: Verduras e guarnições poderão sofrer alterações...">{{ cardapio['observacoes'] if cardapio['observacoes'] else 'Verduras e guarnições poderão sofrer alterações de acordo com a disponibilidade.' }}</textarea>
+            
+            <div class="d-grid d-md-flex justify-content-md-end mt-3">
+                <button type="submit" class="btn btn-success btn-lg px-5 fw-bold shadow">
+                    <i class="bi bi-save me-2"></i> Salvar Todo o Cardápio
+                </button>
+            </div>
+        </div>
+    </div>
+
+</form>
+<script>
+function toggleFeriado(checkbox, paneId) {
+    const camposId = paneId.replace('pane-', 'campos-');
+    const campos = document.getElementById(camposId);
+    if (checkbox.checked) {
+        campos.style.opacity = '0.4';
+        campos.style.pointerEvents = 'none';
+    } else {
+        campos.style.opacity = '1';
+        campos.style.pointerEvents = '';
+    }
+}
+</script>
+{% endblock %}

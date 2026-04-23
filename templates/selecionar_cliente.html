@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    .hero-section {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        border-radius: 12px; /* Reduzido de 16px */
+        padding: 30px; /* Reduzido de 40px */
+        color: white;
+        box-shadow: 0 8px 20px rgba(30, 60, 114, 0.15);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .hero-bg-icon {
+        position: absolute;
+        right: -10px;
+        bottom: -30px;
+        font-size: 8rem; /* Reduzido */
+        opacity: 0.1;
+        transform: rotate(-15deg);
+    }
+
+    .card-hover-effect {
+        transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        border: 1px solid rgba(0,0,0,0.05);
+        cursor: pointer;
+    }
+
+    .card-hover-effect:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+        border-color: #2a5298;
+    }
+
+    .avatar-initial {
+        width: 38px; /* Reduzido */
+        height: 38px;
+        background: #f0f2f5;
+        color: #1e3c72;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+
+    .recent-list-item {
+        border-left: 3px solid transparent;
+        transition: all 0.2s;
+        padding: 12px 16px !important; /* Mais compacto */
+    }
+    
+    .recent-list-item:hover {
+        background-color: #f8f9fa;
+        border-left-color: #27ae60;
+    }
+</style>
+
+<div class="row g-4 mt-1">
+    <div class="col-lg-7">
+        <div class="hero-section mb-4 text-white"> <i class="bi bi-cart-plus hero-bg-icon"></i>
+            <h3 class="fw-bold mb-1 text-white">Nova Fatura</h3> <p class="text-white-50 small mb-3">Selecione um cliente para iniciar o fechamento.</p>
+            
+            <form action="/abrir_pedido" method="POST" class="bg-white p-3 rounded-3 shadow-sm text-dark" id="formPedido">
+                <label class="form-label fw-bold text-uppercase text-secondary small" style="font-size: 0.7rem;">Cliente / Empresa</label>
+                <div class="position-relative mb-2">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                        <input class="form-control border-start-0 bg-light" id="clienteInput" placeholder="Digite para filtrar clientes..." autocomplete="off">
+                    </div>
+                    <input type="hidden" name="id_cliente" id="clienteIdHidden">
+                    <!-- Lista de sugestões -->
+                    <div id="clienteSugestoes"
+                         class="position-absolute w-100 bg-white border rounded-3 shadow-sm mt-1"
+                         style="z-index:1050;max-height:220px;overflow-y:auto;display:none;top:100%;left:0;">
+                    </div>
+                    <!-- Cliente selecionado -->
+                    <div id="clienteSelecionado" class="d-none mt-2 px-2 py-1 bg-success-subtle rounded-2 d-flex justify-content-between align-items-center" style="font-size:.85rem;">
+                        <span><i class="bi bi-check-circle-fill text-success me-2"></i><strong id="clienteNomeSelecionado"></strong></span>
+                        <button type="button" class="btn-close btn-close-sm" id="btnLimparCliente" aria-label="Limpar"></button>
+                    </div>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary fw-bold shadow-sm" id="btnContinuar" disabled>
+                        Iniciar Faturamento <i class="bi bi-arrow-right ms-2"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <h6 class="text-uppercase text-muted fw-bold small mb-2 ps-1" style="font-size: 0.75rem;">Atalhos Rápidos</h6>
+        <div class="row g-2">
+            {% for c in clientes[:4] %}
+            <div class="col-6 col-md-6">
+                <div class="card card-hover-effect border-0 h-100 p-2" onclick="selecionarAtalho('{{ c[0] }}', '{{ c[1] }}')">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-initial me-3 d-none d-md-flex">{{ c[1][0]|upper }}</div>
+                        <div class="text-truncate">
+                            <div class="fw-bold text-dark text-truncate" style="font-size: 0.9rem;">{{ c[1] }}</div>
+                            <small class="text-success fw-bold" style="font-size: 0.65rem;">
+                                <i class="bi bi-plus-circle me-1"></i>Novo Pedido
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-2 border-0">
+                <h6 class="fw-bold mb-0 text-dark small text-uppercase"><i class="bi bi-clock-history me-2 text-warning"></i>Rascunhos & Recentes</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% if recentes %}
+                        {% for ped in recentes %}
+                        <a href="{{ url_for('vendas.fazer_pedido', id_pedido=ped[0]) }}" class="list-group-item list-group-item-action recent-list-item">
+                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">{{ ped[2] }}</span>
+                                <small class="text-muted" style="font-size: 0.7rem;">{{ ped[3] }}</small>
+                            </div>
+                            <h6 class="mb-0 fw-bold text-primary" style="font-size: 0.9rem;">{{ ped[1] }}</h6>
+                            <small class="text-muted" style="font-size: 0.75rem;"><i class="bi bi-pencil-square me-1"></i>Continuar editando</small>
+                        </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-inbox fs-1 opacity-25"></i>
+                            <p class="mt-2 small">Nenhum rascunho recente.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Base de clientes para filtro dinâmico
+const CLIENTES_DB = [
+    {% for c in clientes %}
+    { id: {{ c[0] }}, nome: "{{ c[1]|replace('"', '\\"')|replace('\n','') }}" }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+const inputEl    = document.getElementById('clienteInput');
+const hiddenEl   = document.getElementById('clienteIdHidden');
+const btnEl      = document.getElementById('btnContinuar');
+const sugestoesEl= document.getElementById('clienteSugestoes');
+const selecionadoEl = document.getElementById('clienteSelecionado');
+const nomeSelEl  = document.getElementById('clienteNomeSelecionado');
+
+// Filtra e exibe sugestões conforme digitação
+inputEl.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    fecharSugestoes();
+    limparSelecao();
+    if (q.length === 0) return;
+
+    const matches = CLIENTES_DB.filter(c => c.nome.toLowerCase().includes(q)).slice(0, 12);
+    if (matches.length === 0) return;
+
+    matches.forEach(c => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'list-group-item list-group-item-action py-2 px-3 text-start border-0';
+        item.style.fontSize = '.88rem';
+        // Destaca o trecho digitado
+        const idx = c.nome.toLowerCase().indexOf(q);
+        item.innerHTML = c.nome.substring(0, idx)
+            + '<strong>' + c.nome.substring(idx, idx + q.length) + '</strong>'
+            + c.nome.substring(idx + q.length);
+        item.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            selecionarCliente(c.id, c.nome);
+        });
+        sugestoesEl.appendChild(item);
+    });
+    sugestoesEl.style.display = 'block';
+});
+
+// Fecha ao perder foco
+inputEl.addEventListener('blur', () => setTimeout(fecharSugestoes, 150));
+
+function fecharSugestoes() {
+    sugestoesEl.innerHTML = '';
+    sugestoesEl.style.display = 'none';
+}
+
+function limparSelecao() {
+    hiddenEl.value = '';
+    btnEl.setAttribute('disabled', 'true');
+    selecionadoEl.classList.add('d-none');
+}
+
+function selecionarCliente(id, nome) {
+    hiddenEl.value = id;
+    inputEl.value = '';
+    nomeSelEl.textContent = nome;
+    selecionadoEl.classList.remove('d-none');
+    btnEl.removeAttribute('disabled');
+    fecharSugestoes();
+}
+
+// Botão limpar seleção
+document.getElementById('btnLimparCliente').addEventListener('click', function () {
+    limparSelecao();
+    inputEl.value = '';
+    inputEl.focus();
+});
+
+// Atalhos rápidos (clique nos cards)
+function selecionarAtalho(id, nome) {
+    selecionarCliente(id, nome);
+    document.getElementById('formPedido').submit();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<div class="container mt-4">
+    <div class="card shadow border-0">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0"><i class="bi bi-building"></i> Minha Empresa</h4>
+        </div>
+        <div class="card-body bg-light">
+            
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    <div class="alert alert-success shadow-sm border-start border-success border-4">
+                        <i class="bi bi-check-circle-fill me-2"></i> {{ messages[0] }}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST">
+                <h5 class="text-primary border-bottom pb-2 mb-3">Dados Gerais</h5>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Razão Social (Ou deixe espaço em branco)</label>
+                        <input type="text" name="razao_social" class="form-control" value="{{ empresa[1] }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">CNPJ</label>
+                        <input type="text" name="cnpj" class="form-control" value="{{ empresa[2] }}" oninput="mascaraDocumento(this)">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">CEP</label>
+                        <div class="input-group">
+                            <input type="text" id="cep" name="cep" class="form-control" value="{{ empresa[6] }}" onblur="buscarCep()">
+                            <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold">Endereço</label>
+                        <input type="text" id="endereco" name="endereco" class="form-control" value="{{ empresa[3] }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Cidade/UF</label>
+                        <div class="input-group">
+                            <input type="text" id="cidade" name="cidade" class="form-control" value="{{ empresa[4] }}">
+                            <input type="text" id="estado" name="estado" class="form-control" style="max-width: 60px;" value="{{ empresa[5] }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Telefone</label>
+                        <input type="text" name="telefone" class="form-control" value="{{ empresa[7] }}" oninput="mascaraTelefone(this)">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ empresa[8] }}">
+                    </div>
+                </div>
+
+                <h5 class="text-primary border-bottom pb-2 mb-3 mt-5">Dados Bancários para Recebimento</h5>
+                <div class="row g-3 bg-white p-3 border rounded shadow-sm">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Instituição Financeira</label>
+                        <select name="banco_nome" class="form-select">
+                            <option value="">Selecione...</option>
+                            <option value="Santander" {% if empresa[10] == 'Santander' %}selected{% endif %}>Santander</option>
+                            <option value="Banco do Brasil" {% if empresa[10] == 'Banco do Brasil' %}selected{% endif %}>Banco do Brasil</option>
+                            <option value="Bradesco" {% if empresa[10] == 'Bradesco' %}selected{% endif %}>Bradesco</option>
+                            <option value="Itau" {% if empresa[10] == 'Itau' %}selected{% endif %}>Itaú</option>
+                            <option value="Caixa" {% if empresa[10] == 'Caixa' %}selected{% endif %}>Caixa Econômica</option>
+                            <option value="Nubank" {% if empresa[10] == 'Nubank' %}selected{% endif %}>Nubank</option>
+                            <option value="Inter" {% if empresa[10] == 'Inter' %}selected{% endif %}>Banco Inter</option>
+                            <option value="Sicredi" {% if empresa[10] == 'Sicredi' %}selected{% endif %}>Sicredi</option>
+                            <option value="Sicoob" {% if empresa[10] == 'Sicoob' %}selected{% endif %}>Sicoob</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Agência</label>
+                        <input type="text" name="agencia" class="form-control" value="{{ empresa[11] }}" placeholder="0000">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Conta Corrente</label>
+                        <input type="text" name="conta" class="form-control" value="{{ empresa[12] }}" placeholder="00000-0">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Chave PIX</label>
+                        <input type="text" name="pix_chave" class="form-control" value="{{ empresa[13] }}" placeholder="CPF, CNPJ ou Email">
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="/" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary px-4">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Mantém as máscaras que já funcionavam
+    function mascaraDocumento(i){var v=i.value;if(isNaN(v[v.length-1])){i.value=v.substring(0,v.length-1);return}i.setAttribute("maxlength","18");if(v.length<=14){i.value=v.replace(/\D/g,"").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2")}else{i.value=v.replace(/\D/g,"").replace(/^(\d{2})(\d)/,"$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3").replace(/\.(\d{3})(\d)/,".$1/$2").replace(/(\d{4})(\d)/,"$1-$2")}}
+    function mascaraTelefone(i){var v=i.value;v=v.replace(/\D/g,"");v=v.replace(/^(\d{2})(\d)/g,"($1) $2");v=v.replace(/(\d)(\d{4})$/,"$1-$2");i.value=v}
+    function buscarCep() {
+        var cep = document.getElementById('cep').value.replace(/\D/g, '');
+        if (cep != "") {
+            fetch('https://viacep.com.br/ws/'+ cep + '/json/').then(r=>r.json()).then(d=>{
+                if(!("erro" in d)){document.getElementById('endereco').value=(d.logradouro+", "+d.bairro);document.getElementById('cidade').value=d.localidade;document.getElementById('estado').value=d.uf}
+            });
+        }
+    }
+</script>
+{% endblock %}

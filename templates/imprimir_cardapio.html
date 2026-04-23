@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Cardápio - {{ cardapio['nome_empresa'] }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #f1f5f9;
+            font-family: 'Inter', 'Arial', sans-serif;
+            color: #1e293b;
+        }
+
+        /* ── Barra de ações (só na tela) ── */
+        .action-bar {
+            background: #1e293b;
+            padding: 14px 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+        }
+        .btn-print {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 10px 28px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-print:hover { background: #16a34a; }
+        .btn-close-win {
+            background: transparent;
+            color: #94a3b8;
+            border: 1px solid #334155;
+            padding: 10px 22px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .btn-close-win:hover { color: white; border-color: #64748b; }
+
+        /* ── Página impressa ── */
+        .page {
+            max-width: 1100px;
+            margin: 28px auto;
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.10);
+            border-top: 5px solid #22c55e;
+        }
+
+        /* ── Cabeçalho ── */
+        .page-header {
+            background: white;
+            padding: 24px 36px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .logo-box {
+            width: 110px;
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .logo-box img {
+            max-width: 110px;
+            max-height: 65px;
+            object-fit: contain;
+        }
+        .logo-placeholder {
+            width: 110px;
+            height: 65px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 11px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .header-center {
+            flex: 1;
+            text-align: center;
+        }
+        .header-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: #22c55e;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .header-title {
+            font-size: 21px;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.3px;
+            line-height: 1.2;
+        }
+        .header-period {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        /* ── Tabela ── */
+        .table-wrap {
+            padding: 24px 28px 20px;
+        }
+
+        table.menu-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        /* Linha de cabeçalho dos dias */
+        table.menu-table thead tr:first-child th {
+            background: #16a34a;
+            color: white;
+            padding: 13px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+        table.menu-table thead tr:first-child th:first-child {
+            background: #15803d;
+        }
+        table.menu-table thead tr:first-child th:not(:first-child) {
+            border-left: 1px solid rgba(255,255,255,0.15);
+        }
+
+        /* Coluna de feriado no cabeçalho */
+        table.menu-table thead tr:first-child th.col-feriado {
+            background: #d97706;
+        }
+
+        /* Linha de datas */
+        table.menu-table thead tr:last-child th {
+            background: #f0fdf4;
+            color: #16a34a;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+            border-bottom: 2px solid #bbf7d0;
+        }
+        table.menu-table thead tr:last-child th:first-child {
+            color: #64748b;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: #f8fafc;
+        }
+        table.menu-table thead tr:last-child th:not(:first-child) {
+            border-left: 1px solid #d1fae5;
+        }
+
+        /* Data de feriado */
+        table.menu-table thead tr:last-child th.col-feriado {
+            background: #fef3c7;
+            color: #d97706;
+            border-bottom-color: #fde68a;
+        }
+
+        /* Células do corpo */
+        table.menu-table tbody td {
+            padding: 10px 12px;
+            font-size: 12px;
+            text-align: center;
+            vertical-align: middle;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            line-height: 1.4;
+        }
+        table.menu-table tbody td:not(:first-child) {
+            border-left: 1px solid #f1f5f9;
+        }
+        table.menu-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Célula de feriado no corpo */
+        table.menu-table tbody td.col-feriado {
+            background: #fffbeb !important;
+            color: #d97706;
+            font-size: 11px;
+            font-weight: 600;
+            border-left: 1px solid #fde68a !important;
+        }
+
+        /* Célula de categoria (primeira coluna) */
+        table.menu-table tbody td.row-header {
+            text-align: left;
+            font-weight: 700;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #374151;
+            width: 140px;
+            padding: 10px 14px 10px 16px;
+            background: #f8fafc;
+            border-left: 3px solid transparent;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        /* Cor da borda esquerda por categoria */
+        table.menu-table tbody tr:nth-child(1) td.row-header { border-left-color: #64748b; }  /* Base */
+        table.menu-table tbody tr:nth-child(2) td.row-header { border-left-color: #f97316; }  /* Prato Principal 1 */
+        table.menu-table tbody tr:nth-child(3) td.row-header { border-left-color: #22c55e; }  /* Prato Principal 2 */
+        table.menu-table tbody tr:nth-child(4) td.row-header { border-left-color: #8b5cf6; }  /* Guarnição */
+        table.menu-table tbody tr:nth-child(5) td.row-header { border-left-color: #10b981; }  /* Salada */
+        table.menu-table tbody tr:nth-child(6) td.row-header { border-left-color: #3b82f6; }  /* Bebida */
+        table.menu-table tbody tr:nth-child(7) td.row-header { border-left-color: #f59e0b; }  /* Sobremesa */
+
+        /* Fundo alternado nas linhas de dados */
+        table.menu-table tbody tr:nth-child(odd) td:not(.row-header):not(.col-feriado) { background: #ffffff; }
+        table.menu-table tbody tr:nth-child(even) td:not(.row-header):not(.col-feriado) { background: #f8fafc; }
+
+        /* Destaque no Prato Principal */
+        table.menu-table tbody tr:nth-child(2) td:not(.row-header):not(.col-feriado),
+        table.menu-table tbody tr:nth-child(3) td:not(.row-header):not(.col-feriado) {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        /* ── Observação ── */
+        .obs-section {
+            margin: 0 28px 24px;
+            padding: 10px 16px;
+            background: #fefce8;
+            border-left: 4px solid #eab308;
+            border-radius: 0 8px 8px 0;
+            font-size: 11.5px;
+            color: #713f12;
+            font-style: italic;
+        }
+
+        /* ── Rodapé ── */
+        .page-footer {
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            padding: 12px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .footer-brand {
+            font-size: 11px;
+            font-weight: 700;
+            color: #16a34a;
+            letter-spacing: 0.5px;
+        }
+        .footer-note {
+            font-size: 10px;
+            color: #94a3b8;
+        }
+
+        /* ── Print ── */
+        @media print {
+            @page { size: landscape; margin: 10mm; }
+
+            body { background: white !important; }
+            .action-bar { display: none !important; }
+
+            .page {
+                margin: 0;
+                border-radius: 0;
+                box-shadow: none;
+                max-width: 100%;
+            }
+
+            .page-header,
+            table.menu-table thead tr:first-child th,
+            table.menu-table thead tr:last-child th,
+            table.menu-table tbody td.row-header,
+            table.menu-table tbody td.col-feriado,
+            table.menu-table thead tr:first-child th.col-feriado,
+            table.menu-table thead tr:last-child th.col-feriado,
+            table.menu-table tbody tr:nth-child(even) td:not(.row-header),
+            .obs-section,
+            .page-footer {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="action-bar">
+        <button class="btn-print" onclick="window.print()">
+            🖨️ Imprimir / Salvar PDF
+        </button>
+        <button class="btn-close-win" onclick="window.close()">Fechar</button>
+    </div>
+
+    <div class="page">
+
+        <!-- Cabeçalho -->
+        <div class="page-header">
+            <div class="logo-box">
+                <img src="/static/img/logo.png" alt="NutriSabor">
+            </div>
+
+            <div class="header-center">
+                <div class="header-label">Cardápio Semanal</div>
+                <div class="header-title">{{ cardapio['nome_empresa'] | upper }}</div>
+                <div class="header-period">
+                    {{ cardapio['data_inicio'].strftime('%d/%m/%Y') }} &nbsp;→&nbsp; {{ cardapio['data_fim'].strftime('%d/%m/%Y') }}
+                </div>
+            </div>
+
+            <div class="logo-box">
+                {% if cardapio['logo_path'] %}
+                    <img src="/static/{{ cardapio['logo_path'] }}" alt="{{ cardapio['nome_empresa'] }}">
+                {% else %}
+                    <div class="logo-placeholder">Logo do<br>Cliente</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabela -->
+        <div class="table-wrap">
+            <table class="menu-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        {% for item in itens %}
+                        <th {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {{ item['dia_semana'][:3] | upper }}
+                            {% if item.get('feriado') %}<br><span style="font-size:10px;font-weight:600;letter-spacing:0;">⭐ Feriado</span>{% endif %}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <th>Categoria</th>
+                        {% for item in itens %}
+                        <th {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {{ item['data_dia'].strftime('%d/%m') }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="row-header">Base</td>
+                        {% for item in itens %}
+                        <td {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {% if item.get('feriado') %}—{% else %}{{ item['base'] or '—' }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="row-header">Prato Principal 1</td>
+                        {% for item in itens %}
+                        <td {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {% if item.get('feriado') %}—{% else %}{{ item['principal1'] or '—' }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="row-header">Prato Principal 2</td>
+                        {% for item in itens %}
+                        <td {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {% if item.get('feriado') %}—{% else %}{{ item['principal2'] or '—' }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="row-header">Guarnição</td>
+                        {% for item in itens %}
+                        <td {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {% if item.get('feriado') %}—{% else %}{{ item['guarnicao'] or '—' }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="row-header">Salada</td>
+                        {% for item in itens %}
+                        <td {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {% if item.get('feriado') %}—{% else %}{{ item['salada'] or '—' }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="row-header">Bebida</td>
+                        {% for item in itens %}
+                        <td {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {% if item.get('feriado') %}—{% else %}{{ item['bebida'] or '—' }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr>
+                        <td class="row-header">Sobremesa</td>
+                        {% for item in itens %}
+                        <td {% if item.get('feriado') %}class="col-feriado"{% endif %}>
+                            {% if item.get('feriado') %}—{% else %}{{ item['sobremesa'] or '—' }}{% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        {% if cardapio['observacoes'] %}
+        <div class="obs-section">
+            ⚠️ {{ cardapio['observacoes'] }}
+        </div>
+        {% endif %}
+
+        <!-- Rodapé -->
+        <div class="page-footer">
+            <span class="footer-brand">{{ empresa['razao_social'] if empresa else 'NutriSabor' }}</span>
+            <span class="footer-note">*Verduras e guarnições poderão sofrer alterações de acordo com a disponibilidade dos fornecedores.</span>
+            <span class="footer-note">Emitido em {{ cardapio['data_inicio'].strftime('%d/%m/%Y') }}</span>
+        </div>
+
+    </div>
+
+</body>
+</html>

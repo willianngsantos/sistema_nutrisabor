@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% from "_rh_nav.html" import rh_nav %}
+{% block conteudo %}
+{{ rh_nav('jornadas') }}
+
+<div class="row align-items-center mb-4 g-2">
+  <div class="col"><h4 class="fw-bold mb-0"><i class="bi bi-clock me-2 text-success"></i>Jornadas de Trabalho</h4></div>
+  <div class="col-auto">
+    <button class="btn btn-success rounded-pill btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#modalAddJornada">
+      <i class="bi bi-plus-lg me-1"></i> Nova Jornada
+    </button>
+  </div>
+</div>
+
+<div class="row g-3">
+  {% for j in jornadas %}
+  {# Calcula carga horária diária em Python (timedelta → seconds) #}
+  {% set entrada_seg = j['hora_entrada'].seconds if j['hora_entrada'] else 0 %}
+  {% set saida_seg   = j['hora_saida'].seconds   if j['hora_saida']   else 0 %}
+  {% set intervalo_seg = (j['intervalo_min'] or 0) * 60 %}
+  {% set carga_seg   = saida_seg - entrada_seg - intervalo_seg %}
+  {% set carga_h     = (carga_seg // 3600) %}
+  {% set carga_m     = ((carga_seg % 3600) // 60) %}
+  <div class="col-12 col-md-6 col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="fw-bold mb-0">{{ j['nome'] }}</h6>
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-primary p-1" style="line-height:1;"
+                    data-id="{{ j['id'] }}"
+                    data-nome="{{ j['nome'] | e }}"
+                    data-entrada="{{ j['hora_entrada']|string|truncate(5,true,'') }}"
+                    data-saida="{{ j['hora_saida']|string|truncate(5,true,'') }}"
+                    data-intervalo="{{ j['intervalo_min'] }}"
+                    data-dias="{{ j['dias_semana'] }}"
+                    onclick="editarJornada(this)" title="Editar">
+              <i class="bi bi-pencil" style="font-size:.8rem;"></i>
+            </button>
+            <a href="/rh/jornadas/excluir/{{ j['id'] }}" class="btn btn-sm btn-outline-danger p-1"
+               onclick="return confirm('Remover esta jornada?')" style="line-height:1;" title="Excluir">
+              <i class="bi bi-trash3" style="font-size:.8rem;"></i>
+            </a>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-clock text-success"></i>
+          <span class="fw-semibold">{{ j['hora_entrada']|string|truncate(5, true, '') }} → {{ j['hora_saida']|string|truncate(5, true, '') }}</span>
+          <span class="text-muted small">· {{ j['intervalo_min'] }}min intervalo</span>
+        </div>
+        {% if carga_seg > 0 %}
+        <div class="mb-2">
+          <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.78rem;">
+            <i class="bi bi-hourglass-split me-1"></i>
+            {% if carga_m > 0 %}
+              {{ carga_h }}h{{ "%02d"|format(carga_m) }}min / dia
+            {% else %}
+              {{ carga_h }}h / dia
+            {% endif %}
+          </span>
+        </div>
+        {% endif %}
+        <div class="d-flex flex-wrap gap-1">
+          {% for d in j['dias_semana'].split(',') if d %}
+          <span class="badge bg-success-subtle text-success border border-success-subtle" style="font-size:.7rem;">{{ dias_labels.get(d, d) }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5 text-muted">
+        <i class="bi bi-clock fs-1 opacity-25 d-block mb-2"></i>
+        <p class="mb-0">Nenhuma jornada cadastrada.</p>
+        <small>Crie jornadas como "Comercial 8h-17h" ou "Cozinha 6h-14h".</small>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="modalAddJornada" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-success text-white border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-clock me-2"></i>Nova Jornada</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/rh/jornadas/add" method="POST">
+        <div class="modal-body bg-light p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Nome da Jornada</label>
+            <input type="text" name="nome" class="form-control border-0 shadow-sm" placeholder="Ex: Comercial — Seg a Sex" required>
+          </div>
+          <div class="row g-3 mb-2">
+            <div class="col-4">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Entrada</label>
+              <input type="time" name="hora_entrada" id="jorn_entrada" class="form-control border-0 shadow-sm" value="08:00" required oninput="calcCargaHoraria()">
+            </div>
+            <div class="col-4">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Saída</label>
+              <input type="time" name="hora_saida" id="jorn_saida" class="form-control border-0 shadow-sm" value="17:00" required oninput="calcCargaHoraria()">
+            </div>
+            <div class="col-4">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Intervalo</label>
+              <div class="input-group">
+                <input type="number" name="intervalo_min" id="jorn_intervalo" class="form-control border-0 shadow-sm" value="60" min="0" max="180" oninput="calcCargaHoraria()">
+                <span class="input-group-text bg-light border-0 text-muted small">min</span>
+              </div>
+            </div>
+          </div>
+          <!-- Preview de carga horária -->
+          <div id="previewCarga" class="mb-3 text-center" style="display:none;">
+            <span class="badge bg-success text-white px-3 py-2" style="font-size:.85rem;">
+              <i class="bi bi-hourglass-split me-1"></i>
+              Carga diária: <strong id="textoCarga">—</strong>
+            </span>
+          </div>
+          <div>
+            <label class="form-label small fw-bold text-uppercase text-secondary">Dias da Semana</label>
+            <div class="d-flex flex-wrap gap-2">
+              {% for val, label in [('seg','Seg'),('ter','Ter'),('qua','Qua'),('qui','Qui'),('sex','Sex'),('sab','Sáb'),('dom','Dom')] %}
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input" type="checkbox" name="dias_semana" value="{{ val }}" id="dia_{{ val }}"
+                       {% if val not in ['sab','dom'] %}checked{% endif %}>
+                <label class="form-check-label small fw-semibold" for="dia_{{ val }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Jornada -->
+<div class="modal fade" id="modalEditJornada" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-pencil me-2"></i>Editar Jornada</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/rh/jornadas/editar" method="POST">
+        <input type="hidden" name="id_jornada" id="edit_jorn_id">
+        <div class="modal-body bg-light p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Nome da Jornada</label>
+            <input type="text" name="nome" id="edit_jorn_nome" class="form-control border-0 shadow-sm" required>
+          </div>
+          <div class="row g-3 mb-2">
+            <div class="col-4">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Entrada</label>
+              <input type="time" name="hora_entrada" id="edit_jorn_entrada" class="form-control border-0 shadow-sm" required oninput="calcCargaEdit()">
+            </div>
+            <div class="col-4">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Saída</label>
+              <input type="time" name="hora_saida" id="edit_jorn_saida" class="form-control border-0 shadow-sm" required oninput="calcCargaEdit()">
+            </div>
+            <div class="col-4">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Intervalo</label>
+              <div class="input-group">
+                <input type="number" name="intervalo_min" id="edit_jorn_intervalo" class="form-control border-0 shadow-sm" min="0" max="180" oninput="calcCargaEdit()">
+                <span class="input-group-text bg-light border-0 text-muted small">min</span>
+              </div>
+            </div>
+          </div>
+          <div id="previewCargaEdit" class="mb-3 text-center" style="display:none;">
+            <span class="badge bg-primary text-white px-3 py-2" style="font-size:.85rem;">
+              <i class="bi bi-hourglass-split me-1"></i>
+              Carga diária: <strong id="textoCargaEdit">—</strong>
+            </span>
+          </div>
+          <div>
+            <label class="form-label small fw-bold text-uppercase text-secondary">Dias da Semana</label>
+            <div class="d-flex flex-wrap gap-2" id="edit_dias_container">
+              {% for val, label in [('seg','Seg'),('ter','Ter'),('qua','Qua'),('qui','Qui'),('sex','Sex'),('sab','Sáb'),('dom','Dom')] %}
+              <div class="form-check form-check-inline m-0">
+                <input class="form-check-input edit-dia-check" type="checkbox" name="dias_semana"
+                       value="{{ val }}" id="edit_dia_{{ val }}">
+                <label class="form-check-label small fw-semibold" for="edit_dia_{{ val }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary fw-bold px-4 shadow-sm">Salvar alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function calcCargaEdit() {
+  const entrada   = document.getElementById('edit_jorn_entrada').value;
+  const saida     = document.getElementById('edit_jorn_saida').value;
+  const intervalo = parseInt(document.getElementById('edit_jorn_intervalo').value) || 0;
+  const preview   = document.getElementById('previewCargaEdit');
+  const texto     = document.getElementById('textoCargaEdit');
+  if (!entrada || !saida) { preview.style.display = 'none'; return; }
+  const [eh, em] = entrada.split(':').map(Number);
+  const [sh, sm] = saida.split(':').map(Number);
+  let totalMin = (sh * 60 + sm) - (eh * 60 + em) - intervalo;
+  if (totalMin <= 0) { preview.style.display = 'none'; return; }
+  const h = Math.floor(totalMin / 60), m = totalMin % 60;
+  texto.textContent = m > 0 ? `${h}h${String(m).padStart(2,'0')}min` : `${h}h`;
+  preview.style.display = 'block';
+}
+
+function editarJornada(btn) {
+  const d = btn.dataset;
+  document.getElementById('edit_jorn_id').value        = d.id;
+  document.getElementById('edit_jorn_nome').value      = d.nome;
+  document.getElementById('edit_jorn_entrada').value   = d.entrada;
+  document.getElementById('edit_jorn_saida').value     = d.saida;
+  document.getElementById('edit_jorn_intervalo').value = d.intervalo;
+
+  const diasAtivos = (d.dias || '').split(',');
+  document.querySelectorAll('.edit-dia-check').forEach(cb => {
+    cb.checked = diasAtivos.includes(cb.value);
+  });
+
+  calcCargaEdit();
+  new bootstrap.Modal(document.getElementById('modalEditJornada')).show();
+}
+
+function calcCargaHoraria() {
+  const entrada   = document.getElementById('jorn_entrada').value;
+  const saida     = document.getElementById('jorn_saida').value;
+  const intervalo = parseInt(document.getElementById('jorn_intervalo').value) || 0;
+  const preview   = document.getElementById('previewCarga');
+  const texto     = document.getElementById('textoCarga');
+
+  if (!entrada || !saida) { preview.style.display = 'none'; return; }
+
+  const [eh, em] = entrada.split(':').map(Number);
+  const [sh, sm] = saida.split(':').map(Number);
+  let totalMin = (sh * 60 + sm) - (eh * 60 + em) - intervalo;
+
+  if (totalMin <= 0) { preview.style.display = 'none'; return; }
+
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  texto.textContent = m > 0 ? `${h}h${String(m).padStart(2,'0')}min` : `${h}h`;
+  preview.style.display = 'block';
+}
+// Calcula ao abrir o modal
+document.getElementById('modalAddJornada').addEventListener('show.bs.modal', calcCargaHoraria);
+</script>
+{% endblock %}

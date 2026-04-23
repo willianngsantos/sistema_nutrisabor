@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% from "_rh_nav.html" import rh_nav %}
+{% block conteudo %}
+{{ rh_nav('reajuste') }}
+
+<h4 class="fw-bold mb-4"><i class="bi bi-graph-up-arrow me-2 text-success"></i>Reajuste Salarial</h4>
+
+<div class="row g-4">
+  <!-- Formulário -->
+  <div class="col-12 col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-3 pb-0">
+        <h6 class="fw-bold">Aplicar Reajuste</h6>
+        <p class="text-muted small">Deixe todos desmarcados para aplicar a todos os ativos.</p>
+      </div>
+      <form action="/rh/reajuste/aplicar" method="POST">
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Data do Reajuste</label>
+            <input type="date" name="data_reajuste" class="form-control border-0 shadow-sm bg-light" value="{{ hoje if hoje else '' }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Tipo</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="tipo" value="percentual" id="tipoPerc" checked onchange="updateLabel()">
+                <label class="form-check-label fw-semibold small" for="tipoPerc">Percentual (%)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="tipo" value="fixo" id="tipoFixo" onchange="updateLabel()">
+                <label class="form-check-label fw-semibold small" for="tipoFixo">Valor Fixo (R$)</label>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary" id="labelValor">Percentual de Aumento</label>
+            <div class="input-group">
+              <input type="number" name="valor" class="form-control border-0 shadow-sm bg-light" step="0.01" min="0" placeholder="Ex: 5.5" required>
+              <span class="input-group-text bg-light border-0 text-muted fw-bold" id="sufixoValor">%</span>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Motivo</label>
+            <input type="text" name="motivo" class="form-control border-0 shadow-sm bg-light" placeholder="Ex: Dissídio coletivo 2026">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-bold text-uppercase text-secondary d-flex justify-content-between">
+              Colaboradores
+              <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" onclick="toggleAll()">Selecionar/Desmarcar todos</button>
+            </label>
+            <div class="bg-light rounded-3 p-3" style="max-height:220px;overflow-y:auto;">
+              {% for c in colaboradores %}
+              <div class="form-check mb-1">
+                <input class="form-check-input colab-check" type="checkbox" name="colaboradores" value="{{ c['id'] }}" id="ch{{ c['id'] }}">
+                <label class="form-check-label small" for="ch{{ c['id'] }}">
+                  <span class="fw-semibold">{{ c['nome'] }}</span>
+                  <span class="text-muted"> — R$ {{ "%.2f"|format(c['salario_bruto'] or 0) | replace('.', ',') }}</span>
+                  <span class="badge bg-{{ 'success' if c['status']=='ativo' else 'warning text-dark' if c['status']=='ferias' else 'secondary' }}-subtle text-{{ 'success' if c['status']=='ativo' else 'warning' if c['status']=='ferias' else 'secondary' }} border ms-1" style="font-size:.65rem;">{{ c['status']|capitalize }}</span>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+            <div class="text-muted small mt-1"><i class="bi bi-info-circle me-1"></i>Nenhum marcado = aplica a todos</div>
+          </div>
+        </div>
+        <div class="card-footer bg-white border-0">
+          <button type="submit" class="btn btn-success fw-bold w-100 shadow-sm" onclick="return confirm('Confirmar aplicação do reajuste?')">
+            <i class="bi bi-check-circle me-2"></i>Aplicar Reajuste
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Histórico -->
+  <div class="col-12 col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white border-0 pt-3 pb-2">
+        <h6 class="fw-bold mb-0"><i class="bi bi-clock-history me-2"></i>Histórico de Reajustes</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light text-secondary small text-uppercase" style="font-weight:600;">
+            <tr>
+              <th class="ps-4 border-0">Data</th>
+              <th class="border-0">Reajuste</th>
+              <th class="border-0 d-none d-md-table-cell">Colaboradores</th>
+              <th class="border-0 d-none d-md-table-cell">Aplicado por</th>
+              <th class="border-0">Motivo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in historico %}
+            <tr>
+              <td class="ps-4 small text-muted">{{ h['data_fmt'] }}</td>
+              <td>
+                {% if h['tipo'] == 'percentual' %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">+{{ h['valor']|int }}%</span>
+                {% else %}
+                  <span class="badge bg-info-subtle text-info border border-info-subtle">+R$ {{ "%.2f"|format(h['valor']) | replace('.', ',') }}</span>
+                {% endif %}
+              </td>
+              <td class="d-none d-md-table-cell small text-center">{{ h['qtd_colaboradores'] }}</td>
+              <td class="d-none d-md-table-cell small text-muted">{{ h['aplicado_por'] or '—' }}</td>
+              <td class="small text-muted">{{ h['motivo'] or '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-4 text-muted small">Nenhum reajuste registrado ainda.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateLabel() {
+  const perc = document.getElementById('tipoPerc').checked;
+  document.getElementById('labelValor').textContent = perc ? 'Percentual de Aumento' : 'Valor Fixo a Adicionar (R$)';
+  document.getElementById('sufixoValor').textContent = perc ? '%' : 'R$';
+}
+function toggleAll() {
+  const cbs = document.querySelectorAll('.colab-check');
+  const allChecked = [...cbs].every(c => c.checked);
+  cbs.forEach(c => c.checked = !allChecked);
+}
+</script>
+{% endblock %}

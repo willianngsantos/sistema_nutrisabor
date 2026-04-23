@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% from "_rh_nav.html" import rh_nav %}
+{% block conteudo %}
+{{ rh_nav('documentos') }}
+
+<div class="row align-items-center mb-3 g-2">
+  <div class="col"><h4 class="fw-bold mb-0"><i class="bi bi-folder2-open me-2 text-success"></i>Documentos da Empresa</h4>
+  <p class="text-muted small mb-0">PCMSO, PPRA, PGR, LTCAT e outros documentos legais.</p></div>
+  <div class="col-auto">
+    <button class="btn btn-success rounded-pill btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#modalUpload">
+      <i class="bi bi-upload me-1"></i> Adicionar
+    </button>
+  </div>
+</div>
+
+{% set cat_labels = {'saude':'Saúde','seguranca':'Segurança','legal':'Legal','treinamento':'Treinamento','outros':'Outros'} %}
+{% set cat_icons  = {'saude':'bi-heart-pulse','seguranca':'bi-shield-check','legal':'bi-bank','treinamento':'bi-mortarboard','outros':'bi-folder'} %}
+{% set cat_colors = {'saude':'success','seguranca':'warning','legal':'primary','treinamento':'info','outros':'secondary'} %}
+
+{% for cat in categorias %}
+  {% set docs_cat = documentos | selectattr('categoria', 'equalto', cat) | list %}
+  {% if docs_cat %}
+  <div class="mb-4">
+    <div class="d-flex align-items-center gap-2 mb-2">
+      <i class="bi {{ cat_icons[cat] }} text-{{ cat_colors[cat] }}"></i>
+      <h6 class="fw-bold mb-0 text-uppercase text-secondary" style="font-size:.8rem;letter-spacing:1px;">{{ cat_labels[cat] }}</h6>
+      <span class="badge bg-light text-muted border">{{ docs_cat|length }}</span>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light text-secondary small text-uppercase" style="font-weight:600;">
+            <tr>
+              <th class="ps-4 border-0">Documento</th>
+              <th class="border-0 d-none d-md-table-cell">Validade</th>
+              <th class="border-0 d-none d-md-table-cell">Responsável</th>
+              <th class="border-0 d-none d-md-table-cell">Cadastrado por</th>
+              <th class="border-0 text-end pe-4">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in docs_cat %}
+            <tr>
+              <td class="ps-4">
+                <div class="fw-semibold small">{{ d['nome'] }}</div>
+                {% if d['observacoes'] %}<div class="text-muted" style="font-size:.75rem;">{{ d['observacoes'] }}</div>{% endif %}
+              </td>
+              <td class="d-none d-md-table-cell">
+                {% if d['validade'] %}
+                  {% if d['dias_validade'] is not none and d['dias_validade'] < 0 %}
+                    <span class="badge bg-danger">Vencido {{ d['validade_fmt'] }}</span>
+                  {% elif d['dias_validade'] is not none and d['dias_validade'] <= 60 %}
+                    <span class="badge bg-warning text-dark">{{ d['validade_fmt'] }} ({{ d['dias_validade'] }}d)</span>
+                  {% else %}
+                    <span class="small text-muted">{{ d['validade_fmt'] }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted small">—</span>
+                {% endif %}
+              </td>
+              <td class="d-none d-md-table-cell small text-muted">{{ d['responsavel'] or '—' }}</td>
+              <td class="d-none d-md-table-cell small text-muted">{{ d['criado_por'] or '—' }} · {{ d['criado_fmt'] }}</td>
+              <td class="text-end pe-4">
+                <div class="d-flex gap-1 justify-content-end">
+                  {% if d['arquivo_path'] %}
+                  <a href="/static/{{ d['arquivo_path'] }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar/Baixar">
+                    <i class="bi bi-download"></i>
+                  </a>
+                  {% endif %}
+                  <a href="/rh/documentos/excluir/{{ d['id'] }}" class="btn btn-sm btn-outline-danger"
+                     onclick="return confirm('Remover este documento?')">
+                    <i class="bi bi-trash3"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+{% endfor %}
+
+{% if not documentos %}
+<div class="card border-0 shadow-sm">
+  <div class="card-body text-center py-5 text-muted">
+    <i class="bi bi-folder2 fs-1 opacity-25 d-block mb-2"></i>
+    <p class="mb-0">Nenhum documento cadastrado ainda.</p>
+    <small>Adicione documentos como PCMSO, PPRA, PGR, LTCAT e outros.</small>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal Upload -->
+<div class="modal fade" id="modalUpload" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-success text-white border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-upload me-2"></i>Adicionar Documento</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="/rh/documentos/upload" method="POST" enctype="multipart/form-data">
+        <div class="modal-body bg-light p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Nome do Documento *</label>
+            <input type="text" name="nome" class="form-control border-0 shadow-sm" placeholder="Ex: PCMSO 2026" required>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Categoria</label>
+              <select name="categoria" class="form-select border-0 shadow-sm">
+                <option value="saude">Saúde</option>
+                <option value="seguranca">Segurança</option>
+                <option value="legal">Legal</option>
+                <option value="treinamento">Treinamento</option>
+                <option value="outros">Outros</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Validade</label>
+              <input type="date" name="validade" class="form-control border-0 shadow-sm">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Responsável</label>
+            <input type="text" name="responsavel" class="form-control border-0 shadow-sm" placeholder="Médico, empresa de segurança, etc.">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Arquivo (PDF, DOC, XLS, JPG…)</label>
+            <input type="file" name="arquivo" class="form-control border-0 shadow-sm" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+          </div>
+          <div class="mb-1">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Observações</label>
+            <textarea name="observacoes" class="form-control border-0 shadow-sm" rows="2" placeholder="Informações adicionais..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

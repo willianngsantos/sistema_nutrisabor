@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    .negotiation-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        border: 1px solid #eef2f6;
+        overflow: hidden;
+    }
+
+    .client-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        padding: 30px;
+        color: white;
+        border-radius: 12px 12px 0 0;
+        position: relative;
+    }
+
+    .bg-icon-header {
+        position: absolute;
+        right: 20px;
+        bottom: -10px;
+        font-size: 5rem;
+        opacity: 0.1;
+        transform: rotate(-10deg);
+        color: white;
+        pointer-events: none;
+    }
+
+    /* Tabela de Negociação */
+    .table-negotiation thead th {
+        background: #f8fafc;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #64748b;
+        font-weight: 700;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 15px 20px;
+    }
+
+    .table-negotiation tbody td {
+        vertical-align: middle;
+        padding: 12px 20px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .table-negotiation tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    /* Input de Preço Especial */
+    .input-price-wrapper {
+        position: relative;
+        max-width: 150px;
+    }
+    
+    .input-price-wrapper span {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .input-price {
+        padding-left: 35px;
+        font-weight: 700;
+        color: #1e3c72;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        transition: all 0.2s;
+        text-align: right;
+    }
+
+    .input-price:focus {
+        border-color: #27ae60;
+        box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
+        background-color: #f0fdf4;
+    }
+
+    .input-price::placeholder {
+        color: #cbd5e1;
+        font-weight: 400;
+    }
+
+    /* Badge de Custo */
+    .cost-badge {
+        font-family: monospace;
+        background: #f1f5f9;
+        color: #475569;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+</style>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        
+        <div class="client-header shadow-sm mb-0">
+            <i class="bi bi-tags-fill bg-icon-header"></i>
+            <div class="d-flex justify-content-between align-items-center relative-z">
+                <div>
+                    <h2 class="fw-bold mb-1 text-white">{{ cliente['nome_empresa'] }}</h2>
+                    <div class="text-white-50">
+                        <i class="bi bi-person-badge me-1"></i> ID #{{ cliente['id'] }}
+                        {% if cliente['email'] %}
+                            <span class="mx-2">•</span> <i class="bi bi-envelope me-1"></i> {{ cliente['email'] }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ url_for('cadastros.clientes') }}" class="btn btn-outline-light btn-sm border-2 fw-bold">
+                        <i class="bi bi-arrow-left me-1"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <form action="/salvar_precos/{{ cliente['id'] }}" method="POST">
+            <div class="negotiation-card border-top-0 rounded-bottom">
+                
+                <div class="p-4 bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="fw-bold text-dark mb-1">Tabela de Preços Personalizada</h5>
+                        <small class="text-muted">Defina valores específicos para este cliente. Deixe em branco para usar o preço padrão.</small>
+                    </div>
+                    <button type="submit" class="btn btn-success shadow-sm px-4 py-2 fw-bold">
+                        <i class="bi bi-check-lg me-2"></i> Salvar Tabela
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-negotiation mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%;">Produto</th>
+                                <th class="text-center" style="width: 15%;">Unidade</th>
+                                <th class="text-center" style="width: 20%;">Custo Base</th>
+                                <th class="text-end" style="width: 25%;">Preço de Venda (R$)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in produtos %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold text-dark">{{ p['nome'] }}</div>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">{{ p['unidade'] }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="cost-badge" title="Custo Base">{{ p['custo_base'] | real }}</span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end">
+                                        <div class="input-price-wrapper">
+                                            <span>R$</span>
+                                            <input type="number" step="0.01" 
+                                                   name="preco_{{ p['id'] }}" 
+                                                   class="form-control input-price"
+                                                   value="{{ p['preco_venda'] if p['preco_venda'] else '' }}"
+                                                   placeholder="{{ p['custo_base'] }}">
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-5">
+                                    <i class="bi bi-box-seam fs-1 text-muted opacity-25"></i>
+                                    <p class="mt-2 text-muted">Nenhum produto cadastrado para negociar.</p>
+                                    <a href="{{ url_for('cadastros.produtos') }}" class="btn btn-sm btn-outline-primary">Cadastrar Produtos</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="p-3 bg-light text-center border-top">
+                    <small class="text-muted"><i class="bi bi-info-circle me-1"></i> Os valores salvos aqui terão prioridade sobre o custo base ao lançar pedidos.</small>
+                </div>
+            </div>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

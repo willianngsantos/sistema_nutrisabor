@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Folha de Ponto — {{ colab_sel['nome'] }} — {{ MESES_PT[mes-1] }}/{{ ano }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 9pt;
+      color: #000;
+      background: #e8e8e8;
+      padding: 16px;
+    }
+
+    /* ── Preview na tela ─────────────────────── */
+    .sheet {
+      background: #fff;
+      max-width: 277mm;
+      margin: 0 auto;
+      padding: 10mm 12mm;
+      box-shadow: 0 4px 24px rgba(0,0,0,.2);
+    }
+
+    /* ── Cabeçalho ───────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #000;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .header-left  { display: flex; align-items: center; gap: 8px; }
+    .header-logo  { width: 40px; height: 40px; border-radius: 4px; object-fit: contain; border: 1px solid #ccc; padding: 2px; }
+    .header-title { font-size: 12pt; font-weight: 700; color: #000; }
+    .header-sub   { font-size: 7pt; color: #444; margin-top: 2px; }
+    .header-right { text-align: right; line-height: 1.4; }
+    .nome-colab   { font-size: 10pt; font-weight: 700; }
+    .funcao-colab { font-size: 7.5pt; color: #444; }
+    .mes-colab    { font-size: 9pt; font-weight: 700; border: 1.5px solid #000; display: inline-block; padding: 1px 6px; margin-top: 2px; }
+
+    /* ── Tabela ──────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.5pt;
+      table-layout: fixed;
+      margin-top: 4px;
+    }
+    col.c-data { width: 56px; }
+    col.c-dia  { width: 64px; }
+    col.c-sit  { width: 52px; }
+    col.c-hora { width: 54px; }   /* 4 × IGUAL */
+    col.c-obs  { }                /* restante */
+
+    thead tr th {
+      background: #000;
+      color: #fff;
+      font-size: 6.5pt;
+      font-weight: 700;
+      padding: 4px 2px;
+      border: 1px solid #000;
+      text-align: center;
+      white-space: nowrap;
+    }
+    thead tr th.th-l { text-align: left; padding-left: 5px; }
+
+    /* Linha de dados */
+    tbody tr          { height: 15px; border-bottom: 1px solid #ccc; }
+    tbody tr.fds      { border-bottom: 1px solid #aaa; }
+
+    tbody td {
+      border-left: 1px solid #ccc;
+      border-right: 1px solid #ccc;
+      padding: 0 2px;
+      text-align: center;
+      vertical-align: middle;
+      overflow: hidden;
+    }
+    tbody td:first-child { border-left: 1px solid #000; }
+    tbody td:last-child  { border-right: 1px solid #000; }
+
+    tbody td.td-data { text-align: left; font-weight: 700; padding-left: 4px; font-size: 7pt; }
+    tbody td.td-dia  { text-align: left; font-size: 6.5pt; color: #333; padding-left: 3px; font-style: italic; }
+
+    /* Fim de semana — hachura leve via borda esquerda colorida */
+    tbody tr.fds td.td-data { color: #555; }
+    tbody tr.fds td { background: repeating-linear-gradient(
+      45deg, transparent, transparent 3px, rgba(0,0,0,.03) 3px, rgba(0,0,0,.03) 4px
+    ); }
+
+    /* Células de hora — texto escuro para imprimir */
+    tbody td.td-hora {
+      font-size: 8pt;
+      font-weight: 600;
+      color: #999;           /* cinza visível mesmo sem fundo */
+      letter-spacing: .5px;
+    }
+
+    /* Borda externa da tabela */
+    table { border: 1.5px solid #000; }
+    thead th { border-color: #000; }
+
+    /* ── Rodapé da tabela ────────────────────── */
+    .bottom {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .legenda {
+      flex: 2;
+      border: 1px solid #aaa;
+      border-radius: 2px;
+      padding: 4px 7px;
+      font-size: 6.5pt;
+      color: #333;
+      line-height: 1.7;
+    }
+    .totais {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+    .tot {
+      border: 1px solid #aaa;
+      border-radius: 2px;
+      padding: 3px 5px;
+      font-size: 6pt;
+      color: #555;
+    }
+    .tot .v { font-size: 12pt; font-weight: 700; color: #000; text-align: right; height: 16px; }
+
+    /* ── Assinaturas ─────────────────────────── */
+    .assinaturas {
+      display: flex;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .assin {
+      flex: 1;
+      border-top: 1px solid #000;
+      padding-top: 4px;
+      text-align: center;
+      font-size: 7pt;
+      color: #333;
+    }
+
+    /* ── Rodapé ──────────────────────────────── */
+    .rodape { margin-top: 6px; font-size: 6.5pt; color: #888; text-align: right; }
+
+    /* ── Barra de ações (não imprime) ────────── */
+    .print-bar {
+      max-width: 277mm;
+      margin: 0 auto 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn-print  { padding: 8px 22px; background: #2c7a4b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 10pt; }
+    .btn-fechar { padding: 8px 14px; background: #eee; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 10pt; }
+    .aviso      { font-size: 8pt; color: #7a6000; background: #fffbe6; border: 1px solid #f0d060; border-radius: 5px; padding: 5px 10px; }
+
+    /* ── Print ───────────────────────────────── */
+    @page { margin: 10mm; }
+
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body   { background: #fff !important; padding: 0 !important; }
+      .print-bar { display: none !important; }
+      .sheet { box-shadow: none !important; padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
+      /* Garante que texto cinza dos campos fique visível */
+      tbody td.td-hora { color: #555 !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-bar">
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+  <button class="btn-fechar" onclick="window.close()">Fechar</button>
+  <div class="aviso">⚠️ No diálogo de impressão: selecione <strong>Orientação Paisagem</strong> e habilite <strong>"Imprimir fundos"</strong> (Print backgrounds) para melhor resultado.</div>
+</div>
+
+<div class="sheet">
+
+  <!-- Cabeçalho -->
+  <div class="header">
+    <div class="header-left">
+      <img src="/static/img/logo.png" alt="Logo" class="header-logo">
+      <div>
+        <div class="header-title">Folha de Ponto</div>
+        <div class="header-sub">Controle de frequência mensal — preenchimento manual</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="nome-colab">{{ colab_sel['nome'] }}</div>
+      <div class="funcao-colab">{{ colab_sel['funcao'] or '' }}</div>
+      <div class="mes-colab">{{ MESES_PT[mes-1] | upper }} / {{ ano }}</div>
+    </div>
+  </div>
+
+  <!-- Tabela -->
+  {% set dias_nomes = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'] %}
+  <table>
+    <colgroup>
+      <col class="c-data"><col class="c-dia"><col class="c-sit">
+      <col class="c-hora"><col class="c-hora"><col class="c-hora"><col class="c-hora">
+      <col class="c-obs">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-l">Data</th>
+        <th class="th-l">Dia</th>
+        <th>Situação</th>
+        <th>Entrada</th>
+        <th>Saída Almoço</th>
+        <th>Retorno Almoço</th>
+        <th>Saída Final</th>
+        <th>Assinatura / Observações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in dias %}
+      {% set fds = d['weekday'] >= 5 %}
+      <tr{% if fds %} class="fds"{% endif %}>
+        <td class="td-data">{{ "%02d"|format(d['num']) }}/{{ "%02d"|format(mes) }}/{{ ano }}</td>
+        <td class="td-dia">{{ dias_nomes[d['weekday']] }}</td>
+        <td></td>
+        <td class="td-hora">___:___</td>
+        <td class="td-hora">___:___</td>
+        <td class="td-hora">___:___</td>
+        <td class="td-hora">___:___</td>
+        <td></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Legenda + Totais -->
+  <div class="bottom">
+    <div class="legenda">
+      <strong>Situação:</strong>
+      N = Normal &nbsp;|&nbsp; F = Falta &nbsp;|&nbsp; A = Atestado &nbsp;|&nbsp;
+      Fer = Feriado &nbsp;|&nbsp; Fér = Férias &nbsp;|&nbsp; Fg = Folga
+    </div>
+    <div class="totais">
+      <div class="tot">Dias trabalhados<div class="v"></div></div>
+      <div class="tot">Faltas<div class="v"></div></div>
+      <div class="tot">Atestados<div class="v"></div></div>
+      <div class="tot">Horas extras<div class="v"></div></div>
+    </div>
+  </div>
+
+  <!-- Assinaturas -->
+  <div class="assinaturas">
+    <div class="assin">{{ colab_sel['nome'] }}<br>Colaborador(a)</div>
+    <div class="assin">Responsável RH</div>
+    <div class="assin">Aprovação / Gerência</div>
+  </div>
+
+  <div class="rodape">Gerado em {{ gerado_em }} — NutriSabor Sistema de Gestão</div>
+</div>
+</body>
+</html>

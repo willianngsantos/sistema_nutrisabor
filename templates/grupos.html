@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    .table-groups { border-collapse: separate; border-spacing: 0 8px; }
+    .table-groups tbody tr { background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.02); transition: all 0.2s ease; }
+    .table-groups tbody tr:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-left: 3px solid #4f46e5; }
+    .table-groups td { border: none; padding: 15px 20px; vertical-align: middle; }
+    .table-groups td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+    .table-groups td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+    .group-avatar { width: 42px; height: 42px; background-color: #e0e7ff; color: #4f46e5; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+    .badge-pix { background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; padding: 5px 12px; border-radius: 6px; font-family: monospace; font-weight: 600; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; }
+    .badge-pix i { color: #10b981; }
+</style>
+
+<div class="row align-items-center mb-4 mt-3 g-2">
+    <div class="col-12 col-md-8">
+        <h3 class="fw-bold text-dark mb-0"><i class="bi bi-collection me-2" style="color: #4f46e5;"></i>Grupos de Clientes</h3>
+        <p class="text-muted small mb-0">Crie categorias para aplicar tabelas de preços em lote e rotas de PIX.</p>
+    </div>
+    <div class="col-12 col-md-4 text-end">
+        <button class="btn btn-primary shadow-sm px-4 py-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalAddGrupo" style="background-color: #4f46e5; border-color: #4f46e5;">
+            <i class="bi bi-plus-lg me-1"></i> Novo Grupo
+        </button>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'message' else 'info' }} shadow-sm border-0 border-start border-4 border-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="table-responsive">
+    <table class="table table-groups mb-0">
+        <thead class="text-secondary small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">
+            <tr>
+                <th class="ps-4 border-0">Nome do Grupo</th>
+                <th class="border-0 d-none d-md-table-cell">Chave PIX Específica</th>
+                <th class="text-end pe-4 border-0">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in grupos %}
+            <tr>
+                <td class="ps-4">
+                    <div class="d-flex align-items-center">
+                        <div class="group-avatar me-3 shadow-sm d-none d-md-flex">
+                            <i class="bi bi-diagram-3-fill"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark fs-6">{{ g['nome'] }}</div>
+                            <small class="text-muted">ID: #{{ g['id'] }}</small>
+                        </div>
+                    </div>
+                </td>
+                <td class="d-none d-md-table-cell">
+                    {% if g['chave_pix'] %}
+                        <div class="d-flex flex-column">
+                            <span class="badge-pix mb-1 w-75">
+                                <i class="bi bi-qr-code-scan"></i> {{ g['chave_pix'] }}
+                            </span>
+                            {% if g['pix_nome'] or g['pix_banco'] %}
+                                <small class="text-muted" style="font-size: 0.75rem;">
+                                    {{ g['pix_nome'] }}{% if g['pix_nome'] and g['pix_banco'] %} • {% endif %}{{ g['pix_banco'] }}
+                                </small>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <span class="text-muted small fst-italic">Usa PIX padrão da empresa</span>
+                    {% endif %}
+                </td>
+                <td class="text-end pe-4">
+                    <div class="btn-group">
+                        <a href="/negociar_grupo/{{ g['id'] }}" class="btn btn-sm btn-light text-success border me-1" title="Tabela de Preços do Grupo">
+                            <i class="bi bi-cash-coin"></i> Tabela
+                        </a>
+                        
+                        <button class="btn btn-sm btn-light text-primary border me-1" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalEditarGrupo"
+                                data-id="{{ g['id'] }}"
+                                data-nome="{{ g['nome'] }}"
+                                data-pix="{{ g['chave_pix'] if g['chave_pix'] else '' }}"
+                                data-pix-nome="{{ g['pix_nome'] if g['pix_nome'] else '' }}"
+                                data-pix-banco="{{ g['pix_banco'] if g['pix_banco'] else '' }}"
+                                title="Editar">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                        
+                        <a href="/excluir_grupo/{{ g['id'] }}" 
+                           class="btn btn-sm btn-light text-danger border" 
+                           onclick="return confirm('Tem certeza que deseja excluir o grupo {{ g['nome'] }}?')"
+                           title="Excluir">
+                            <i class="bi bi-trash-fill"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" class="text-center py-5">
+                    <div class="text-muted mb-3"><i class="bi bi-collection fs-1 opacity-25"></i></div>
+                    <h6 class="text-secondary fw-normal">Nenhum grupo cadastrado ainda.</h6>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAddGrupo">Criar Primeiro Grupo</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="modalAddGrupo" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-folder-plus me-2"></i>Novo Grupo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/add_grupo" method="POST">
+                <div class="modal-body bg-light p-4">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Nome do Grupo</label>
+                        <input type="text" name="nome" class="form-control form-control-lg border-0 shadow-sm" required placeholder="Ex: Clientes VIP">
+                    </div>
+                    
+                    <h6 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="bi bi-qr-code text-success me-1"></i> Roteamento de PIX (Opcional)</h6>
+                    <p class="small text-muted mb-3">Se preenchido, faturas deste grupo usarão estes dados ao invés do PIX da empresa.</p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Chave PIX</label>
+                        <input type="text" name="chave_pix" class="form-control border-0 shadow-sm" placeholder="Ex: email, CPF/CNPJ, Celular">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">Nome do Recebedor</label>
+                            <input type="text" name="pix_nome" class="form-control border-0 shadow-sm" placeholder="Ex: João Silva">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">Banco/Instituição</label>
+                            <input type="text" name="pix_banco" class="form-control border-0 shadow-sm" placeholder="Ex: Nubank">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm" style="background-color: #4f46e5; border-color: #4f46e5;">Salvar Grupo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditarGrupo" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header text-white border-0" style="background-color: #4f46e5;">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Editar Grupo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/editar_grupo" method="POST">
+                <div class="modal-body bg-light p-4">
+                    <input type="hidden" name="id_grupo" id="edit_id">
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Nome do Grupo</label>
+                        <input type="text" name="nome" id="edit_nome" class="form-control form-control-lg border-0 shadow-sm" required>
+                    </div>
+
+                    <h6 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="bi bi-qr-code text-success me-1"></i> Roteamento de PIX (Opcional)</h6>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Chave PIX</label>
+                        <input type="text" name="chave_pix" id="edit_pix" class="form-control border-0 shadow-sm">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">Nome do Recebedor</label>
+                            <input type="text" name="pix_nome" id="edit_pix_nome" class="form-control border-0 shadow-sm">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">Banco/Instituição</label>
+                            <input type="text" name="pix_banco" id="edit_pix_banco" class="form-control border-0 shadow-sm">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm" style="background-color: #4f46e5; border-color: #4f46e5;">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    var modalEditar = document.getElementById('modalEditarGrupo');
+    modalEditar.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        document.getElementById('edit_id').value = button.getAttribute('data-id');
+        document.getElementById('edit_nome').value = button.getAttribute('data-nome');
+        document.getElementById('edit_pix').value = button.getAttribute('data-pix');
+        document.getElementById('edit_pix_nome').value = button.getAttribute('data-pix-nome');
+        document.getElementById('edit_pix_banco').value = button.getAttribute('data-pix-banco');
+    });
+</script>
+{% endblock %}

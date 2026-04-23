@@ -1,0 +1,697 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    .table-colab {
+        border-collapse: separate;
+        border-spacing: 0 8px;
+    }
+    .table-colab tbody tr {
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        transition: all 0.2s ease;
+    }
+    .table-colab tbody tr:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-left: 3px solid #4f46e5;
+    }
+    .table-colab tbody tr.st-inativo { opacity: 0.45; }
+    .table-colab td {
+        border: none;
+        padding: 14px 18px;
+        vertical-align: middle;
+    }
+    .table-colab td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+    .table-colab td:last-child  { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+    /* Avatar */
+    .colab-avatar {
+        width: 44px; height: 44px;
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: white; font-weight: 700;
+        border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.15rem; flex-shrink: 0;
+    }
+
+    /* Badges de status */
+    .st-badge {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 4px 11px; border-radius: 20px;
+        font-size: .78rem; font-weight: 700; white-space: nowrap;
+    }
+    .st-ativo    { background:#dcfce7; color:#166534; border:1px solid #bbf7d0; }
+    .st-afastado { background:#fef9c3; color:#854d0e; border:1px solid #fde68a; }
+    .st-ferias   { background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe; }
+    .st-inativo-badge { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+
+    /* Badge função */
+    .badge-funcao {
+        background:#ede9fe; color:#5b21b6; border:1px solid #ddd6fe;
+        font-size:.7rem; padding:2px 8px; border-radius:6px; font-weight:600;
+    }
+    /* Badge admissão */
+    .badge-admissao {
+        font-size:.72rem; color:#64748b;
+    }
+    /* Badge unidade */
+    .badge-unidade {
+        background:#e0f2fe; color:#075985; border:1px solid #bae6fd;
+        font-size:.7rem; padding:2px 8px; border-radius:6px; font-weight:600;
+        display:inline-block; margin:2px 2px 0 0;
+    }
+    /* Pill de benefício */
+    .valor-pill {
+        background:#f8fafc; border:1px solid #e2e8f0;
+        border-radius:8px; padding:3px 10px; font-size:.82rem;
+        display:inline-flex; align-items:center; gap:4px;
+    }
+
+    /* Cards de unidade no modal */
+    .unidade-check-item {
+        background:white; border:1px solid #e2e8f0;
+        border-radius:8px; padding:10px 14px; cursor:pointer;
+        transition:all .15s;
+    }
+    .unidade-check-item:has(input:checked) { border-color:#4f46e5; background:#eef2ff; }
+    .unidade-check-item label { cursor:pointer; margin:0; font-weight:600; font-size:.88rem; }
+</style>
+
+<!-- ── CABEÇALHO ────────────────────────────────────────────── -->
+<div class="row align-items-center mb-4 mt-3 g-2">
+    <div class="col-12 col-md-5">
+        <h3 class="fw-bold text-dark mb-0">
+            <i class="bi bi-person-badge me-2 text-primary"></i>Colaboradores
+        </h3>
+        <p class="text-muted small mb-0">Gerencie sua equipe, benefícios e alocação por unidade.</p>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="position-relative">
+            <i class="bi bi-search position-absolute top-50 translate-middle-y ms-3 text-muted"></i>
+            <input type="text" id="buscaColab"
+                   class="form-control border-0 shadow-sm ps-5 py-2 rounded-pill"
+                   placeholder="Buscar por nome, função ou unidade..." autocomplete="off">
+        </div>
+    </div>
+    <div class="col-12 col-md-3 d-flex gap-2 justify-content-end">
+        <a href="{{ url_for('colaboradores.recibos_vt_lote') }}"
+           target="_blank"
+           class="btn btn-outline-success shadow-sm px-3 py-2 rounded-pill"
+           title="Gerar lote de recibos de VT para todos ou por unidade">
+            <i class="bi bi-receipt me-1"></i> Recibos VT
+        </a>
+        <button class="btn btn-primary shadow-sm px-4 py-2 rounded-pill"
+                data-bs-toggle="modal" data-bs-target="#modalAddColab">
+            <i class="bi bi-person-plus-fill me-1"></i> Novo Colaborador
+        </button>
+    </div>
+</div>
+
+<!-- ── FLASH ────────────────────────────────────────────────── -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} shadow-sm border-0 border-start border-4 border-{{ category }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- ── TABELA ────────────────────────────────────────────────── -->
+<div class="table-responsive">
+    <table class="table table-colab mb-0">
+        <thead class="text-secondary small text-uppercase" style="font-weight:600;letter-spacing:.5px;">
+            <tr>
+                <th class="ps-4 border-0" style="width:30%">Colaborador</th>
+                <th class="border-0 d-none d-md-table-cell" style="width:22%">Benefícios</th>
+                <th class="border-0 d-none d-md-table-cell">Unidades</th>
+                <th class="border-0 text-center d-none d-md-table-cell" style="width:130px">Status</th>
+                <th class="text-end pe-4 border-0" style="width:130px">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in colaboradores %}
+            <tr class="st-{{ c.status }}">
+
+                <!-- Colaborador (nome + função + admissão) -->
+                <td class="ps-4">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="colab-avatar d-none d-md-flex">{{ c.nome[0]|upper }}</div>
+                        <div>
+                            <div class="fw-bold text-dark lh-1 mb-1">{{ c.nome }}</div>
+                            {% if c.funcao %}
+                                <span class="badge-funcao">
+                                    <i class="bi bi-briefcase-fill me-1"></i>{{ c.funcao }}
+                                </span>
+                            {% endif %}
+                            {% if c.data_admissao_fmt %}
+                                <div class="badge-admissao mt-1">
+                                    <i class="bi bi-calendar2-check me-1"></i>{{ c.data_admissao_fmt }}
+                                </div>
+                            {% endif %}
+                            <!-- Info resumida + status visível só no celular -->
+                            <div class="d-md-none mt-1 d-flex align-items-center gap-2 flex-wrap">
+                                <span style="font-size:.72rem;color:#64748b;">
+                                    <i class="bi bi-cash-stack text-success me-1"></i>{{ c.salario_bruto | real }}
+                                    {% if c.unidades_lista %} · <i class="bi bi-building me-1"></i>{{ c.unidades_lista|join(', ') }}{% endif %}
+                                </span>
+                                {% if c.status == 'ativo' %}
+                                    <span class="st-badge st-ativo" style="font-size:.64rem;padding:2px 7px;"><i class="bi bi-check-circle-fill me-1"></i>Ativo</span>
+                                {% elif c.status == 'afastado' %}
+                                    <span class="st-badge st-afastado" style="font-size:.64rem;padding:2px 7px;"><i class="bi bi-bandaid-fill me-1"></i>Afastado</span>
+                                {% elif c.status == 'ferias' %}
+                                    <span class="st-badge st-ferias" style="font-size:.64rem;padding:2px 7px;"><i class="bi bi-umbrella-fill me-1"></i>Férias</span>
+                                {% else %}
+                                    <span class="st-badge st-inativo-badge" style="font-size:.64rem;padding:2px 7px;"><i class="bi bi-x-circle me-1"></i>Inativo</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+
+                <!-- Benefícios -->
+                <td class="d-none d-md-table-cell">
+                    <div class="d-flex flex-column gap-1">
+                        <span class="valor-pill">
+                            <i class="bi bi-cash-stack text-success"></i>
+                            <strong>{{ c.salario_bruto | real }}</strong>
+                            <span class="text-muted" style="font-size:.72rem">bruto</span>
+                        </span>
+                        {% if c.vale_transporte and c.vale_transporte > 0 %}
+                        <span class="valor-pill">
+                            <i class="bi bi-bus-front text-primary"></i>
+                            <strong class="text-primary">{{ c.vale_transporte | real }}</strong>
+                            <span class="text-muted" style="font-size:.72rem">VT</span>
+                        </span>
+                        {% endif %}
+                        {% if c.vale_refeicao and c.vale_refeicao > 0 %}
+                        <span class="valor-pill">
+                            <i class="bi bi-egg-fried text-warning"></i>
+                            <strong class="text-warning">{{ c.vale_refeicao | real }}</strong>
+                            <span class="text-muted" style="font-size:.72rem">VR</span>
+                        </span>
+                        {% endif %}
+                        {% if c.diversos and c.diversos > 0 %}
+                        <span class="valor-pill">
+                            <i class="bi bi-plus-circle text-secondary"></i>
+                            <strong class="text-secondary">{{ c.diversos | real }}</strong>
+                            <span class="text-muted" style="font-size:.72rem">Div.</span>
+                        </span>
+                        {% endif %}
+                    </div>
+                </td>
+
+                <!-- Unidades -->
+                <td class="d-none d-md-table-cell">
+                    {% if c.unidades_lista %}
+                        {% for u in c.unidades_lista %}
+                            <span class="badge-unidade"><i class="bi bi-building me-1"></i>{{ u }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted small fst-italic">Não alocado</span>
+                    {% endif %}
+                </td>
+
+                <!-- Status -->
+                <td class="text-center d-none d-md-table-cell">
+                    {% if c.status == 'ativo' %}
+                        <span class="st-badge st-ativo"><i class="bi bi-check-circle-fill"></i>Ativo</span>
+                    {% elif c.status == 'afastado' %}
+                        <span class="st-badge st-afastado"><i class="bi bi-bandaid-fill"></i>Afastado</span>
+                    {% elif c.status == 'ferias' %}
+                        <span class="st-badge st-ferias"><i class="bi bi-umbrella-fill"></i>Férias</span>
+                    {% else %}
+                        <span class="st-badge st-inativo-badge"><i class="bi bi-x-circle"></i>Inativo</span>
+                    {% endif %}
+                </td>
+
+                <!-- Ações -->
+                <td class="text-end pe-4">
+                    <div class="btn-group shadow-sm">
+                        <!-- Editar -->
+                        <button class="btn btn-sm btn-light text-primary border"
+                                data-bs-toggle="modal" data-bs-target="#modalEditarColab"
+                                data-id="{{ c.id }}"
+                                data-nome="{{ c.nome }}"
+                                data-funcao="{{ c.funcao or '' }}"
+                                data-status="{{ c.status }}"
+                                data-salario="{{ '%.2f'|format(c.salario_bruto or 0) }}"
+                                data-vt="{{ '%.2f'|format(c.vale_transporte or 0) }}"
+                                data-vr="{{ '%.2f'|format(c.vale_refeicao or 0) }}"
+                                data-diversos="{{ '%.2f'|format(c.diversos or 0) }}"
+                                data-admissao="{{ c.data_admissao.strftime('%Y-%m-%d') if c.data_admissao else '' }}"
+                                data-unidades="{{ c.unidades_ids or '' }}"
+                                data-recebe_vt="{{ c.recebe_vt if c.recebe_vt is not none else 1 }}"
+                                title="Editar">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+
+                        <!-- Dropdown de status rápido -->
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-sm btn-light border dropdown-toggle"
+                                    data-bs-toggle="dropdown" title="Alterar status">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-1">
+                                <li><h6 class="dropdown-header small text-uppercase text-muted">Alterar status</h6></li>
+                                <li>
+                                    <a class="dropdown-item {% if c.status == 'ativo' %}fw-bold text-success{% endif %}"
+                                       href="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='ativo') }}">
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>Ativo
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if c.status == 'ferias' %}fw-bold text-primary{% endif %}"
+                                       href="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='ferias') }}">
+                                        <i class="bi bi-umbrella-fill text-primary me-2"></i>Férias
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {% if c.status == 'afastado' %}fw-bold text-warning{% endif %}"
+                                       href="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='afastado') }}">
+                                        <i class="bi bi-bandaid-fill text-warning me-2"></i>Afastado
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item {% if c.status == 'inativo' %}fw-bold text-secondary{% endif %}"
+                                       href="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='inativo') }}"
+                                       onclick="return confirm('Marcar {{ c.nome }} como Inativo?')">
+                                        <i class="bi bi-x-circle text-secondary me-2"></i>Inativo
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Recibo VT -->
+                        {% if c.recebe_vt %}
+                        <a href="{{ url_for('colaboradores.recibo_vt', id_colab=c.id) }}"
+                           target="_blank"
+                           class="btn btn-sm btn-light text-success border"
+                           title="Gerar Recibo de VT">
+                            <i class="bi bi-receipt"></i>
+                        </a>
+                        {% else %}
+                        <span class="btn btn-sm btn-light text-muted border disabled"
+                              title="Não recebe Vale Transporte">
+                            <i class="bi bi-receipt"></i>
+                        </span>
+                        {% endif %}
+
+                        <!-- Excluir -->
+                        <a href="{{ url_for('colaboradores.excluir_colaborador', id_colab=c.id) }}"
+                           class="btn btn-sm btn-light text-danger border"
+                           onclick="return confirm('Excluir {{ c.nome }}? Esta ação não pode ser desfeita.')"
+                           title="Excluir">
+                            <i class="bi bi-trash-fill"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center py-5">
+                    <div class="text-muted mb-3"><i class="bi bi-person-badge fs-1 opacity-25"></i></div>
+                    <h6 class="text-secondary fw-normal">Nenhum colaborador cadastrado ainda.</h6>
+                    <button class="btn btn-sm btn-outline-primary mt-2"
+                            data-bs-toggle="modal" data-bs-target="#modalAddColab">
+                        Cadastrar Primeiro Colaborador
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- MODAL — NOVO COLABORADOR                                        -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalAddColab" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+
+            <!-- Cabeçalho limpo com barra de identidade -->
+            <div class="modal-header border-0 pb-3 px-4 pt-4 bg-white">
+                <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#27ae60,#2c3e50,#e67e22);"></div>
+                <div>
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="bi bi-person-plus text-success me-2"></i>Novo Colaborador
+                    </h5>
+                    <p class="text-muted small mb-0 mt-1">Preencha os dados do novo membro da equipe</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form action="/add_colaborador" method="POST">
+                <div class="modal-body px-4 py-3" style="background:#f8f9fa;">
+                    <div class="row g-3">
+
+                        <!-- Identificação -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-person me-1"></i>Identificação
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Nome Completo *</label>
+                                        <input type="text" name="nome" class="form-control border-0 bg-light" required placeholder="Nome completo do colaborador">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Função / Cargo</label>
+                                        <input type="text" name="funcao" class="form-control border-0 bg-light" placeholder="Ex: Cozinheira, Auxiliar...">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Data de Admissão</label>
+                                        <input type="date" name="data_admissao" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Status</label>
+                                        <select name="status" class="form-select border-0 bg-light">
+                                            <option value="ativo" selected>✅ Ativo</option>
+                                            <option value="ferias">☂️ Férias</option>
+                                            <option value="afastado">🩹 Afastado</option>
+                                            <option value="inativo">⚫ Inativo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Remuneração -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <p class="text-uppercase fw-bold small text-secondary mb-0" style="letter-spacing:.5px;">
+                                        <i class="bi bi-wallet2 me-1"></i>Remuneração & Benefícios
+                                    </p>
+                                    <!-- Toggle VT integrado ao cabeçalho da seção -->
+                                    <div class="d-flex align-items-center gap-2">
+                                        <label for="add_recebe_vt" class="small fw-semibold text-secondary mb-0" style="cursor:pointer;">
+                                            <i class="bi bi-bus-front-fill text-success me-1"></i>Recebe VT
+                                        </label>
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox"
+                                                   name="recebe_vt" id="add_recebe_vt" value="1"
+                                                   checked
+                                                   onchange="toggleVtInput(this, 'add_vt_input')"
+                                                   style="width:2.2em;height:1.2em;cursor:pointer;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Salário Bruto</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text border-0 bg-light text-muted fw-bold">R$</span>
+                                            <input type="text" name="salario_bruto" class="form-control border-0 bg-light" placeholder="0,00" oninput="mascaraMoeda(this)">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">
+                                            <i class="bi bi-bus-front text-success me-1"></i>Vale Transporte
+                                        </label>
+                                        <div class="input-group" id="add_vt_input">
+                                            <span class="input-group-text border-0 bg-light text-muted fw-bold">R$</span>
+                                            <input type="text" name="vale_transporte" class="form-control border-0 bg-light" placeholder="0,00" oninput="mascaraMoeda(this)">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">
+                                            <i class="bi bi-egg-fried text-warning me-1"></i>Vale Refeição
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text border-0 bg-light text-muted fw-bold">R$</span>
+                                            <input type="text" name="vale_refeicao" class="form-control border-0 bg-light" placeholder="0,00" oninput="mascaraMoeda(this)">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">
+                                            <i class="bi bi-plus-circle text-secondary me-1"></i>Diversos
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text border-0 bg-light text-muted fw-bold">R$</span>
+                                            <input type="text" name="diversos" class="form-control border-0 bg-light" placeholder="0,00" oninput="mascaraMoeda(this)">
+                                        </div>
+                                        <div class="form-text small text-muted">Ajuda de custo, gratificação, etc.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Unidades -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-building me-1"></i>Unidades de Trabalho
+                                </p>
+                                {% if clientes %}
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for cli in clientes %}
+                                        <div class="unidade-check-item">
+                                            <input class="form-check-input me-2" type="checkbox" name="unidades" value="{{ cli.id }}" id="add_uni_{{ cli.id }}">
+                                            <label for="add_uni_{{ cli.id }}"><i class="bi bi-building me-1 text-primary"></i>{{ cli.nome_empresa }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted small fst-italic mb-0">Nenhum cliente marcado como unidade de trabalho. <a href="{{ url_for('cadastros.clientes') }}">Ir para Clientes</a>.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-white px-4 py-3">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold shadow-sm rounded-pill">
+                        <i class="bi bi-check-lg me-1"></i>Salvar Colaborador
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- MODAL — EDITAR                                                  -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="modalEditarColab" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg overflow-hidden">
+
+            <!-- Cabeçalho limpo com barra de identidade e nome dinâmico -->
+            <div class="modal-header border-0 pb-3 px-4 pt-4 bg-white">
+                <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#27ae60,#2c3e50,#e67e22);"></div>
+                <div>
+                    <h5 class="modal-title fw-bold text-dark mb-0">
+                        <i class="bi bi-pencil-square text-secondary me-2"></i>Editar Colaborador
+                    </h5>
+                    <p class="text-muted small mb-0 mt-1" id="edit_subtitle">—</p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form action="/editar_colaborador" method="POST">
+                <div class="modal-body px-4 py-3" style="background:#f8f9fa;">
+                    <input type="hidden" name="id_colaborador" id="edit_id">
+                    <div class="row g-3">
+
+                        <!-- Identificação -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-person me-1"></i>Identificação
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Nome Completo *</label>
+                                        <input type="text" name="nome" id="edit_nome" class="form-control border-0 bg-light" required>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Função / Cargo</label>
+                                        <input type="text" name="funcao" id="edit_funcao" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Data de Admissão</label>
+                                        <input type="date" name="data_admissao" id="edit_admissao" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Status</label>
+                                        <select name="status" id="edit_status" class="form-select border-0 bg-light">
+                                            <option value="ativo">✅ Ativo</option>
+                                            <option value="ferias">☂️ Férias</option>
+                                            <option value="afastado">🩹 Afastado</option>
+                                            <option value="inativo">⚫ Inativo</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Remuneração -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <p class="text-uppercase fw-bold small text-secondary mb-0" style="letter-spacing:.5px;">
+                                        <i class="bi bi-wallet2 me-1"></i>Remuneração & Benefícios
+                                    </p>
+                                    <!-- Toggle VT integrado ao cabeçalho da seção -->
+                                    <div class="d-flex align-items-center gap-2">
+                                        <label for="edit_recebe_vt" class="small fw-semibold text-secondary mb-0" style="cursor:pointer;">
+                                            <i class="bi bi-bus-front-fill text-success me-1"></i>Recebe VT
+                                        </label>
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox"
+                                                   name="recebe_vt" id="edit_recebe_vt" value="1"
+                                                   onchange="toggleVtInput(this, 'edit_vt_input')"
+                                                   style="width:2.2em;height:1.2em;cursor:pointer;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Salário Bruto</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text border-0 bg-light text-muted fw-bold">R$</span>
+                                            <input type="text" name="salario_bruto" id="edit_salario" class="form-control border-0 bg-light" oninput="mascaraMoeda(this)">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">
+                                            <i class="bi bi-bus-front text-success me-1"></i>Vale Transporte
+                                        </label>
+                                        <div class="input-group" id="edit_vt_input">
+                                            <span class="input-group-text border-0 bg-light text-muted fw-bold">R$</span>
+                                            <input type="text" name="vale_transporte" id="edit_vt" class="form-control border-0 bg-light" oninput="mascaraMoeda(this)">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">
+                                            <i class="bi bi-egg-fried text-warning me-1"></i>Vale Refeição
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text border-0 bg-light text-muted fw-bold">R$</span>
+                                            <input type="text" name="vale_refeicao" id="edit_vr" class="form-control border-0 bg-light" oninput="mascaraMoeda(this)">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">
+                                            <i class="bi bi-plus-circle text-secondary me-1"></i>Diversos
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text border-0 bg-light text-muted fw-bold">R$</span>
+                                            <input type="text" name="diversos" id="edit_diversos" class="form-control border-0 bg-light" oninput="mascaraMoeda(this)">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Unidades -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-building me-1"></i>Unidades de Trabalho
+                                </p>
+                                {% if clientes %}
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for cli in clientes %}
+                                        <div class="unidade-check-item">
+                                            <input class="form-check-input me-2 edit-unidade-cb" type="checkbox" name="unidades" value="{{ cli.id }}" id="edit_uni_{{ cli.id }}">
+                                            <label for="edit_uni_{{ cli.id }}"><i class="bi bi-building me-1 text-primary"></i>{{ cli.nome_empresa }}</label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-muted small fst-italic mb-0">Nenhum cliente marcado como unidade de trabalho. <a href="{{ url_for('cadastros.clientes') }}">Ir para Clientes</a>.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-white px-4 py-3">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-dark px-4 fw-bold shadow-sm rounded-pill">
+                        <i class="bi bi-check-lg me-1"></i>Salvar Alterações
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- SCRIPTS                                                         -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<script>
+    document.getElementById('modalEditarColab').addEventListener('show.bs.modal', function (e) {
+        var btn = e.relatedTarget;
+        document.getElementById('edit_id').value       = btn.getAttribute('data-id');
+        document.getElementById('edit_nome').value     = btn.getAttribute('data-nome');
+        document.getElementById('edit_funcao').value   = btn.getAttribute('data-funcao');
+        document.getElementById('edit_admissao').value = btn.getAttribute('data-admissao');
+        document.getElementById('edit_status').value   = btn.getAttribute('data-status');
+        document.getElementById('edit_salario').value  = fmt(btn.getAttribute('data-salario'));
+        document.getElementById('edit_vt').value       = fmt(btn.getAttribute('data-vt'));
+        document.getElementById('edit_vr').value       = fmt(btn.getAttribute('data-vr'));
+        document.getElementById('edit_diversos').value = fmt(btn.getAttribute('data-diversos'));
+
+        var ativos = (btn.getAttribute('data-unidades') || '').split(',').map(s => s.trim());
+        document.querySelectorAll('.edit-unidade-cb').forEach(function(cb) {
+            cb.checked = ativos.includes(cb.value);
+        });
+
+        var recebeVt = btn.getAttribute('data-recebe_vt') !== '0';
+        var vtToggle = document.getElementById('edit_recebe_vt');
+        vtToggle.checked = recebeVt;
+        toggleVtInput(vtToggle, 'edit_vt_input');
+
+        // Subtítulo com nome do colaborador
+        document.getElementById('edit_subtitle').textContent =
+            btn.getAttribute('data-nome') || '—';
+    });
+
+    function fmt(val) {
+        var n = parseFloat(val);
+        return (isNaN(n) || n === 0) ? '' : n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    // Desabilita / habilita o campo de VT conforme o toggle
+    function toggleVtInput(toggle, groupId) {
+        var group = document.getElementById(groupId);
+        if (!group) return;
+        var input = group.querySelector('input[type="text"]');
+        if (toggle.checked) {
+            group.style.opacity = '1';
+            if (input) input.disabled = false;
+        } else {
+            group.style.opacity = '0.4';
+            if (input) { input.disabled = true; input.value = ''; }
+        }
+    }
+
+    function mascaraMoeda(el) {
+        var v = el.value.replace(/\D/g, '');
+        v = (parseInt(v, 10) / 100).toFixed(2);
+        v = v.replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+        el.value = v === '0,00' ? '' : v;
+    }
+
+    document.getElementById('buscaColab').addEventListener('keyup', function () {
+        var f = this.value.toUpperCase();
+        document.querySelectorAll('.table-colab tbody tr').forEach(function(row) {
+            if (row.cells.length === 1) return;
+            row.style.display = row.innerText.toUpperCase().includes(f) ? '' : 'none';
+        });
+    });
+</script>
+{% endblock %}

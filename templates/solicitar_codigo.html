@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <title>
+        {% if tipo == 'primeiro_acesso' %}Primeiro Acesso{% else %}Esqueci Minha Senha{% endif %}
+        - NutriSabor
+    </title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .card-acesso {
+            width: 100%;
+            max-width: 420px;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+            overflow: hidden;
+        }
+        .card-header-grad {
+            background: #ffffff;
+            padding: 24px 32px 16px;
+            text-align: center;
+            border-bottom: 1px solid #f0f2f5;
+        }
+    </style>
+</head>
+<body>
+<div class="card card-acesso border-0">
+    <div class="card-header-grad">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="NutriSabor" style="max-height:80px;">
+    </div>
+    <div class="card-body p-4">
+
+        <h5 class="fw-bold text-dark mb-1">
+            {% if tipo == 'primeiro_acesso' %}
+                <i class="bi bi-person-check-fill text-success me-2"></i>Primeiro Acesso
+            {% else %}
+                <i class="bi bi-key-fill text-warning me-2"></i>Esqueci Minha Senha
+            {% endif %}
+        </h5>
+        <p class="text-muted small mb-4">
+            {% if tipo == 'primeiro_acesso' %}
+                Informe o e-mail cadastrado pelo administrador. Enviaremos um código de 6 dígitos para você definir sua senha.
+            {% else %}
+                Informe o e-mail da sua conta. Enviaremos um código para você redefinir sua senha.
+            {% endif %}
+        </p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show border-0 shadow-sm" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="mb-4">
+                <label class="form-label text-secondary small fw-bold text-uppercase">E-mail</label>
+                <input type="email" name="email" class="form-control bg-light border-0 shadow-sm"
+                       placeholder="seuemail@exemplo.com" required autofocus>
+            </div>
+            <div class="d-grid mb-3">
+                <button type="submit" class="btn btn-success btn-lg fw-bold shadow-sm">
+                    <i class="bi bi-envelope-fill me-2"></i>Enviar Código
+                </button>
+            </div>
+        </form>
+
+        <div class="text-center">
+            <a href="{{ url_for('auth.login') }}" class="text-muted small text-decoration-none">
+                <i class="bi bi-arrow-left me-1"></i>Voltar para o Login
+            </a>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

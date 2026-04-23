@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <h2 class="fw-bold text-dark">Painel Executivo</h2>
+        <p class="text-muted">Bem-vindo, {{ usuario.nome }}. Gerencie os fechamentos da NutriSabor.</p>
+    </div>
+</div>
+
+<div class="row g-2 g-md-3 mb-4">
+    <div class="col-4 col-md-4">
+        <div class="card border-0 shadow-sm p-2 p-md-3 position-relative overflow-hidden">
+            <div class="d-flex align-items-center">
+                <div class="icon-box bg-success-subtle text-success rounded-3 p-2 p-md-3 me-2 me-md-3 z-1 d-none d-sm-flex">
+                    <i class="bi bi-cash-stack fs-4 fs-md-3"></i>
+                </div>
+                <div class="z-1 min-w-0">
+                    <h6 class="text-muted mb-0 fw-bold lh-1" style="font-size:.62rem;">ESTE MÊS</h6>
+                    <div class="fw-bold text-dark text-truncate valor-sigiloso" style="font-size:clamp(.85rem,2.5vw,1.3rem);">{{ fat_mes_atual | real }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-4">
+        <div class="card border-0 shadow-sm p-2 p-md-3 position-relative overflow-hidden">
+            <div class="d-flex align-items-center">
+                <div class="icon-box bg-secondary-subtle text-secondary rounded-3 p-2 p-md-3 me-2 me-md-3 z-1 d-none d-sm-flex">
+                    <i class="bi bi-calendar-check fs-4"></i>
+                </div>
+                <div class="z-1 min-w-0">
+                    <h6 class="text-muted mb-0 fw-bold lh-1" style="font-size:.62rem;">MÊS PASSADO</h6>
+                    <div class="fw-bold text-secondary text-truncate valor-sigiloso" style="font-size:clamp(.85rem,2.5vw,1.3rem);">{{ fat_mes_passado | real }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-4">
+        <div class="card border-0 shadow-sm p-2 p-md-3 position-relative overflow-hidden">
+            <div class="d-flex align-items-center">
+                <div class="icon-box bg-primary-subtle text-primary rounded-3 p-2 p-md-3 me-2 me-md-3 z-1 d-none d-sm-flex">
+                    <i class="bi bi-bank fs-4"></i>
+                </div>
+                <div class="z-1 min-w-0">
+                    <h6 class="text-muted mb-0 fw-bold lh-1" style="font-size:.62rem;">ESTE ANO</h6>
+                    <div class="fw-bold text-primary text-truncate valor-sigiloso" style="font-size:clamp(.85rem,2.5vw,1.3rem);">{{ fat_ano_atual | real }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body bg-white rounded">
+        <form method="GET" action="/home" class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-secondary text-uppercase">Mês</label>
+                <select name="mes" class="form-select border-1 shadow-sm bg-light">
+                    <option value="">Todos</option>
+                    <option value="1"  {% if f_mes == '1'  %}selected{% endif %}>Jan</option>
+                    <option value="2"  {% if f_mes == '2'  %}selected{% endif %}>Fev</option>
+                    <option value="3"  {% if f_mes == '3'  %}selected{% endif %}>Mar</option>
+                    <option value="4"  {% if f_mes == '4'  %}selected{% endif %}>Abr</option>
+                    <option value="5"  {% if f_mes == '5'  %}selected{% endif %}>Mai</option>
+                    <option value="6"  {% if f_mes == '6'  %}selected{% endif %}>Jun</option>
+                    <option value="7"  {% if f_mes == '7'  %}selected{% endif %}>Jul</option>
+                    <option value="8"  {% if f_mes == '8'  %}selected{% endif %}>Ago</option>
+                    <option value="9"  {% if f_mes == '9'  %}selected{% endif %}>Set</option>
+                    <option value="10" {% if f_mes == '10' %}selected{% endif %}>Out</option>
+                    <option value="11" {% if f_mes == '11' %}selected{% endif %}>Nov</option>
+                    <option value="12" {% if f_mes == '12' %}selected{% endif %}>Dez</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-secondary text-uppercase">Ano</label>
+                <select name="ano" class="form-select border-1 shadow-sm bg-light">
+                    <option value="">Todos</option>
+                    {% for ano in anos_disponiveis %}
+                        <option value="{{ ano }}" {% if f_ano == ano %}selected{% endif %}>{{ ano }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold text-secondary text-uppercase">Cliente</label>
+                <select name="cliente_id" class="form-select border-1 shadow-sm bg-light">
+                    <option value="">Todos os Clientes</option>
+                    {% for c in clientes %}
+                    <option value="{{ c['id'] }}" {% if f_cliente == c['id']|string %}selected{% endif %}>{{ c['nome_empresa'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-bold text-secondary text-uppercase">Status / NF</label>
+                <select name="status" class="form-select border-1 shadow-sm bg-light">
+                    <option value="">Todos Registros</option>
+                    <optgroup label="Por Status">
+                        <option value="Pendente" {% if f_status == 'Pendente' %}selected{% endif %}>Rascunho / Pendente</option>
+                        <option value="Aprovado" {% if f_status == 'Aprovado' %}selected{% endif %}>Aprovado</option>
+                        <option value="Pago"     {% if f_status == 'Pago'     %}selected{% endif %}>Pago</option>
+                    </optgroup>
+                    <optgroup label="Por Nota Fiscal">
+                        <option value="com_nf" {% if f_status == 'com_nf' %}selected{% endif %}>Com Nota Fiscal</option>
+                        <option value="sem_nf" {% if f_status == 'sem_nf' %}selected{% endif %}>Sem Nota Fiscal</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div class="col-12 col-md-2">
+                <button type="submit" class="btn btn-dark w-100 shadow-sm fw-bold"><i class="bi bi-search me-1"></i> Filtrar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-check me-2"></i>Gestão de Faturas</h5>
+                <a href="{{ url_for('vendas.selecionar_cliente_pedido') }}" class="btn btn-sm btn-primary shadow-sm">
+                    <i class="bi bi-plus-lg"></i> Novo Pedido
+                </a>
+            </div>
+            
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show m-3" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4" style="width: 150px;">Status</th>
+                            <th>Cliente / Fatura</th>
+                            <th class="d-none d-md-table-cell">Competência</th>
+                            <th class="text-end pe-4">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ped in ultimos_pedidos %}
+                        <tr>
+                            <td class="ps-4">
+                                {% if ped.status == 'Pago' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle w-100 py-2"><i class="bi bi-check-all fs-6"></i> PAGO</span>
+                                {% elif ped.status == 'Aprovado' %}
+                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle w-100 py-2"><i class="bi bi-lock-fill"></i> APROVADO</span>
+                                {% else %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle text-dark w-100 py-2"><i class="bi bi-pencil-fill"></i> PENDENTE</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="fw-bold text-dark fs-6">{{ ped.nome_empresa }}</div>
+                                <small class="text-muted">Fatura #{{ ped.codigo_fatura }}
+                                    {% if ped.numero_nf %} | <span class="text-success fw-bold"><i class="bi bi-receipt"></i> NF: {{ ped.numero_nf }}</span>{% endif %}
+                                </small>
+                                <div class="d-md-none text-muted mt-1" style="font-size:.72rem;"><i class="bi bi-calendar-event me-1"></i>{{ ped.data_competencia if ped.data_competencia else '-' }}</div>
+                            </td>
+                            <td class="small text-muted fw-bold d-none d-md-table-cell"><i class="bi bi-calendar-event me-1"></i> {{ ped.data_competencia if ped.data_competencia else '-' }}</td>
+                            
+                            <td class="text-end pe-4">
+                                <div class="btn-group shadow-sm d-none d-md-inline-flex">
+                                    <a href="{{ url_for('vendas.ver_fatura', id_pedido=ped.id) }}" class="btn btn-sm btn-light border" title="Ver / Enviar WhatsApp">
+                                        <i class="bi bi-whatsapp text-success me-1"></i> Ver/Enviar
+                                    </a>
+                                    <a href="{{ url_for('vendas.baixar_pdf', id_pedido=ped.id) }}"
+                                       class="btn btn-sm btn-light border" title="Baixar PDF"
+                                       download>
+                                        <i class="bi bi-download text-dark"></i>
+                                    </a>
+
+                                    {% if ped.status == 'Pendente' or not ped.status %}
+                                        <a href="{{ url_for('vendas.fazer_pedido', id_pedido=ped.id) }}" class="btn btn-sm btn-outline-warning" title="Editar">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}" class="btn btn-sm btn-primary" title="Aprovar Fatura">
+                                            Aprovar
+                                        </a>
+                                        <a href="{{ url_for('vendas.excluir_pedido', id_pedido=ped.id) }}" 
+                                           class="btn btn-sm btn-outline-danger" 
+                                           title="Excluir Pedido"
+                                           onclick="return confirm('Tem certeza que deseja apagar este pedido permanentemente?')">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    {% elif ped.status == 'Aprovado' %}
+                                        <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}" title="Informar Nota Fiscal">
+                                            <i class="bi bi-file-earmark-text"></i> NF
+                                        </button>
+                                        <a href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pago') }}" class="btn btn-sm btn-success" title="Marcar como Pago">
+                                            <i class="bi bi-currency-dollar"></i> Receber
+                                        </a>
+                                        <a href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pendente') }}" class="btn btn-sm btn-outline-secondary" title="Voltar para Rascunho">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </a>
+                                    {% elif ped.status == 'Pago' %}
+                                        <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}" title="Editar Nota Fiscal">
+                                            <i class="bi bi-file-earmark-text"></i> NF
+                                        </button>
+                                        <a href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}" class="btn btn-sm btn-outline-secondary" title="Estornar Recebimento">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Menu de ações para celular -->
+                                <div class="dropdown d-md-none">
+                                    <button class="btn btn-sm btn-light border px-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width:190px;">
+                                        <li><a class="dropdown-item small" href="{{ url_for('vendas.ver_fatura', id_pedido=ped.id) }}"><i class="bi bi-whatsapp text-success me-2"></i>Ver / Enviar</a></li>
+                                        <li><a class="dropdown-item small" href="{{ url_for('vendas.baixar_pdf', id_pedido=ped.id) }}" download><i class="bi bi-download me-2"></i>Baixar PDF</a></li>
+                                        {% if ped.status == 'Pendente' or not ped.status %}
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><a class="dropdown-item small" href="{{ url_for('vendas.fazer_pedido', id_pedido=ped.id) }}"><i class="bi bi-pencil text-warning me-2"></i>Editar</a></li>
+                                        <li><a class="dropdown-item small text-primary" href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}"><i class="bi bi-lock-fill me-2"></i>Aprovar</a></li>
+                                        <li><a class="dropdown-item small text-danger" href="{{ url_for('vendas.excluir_pedido', id_pedido=ped.id) }}" onclick="return confirm('Apagar este pedido?')"><i class="bi bi-trash me-2"></i>Excluir</a></li>
+                                        {% elif ped.status == 'Aprovado' %}
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><a class="dropdown-item small" href="#" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}"><i class="bi bi-file-earmark-text me-2"></i>Nota Fiscal</a></li>
+                                        <li><a class="dropdown-item small text-success" href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pago') }}"><i class="bi bi-currency-dollar me-2"></i>Receber</a></li>
+                                        <li><a class="dropdown-item small" href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pendente') }}"><i class="bi bi-arrow-counterclockwise me-2"></i>Voltar Rascunho</a></li>
+                                        {% elif ped.status == 'Pago' %}
+                                        <li><hr class="dropdown-divider my-1"></li>
+                                        <li><a class="dropdown-item small" href="#" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}"><i class="bi bi-file-earmark-text me-2"></i>Nota Fiscal</a></li>
+                                        <li><a class="dropdown-item small" href="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}"><i class="bi bi-arrow-counterclockwise me-2"></i>Estornar</a></li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center py-5">
+                                <div class="text-muted mb-3"><i class="bi bi-folder-x fs-1 opacity-25"></i></div>
+                                <h6 class="text-secondary fw-normal">Nenhuma fatura encontrada para este período.</h6>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalNF" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-file-earmark-text me-2"></i>Gerenciar Nota Fiscal</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formNF" action="/salvar_nf/0" method="POST">
+                <div class="modal-body bg-light p-4">
+                    <div class="mb-2">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Número da NF</label>
+                        <input type="text" name="numero_nf" id="inputNumeroNF" class="form-control form-control-lg border-0 shadow-sm" placeholder="Ex: 001234" autocomplete="off">
+                        <div class="form-text mt-2 small text-muted">
+                            Este número será exibido no canto superior direito do seu PDF.<br>
+                            <i class="bi bi-info-circle"></i> <strong>Para remover a nota, basta deixar este campo vazio.</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-dark px-4 fw-bold shadow-sm">Salvar Alteração</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    var modalNF = document.getElementById('modalNF');
+    if (modalNF) {
+        modalNF.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget; 
+            var pedidoId = button.getAttribute('data-id');
+            var nfAtual = button.getAttribute('data-nf'); 
+            
+            var form = document.getElementById('formNF');
+            form.action = '/salvar_nf/' + pedidoId;
+            
+            var inputNf = document.getElementById('inputNumeroNF');
+            inputNf.value = nfAtual;
+        });
+    }
+</script>
+{% endblock %}

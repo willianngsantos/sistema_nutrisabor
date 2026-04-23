@@ -1,0 +1,80 @@
+{% macro rh_nav(active='') %}
+<style>
+  .rh-subnav {
+    background: #1e293b;
+    border-radius: 12px;
+    padding: 8px 12px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .rh-subnav::-webkit-scrollbar { display: none; }
+
+  .rh-subnav .nav {
+    flex-wrap: nowrap;
+    gap: 4px;
+    min-width: max-content;
+  }
+
+  .rh-subnav .nav-link {
+    color: rgba(255,255,255,0.72) !important;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 6px 13px;
+    border-radius: 8px;
+    white-space: nowrap;
+    transition: all .15s;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .rh-subnav .nav-link i { font-size: 0.85rem; }
+
+  .rh-subnav .nav-link:hover:not(.active) {
+    background: rgba(255,255,255,0.1);
+    color: #fff !important;
+    border-color: rgba(255,255,255,0.12);
+  }
+
+  .rh-subnav .nav-link.active {
+    background: #22c55e;
+    color: #fff !important;
+    border-color: #16a34a;
+    box-shadow: 0 2px 8px rgba(34,197,94,0.4);
+  }
+</style>
+<div class="rh-subnav">
+  <nav class="nav">
+    <a class="nav-link {% if active=='hub' %}active{% endif %}" href="/rh">
+      <i class="bi bi-grid-1x2-fill"></i>Painel RH
+    </a>
+    <a class="nav-link {% if active=='colaboradores' %}active{% endif %}" href="/colaboradores">
+      <i class="bi bi-people-fill"></i>Colaboradores
+    </a>
+    <a class="nav-link {% if active=='vt' %}active{% endif %}" href="/recibos_vt/lote">
+      <i class="bi bi-bus-front-fill"></i>Vale Transp.
+    </a>
+    <a class="nav-link {% if active=='exames' %}active{% endif %}" href="/rh/exames">
+      <i class="bi bi-clipboard2-pulse-fill"></i>Exames
+    </a>
+    <a class="nav-link {% if active=='reajuste' %}active{% endif %}" href="/rh/reajuste">
+      <i class="bi bi-graph-up-arrow"></i>Reajuste
+    </a>
+    <a class="nav-link {% if active=='documentos' %}active{% endif %}" href="/rh/documentos">
+      <i class="bi bi-folder2-open"></i>Documentos
+    </a>
+    <a class="nav-link {% if active=='jornadas' %}active{% endif %}" href="/rh/jornadas">
+      <i class="bi bi-clock-fill"></i>Jornadas
+    </a>
+    <a class="nav-link {% if active=='ferias' %}active{% endif %}" href="/rh/ferias">
+      <i class="bi bi-calendar-heart-fill"></i>Férias
+    </a>
+    <a class="nav-link {% if active=='ponto' %}active{% endif %}" href="/rh/ponto">
+      <i class="bi bi-calendar-check-fill"></i>Ponto
+    </a>
+  </nav>
+</div>
+{% endmacro %}

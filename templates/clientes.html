@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block conteudo %}
+<style>
+    /* Estilos exclusivos para Clientes */
+    .table-clients {
+        border-collapse: separate;
+        border-spacing: 0 8px;
+    }
+    
+    .table-clients tbody tr {
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        transition: all 0.2s ease;
+    }
+
+    .table-clients tbody tr:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-left: 3px solid #27ae60; /* Verde para clientes */
+    }
+
+    .table-clients td {
+        border: none;
+        padding: 15px 20px;
+        vertical-align: middle;
+    }
+
+    .table-clients td:first-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+    .table-clients td:last-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+
+    /* Avatar com Inicial */
+    .client-avatar {
+        width: 40px;
+        height: 40px;
+        background-color: #eef2ff;
+        color: #4f46e5;
+        font-weight: 700;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    /* Badge WhatsApp */
+    .badge-whatsapp {
+        background-color: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge-whatsapp:hover {
+        background-color: #25d366;
+        color: white;
+        border-color: #25d366;
+    }
+
+    /* Novo Badge para o Grupo */
+    .badge-grupo {
+        background-color: #e0e7ff;
+        color: #4f46e5;
+        border: 1px solid #c7d2fe;
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+    }
+
+    /* Tag para o Apelido */
+    .apelido-tag {
+        font-size: 0.75rem;
+        color: #8b5cf6;
+        background: #ede9fe;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        margin-top: 4px;
+        display: inline-block;
+    }
+
+    /* Badge Unidade de Trabalho */
+    .badge-unidade-local {
+        font-size: 0.7rem;
+        background: #f0fdf4;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        margin-top: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+</style>
+
+<div class="row align-items-center mb-4 mt-3 g-2">
+    <div class="col-12 col-md-5">
+        <h3 class="fw-bold text-dark mb-0"><i class="bi bi-people me-2 text-success"></i>Gestão de Clientes</h3>
+        <p class="text-muted small mb-0">Administre sua carteira de clientes e contatos.</p>
+    </div>
+
+    <div class="col-12 col-md-4">
+        <div class="position-relative">
+            <i class="bi bi-search position-absolute top-50 translate-middle-y ms-3 text-muted"></i>
+            <input type="text" id="buscaCliente" oninput="filtrarClientes()" class="form-control border-0 shadow-sm ps-5 py-2 rounded-pill" placeholder="Buscar por nome, grupo ou documento..." autocomplete="off">
+        </div>
+    </div>
+
+    <div class="col-12 col-md-3 text-end">
+        <button class="btn btn-primary shadow-sm px-4 py-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalAddCliente">
+            <i class="bi bi-person-plus-fill me-1"></i> Novo Cliente
+        </button>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'message' else 'info' }} shadow-sm border-0 border-start border-4 border-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="table-responsive">
+    <table class="table table-clients mb-0">
+        <thead class="text-secondary small text-uppercase" style="font-weight: 600; letter-spacing: 0.5px;">
+            <tr>
+                <th class="ps-4 border-0">Cliente / Empresa</th>
+                <th class="border-0 d-none d-md-table-cell">Documento</th>
+                <th class="border-0 d-none d-md-table-cell">Contato</th>
+                <th class="text-end pe-4 border-0">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cli in clientes %}
+            <tr>
+                <td class="ps-4">
+                    <div class="d-flex align-items-center">
+                        <div class="client-avatar me-3 d-none d-md-flex">
+                            {{ cli[1][0]|upper }}
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark">{{ cli[1] }}</div>
+                            {% if cli[7] %}
+                                <div class="apelido-tag mb-1"><i class="bi bi-tag-fill me-1"></i>{{ cli[7] }}</div>
+                            {% endif %}
+                            <div class="d-flex align-items-center flex-wrap gap-2 mt-1">
+                                <small class="text-muted">ID: #{{ cli[0] }}</small>
+                                {% if cli[5] %}
+                                    <span class="badge-grupo"><i class="bi bi-diagram-3-fill"></i> {{ cli[5] }}</span>
+                                {% endif %}
+                                {% if cli[8] %}
+                                    <span class="badge-unidade-local"><i class="bi bi-building-check"></i> Unidade de Trabalho</span>
+                                {% endif %}
+                            </div>
+                            <!-- Contato resumido visível só no celular -->
+                            <div class="d-md-none mt-1" style="font-size:.72rem;color:#64748b;">
+                                {% if cli[4] %}<i class="bi bi-whatsapp text-success me-1"></i>{{ cli[4] }}{% endif %}
+                                {% if cli[2] %} &nbsp;·&nbsp; <span class="font-monospace">{{ cli[2] }}</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td class="d-none d-md-table-cell">
+                    {% if cli[2] %}
+                        <span class="text-dark font-monospace bg-light px-2 py-1 rounded small border">
+                            {{ cli[2] }}
+                        </span>
+                    {% else %}
+                        <span class="text-muted small">-</span>
+                    {% endif %}
+                </td>
+                <td class="d-none d-md-table-cell">
+                    <div class="d-flex flex-column gap-1">
+                        {% if cli[4] %}
+                        <a href="https://wa.me/55{{ cli[4]|replace(' ', '')|replace('-', '')|replace('(', '')|replace(')', '') }}"
+                           target="_blank" class="badge-whatsapp w-auto" style="width: fit-content;">
+                            <i class="bi bi-whatsapp"></i> {{ cli[4] }}
+                        </a>
+                        {% endif %}
+                        
+                        {% if cli[3] %}
+                        <div class="small text-muted"><i class="bi bi-envelope me-1"></i> {{ cli[3] }}</div>
+                        {% endif %}
+                    </div>
+                </td>
+                <td class="text-end pe-4">
+                    <div class="btn-group">
+                        <a href="/negociar/{{ cli[0] }}" class="btn btn-sm btn-light text-success border me-1" title="Tabela de Preços Individual">
+                            <i class="bi bi-cash-coin"></i>
+                        </a>
+                        <a href="{{ url_for('cadastros.toggle_unidade', id_cliente=cli[0]) }}"
+                           class="btn btn-sm border me-1 {% if cli[8] %}btn-success text-white{% else %}btn-light text-muted{% endif %}"
+                           title="{{ 'Remover como Unidade de Trabalho' if cli[8] else 'Marcar como Unidade de Trabalho' }}">
+                            <i class="bi bi-building{% if cli[8] %}-check{% endif %}"></i>
+                        </a>
+                        <button class="btn btn-sm btn-light text-primary border me-1" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalEditarCliente"
+                                data-id="{{ cli[0] }}"
+                                data-nome="{{ cli[1] }}"
+                                data-apelido="{{ cli[7] if cli[7] else '' }}"
+                                data-cnpj="{{ cli[2] }}"
+                                data-email="{{ cli[3] }}"
+                                data-celular="{{ cli[4] }}"
+                                data-grupo="{{ cli[6] if cli[6] else '' }}"
+                                data-logo="{{ cli[9] if cli[9] else '' }}"
+                                title="Editar">
+                            <i class="bi bi-pencil-fill"></i>
+                        </button>
+                        <a href="/excluir_cliente/{{ cli[0] }}" 
+                           class="btn btn-sm btn-light text-danger border" 
+                           onclick="return confirm('ATENÇÃO: Excluir este cliente pode afetar o histórico de pedidos.\n\nDeseja continuar?')"
+                           title="Excluir">
+                            <i class="bi bi-trash-fill"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center py-5">
+                    <div class="text-muted mb-3"><i class="bi bi-people fs-1 opacity-25"></i></div>
+                    <h6 class="text-secondary fw-normal">Sua carteira de clientes está vazia.</h6>
+                    <button class="btn btn-sm btn-outline-primary mt-2" data-bs-toggle="modal" data-bs-target="#modalAddCliente">
+                        Cadastrar Primeiro Cliente
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal fade" id="modalAddCliente" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-dark text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-person-plus me-2"></i>Novo Cliente</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/add_cliente" method="POST" enctype="multipart/form-data">
+                <div class="modal-body bg-light p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Nome / Razão Social</label>
+                        <input type="text" name="nome_empresa" class="form-control form-control-lg border-0 shadow-sm" required placeholder="Ex: João da Silva ME">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Nome Fantasia / Apelido (Opcional)</label>
+                        <input type="text" name="apelido" class="form-control border-0 shadow-sm" placeholder="Ex: Restaurante do João">
+                        <div class="form-text small" style="font-size: 0.75rem;">Se preenchido, será este nome que aparecerá nas faturas em PDF.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Grupo de Preços (Opcional)</label>
+                        <select name="id_grupo" class="form-select border-0 shadow-sm text-dark">
+                            <option value="">Nenhum (Usar preço padrão/individual)</option>
+                            {% for g in grupos %}
+                                <option value="{{ g[0] }}">{{ g[1] }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text small">Ao selecionar um grupo, este cliente adotará os preços e o PIX definidos nele.</div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">CPF / CNPJ</label>
+                            <input type="text" name="cnpj" class="form-control border-0 shadow-sm" placeholder="Apenas números">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">WhatsApp</label>
+                            <input type="text" name="celular" class="form-control border-0 shadow-sm" placeholder="(99) 99999-9999" oninput="mascaraTelefone(this)">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Email (Opcional)</label>
+                        <input type="email" name="email" class="form-control border-0 shadow-sm" placeholder="cliente@email.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Logo do Cliente (Opcional)</label>
+                        <input type="file" name="logo_cliente" accept="image/*" class="form-control border-0 shadow-sm">
+                        <div class="form-text small">PNG, JPG ou SVG. Aparecerá na impressão do cardápio.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">Salvar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalEditarCliente" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2"></i>Editar Cliente</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="/editar_cliente" method="POST" enctype="multipart/form-data">
+                <div class="modal-body bg-light p-4">
+                    <input type="hidden" name="id_cliente" id="edit_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Nome / Razão Social</label>
+                        <input type="text" name="nome_empresa" id="edit_nome" class="form-control form-control-lg border-0 shadow-sm" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Nome Fantasia / Apelido</label>
+                        <input type="text" name="apelido" id="edit_apelido" class="form-control border-0 shadow-sm">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Grupo de Preços</label>
+                        <select name="id_grupo" id="edit_grupo" class="form-select border-0 shadow-sm text-dark">
+                            <option value="">Nenhum (Usar preço padrão/individual)</option>
+                            {% for g in grupos %}
+                                <option value="{{ g[0] }}">{{ g[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">CPF / CNPJ</label>
+                            <input type="text" name="cnpj" id="edit_cnpj" class="form-control border-0 shadow-sm">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold text-secondary small text-uppercase">WhatsApp</label>
+                            <input type="text" name="celular" id="edit_celular" class="form-control border-0 shadow-sm" oninput="mascaraTelefone(this)">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Email</label>
+                        <input type="email" name="email" id="edit_email" class="form-control border-0 shadow-sm">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Logo do Cliente</label>
+                        <div id="edit_logo_preview" class="mb-2 d-none">
+                            <img id="edit_logo_img" src="" alt="Logo atual" style="max-height:50px;max-width:120px;object-fit:contain;border-radius:6px;border:1px solid #e2e8f0;">
+                            <div class="mt-1">
+                                <input type="checkbox" name="remover_logo" id="remover_logo" value="1">
+                                <label for="remover_logo" class="small text-danger ms-1">Remover logo atual</label>
+                            </div>
+                        </div>
+                        <input type="file" name="logo_cliente" accept="image/*" class="form-control border-0 shadow-sm">
+                        <div class="form-text small">Deixe em branco para manter o logo atual. PNG, JPG ou SVG.</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold shadow-sm">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    var modalEditar = document.getElementById('modalEditarCliente');
+    modalEditar.addEventListener('show.bs.modal', function (event) {
+        var button = event.relatedTarget;
+        document.getElementById('edit_id').value = button.getAttribute('data-id');
+        document.getElementById('edit_nome').value = button.getAttribute('data-nome');
+        document.getElementById('edit_apelido').value = button.getAttribute('data-apelido');
+        document.getElementById('edit_cnpj').value = button.getAttribute('data-cnpj');
+        document.getElementById('edit_email').value = button.getAttribute('data-email');
+        document.getElementById('edit_celular').value = button.getAttribute('data-celular');
+        document.getElementById('edit_grupo').value = button.getAttribute('data-grupo');
+
+        // Logo do cliente
+        var logoPath = button.getAttribute('data-logo');
+        var previewDiv = document.getElementById('edit_logo_preview');
+        var logoImg = document.getElementById('edit_logo_img');
+        var checkRemover = document.getElementById('remover_logo');
+        checkRemover.checked = false;
+        if (logoPath) {
+            logoImg.src = '/static/' + logoPath;
+            previewDiv.classList.remove('d-none');
+        } else {
+            previewDiv.classList.add('d-none');
+            logoImg.src = '';
+        }
+    });
+
+    function mascaraTelefone(i){
+        var v=i.value;
+        v=v.replace(/\D/g,"");
+        v=v.replace(/^(\d{2})(\d)/g,"($1) $2");
+        v=v.replace(/(\d)(\d{4})$/,"$1-$2");
+        i.value=v
+    }
+</script>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Pega exatamente a barra de pesquisa pelo ID
+        const inputBusca = document.getElementById("buscaCliente");
+        
+        if (inputBusca) {
+            inputBusca.addEventListener("keyup", function() {
+                let filtro = this.value.toUpperCase();
+                let linhas = document.querySelectorAll(".table-clients tbody tr");
+
+                linhas.forEach(linha => {
+                    // Se for a linha vazia de "Nenhum cliente", não faz nada
+                    if (linha.cells.length === 1) return; 
+
+                    let texto = linha.innerText.toUpperCase();
+                    
+                    if (texto.includes(filtro)) {
+                        linha.style.display = "";
+                    } else {
+                        linha.style.display = "none";
+                    }
+                });
+            });
+        }
+    });
+</script>
+
+{% endblock %}

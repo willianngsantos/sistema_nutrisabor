@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+{% block conteudo %}
+
+<style>
+/* ── Header ────────────────────────────────────────────────── */
+.page-header {
+    background: linear-gradient(135deg, #1a2942 0%, #2c3e50 60%, #1a3a2a 100%);
+    border-radius: 16px; padding: 28px 32px; margin-bottom: 28px;
+    position: relative; overflow: hidden;
+}
+.page-header::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    background: linear-gradient(90deg, #27ae60 0%, #2c3e50 50%, #e67e22 100%);
+}
+.page-header h2 { color: #fff; font-weight: 700; margin: 0; font-size: 1.5rem; }
+.page-header p  { color: rgba(255,255,255,.55); margin: 4px 0 0; font-size: .9rem; }
+
+/* ── Stat cards ────────────────────────────────────────────── */
+.stat-card {
+    background: #fff; border-radius: 12px;
+    padding: 16px 14px; border: 1px solid #e9ecef;
+    text-align: center; transition: .2s; height: 100%;
+}
+.stat-card:hover         { box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+.stat-card.active        { border-width: 2px; border-color: #6366f1 !important; }
+.stat-number             { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+.stat-label              { font-size: .72rem; color: #6c757d; font-weight: 600; text-transform: uppercase; margin-top: 3px; }
+
+/* ── Cards mobile ───────────────────────────────────────────── */
+.proposta-card {
+    background: #fff;
+    border-radius: 14px;
+    border: 1px solid #e9ecef;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.04);
+    transition: box-shadow .2s;
+}
+.proposta-card:active { box-shadow: 0 4px 16px rgba(0,0,0,.10); }
+
+/* ── Tabela ────────────────────────────────────────────────── */
+.table-propostas { border-collapse: separate; border-spacing: 0 5px; table-layout: fixed; width: 100%; }
+.table-propostas thead th {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .5px;
+    color: #94a3b8; font-weight: 700; padding: 6px 12px;
+    border: none; white-space: nowrap;
+}
+.table-propostas tbody tr {
+    background: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.04); transition: all .2s;
+}
+.table-propostas tbody tr:hover {
+    transform: translateY(-1px); box-shadow: 0 5px 16px rgba(0,0,0,.08);
+}
+.table-propostas td {
+    border: none; padding: 12px 12px; vertical-align: middle;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.table-propostas td:first-child { border-radius: 10px 0 0 10px; }
+.table-propostas td:last-child  { border-radius: 0 10px 10px 0; }
+
+/* ── Colunas com largura fixa (Ajustadas para não cortar o texto) ── */
+.col-num      { width: 160px; } /* Era 130px */
+.col-cliente  { width: auto; }  /* ocupa o espaço restante */
+.col-data     { width: 120px; } /* Era 100px */
+.col-validade { width: 120px; } /* Era 110px */
+.col-total    { width: 150px; } /* Era 120px */
+.col-status   { width: 160px; } /* Era 145px */
+.col-acoes    { width: 140px; }
+
+/* ── Número proposta ───────────────────────────────────────── */
+.prop-num {
+    font-size: .78rem; font-weight: 700;
+    background: #f0fdf4; color: #15803d;
+    border: 1px solid #bbf7d0; border-radius: 6px; padding: 3px 9px;
+    white-space: nowrap;
+}
+
+/* ── Select de status (substitui dropdown) ────────────────── */
+.status-select {
+    appearance: none; -webkit-appearance: none;
+    border-radius: 20px; font-size: .73rem; font-weight: 700;
+    padding: 4px 28px 4px 10px; cursor: pointer;
+    border: 1px solid; outline: none;
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 10px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23666' d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    transition: box-shadow .15s;
+    width: 130px;
+}
+.status-select:focus { box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+.status-select.st-rascunho { background-color:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+.status-select.st-enviada  { background-color:#dbeafe; color:#1e40af; border-color:#bfdbfe; }
+.status-select.st-aceita   { background-color:#dcfce7; color:#166534; border-color:#bbf7d0; }
+.status-select.st-recusada { background-color:#fee2e2; color:#991b1b; border-color:#fecaca; }
+.status-select.st-expirada { background-color:#fef3c7; color:#92400e; border-color:#fde68a; }
+</style>
+
+<div class="page-header d-flex align-items-center gap-3 flex-wrap">
+    <div class="flex-grow-1" style="min-width:0;">
+        <h2 style="font-size:clamp(1.1rem,4vw,1.5rem);"><i class="bi bi-file-earmark-text me-2"></i>Propostas Comerciais</h2>
+        <p class="d-none d-sm-block">Gerencie e acompanhe o status de todas as propostas</p>
+    </div>
+    <div>
+        <a href="{{ url_for('propostas.nova') }}"
+           class="btn btn-success rounded-pill px-3 px-md-4 fw-semibold">
+            <i class="bi bi-plus-lg me-1 me-md-2"></i><span class="d-none d-sm-inline">Nova Proposta</span><span class="d-sm-none">Nova</span>
+        </a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    {% set stats = [
+        ('Rascunho', 'bi-pencil-square',    '#6c757d'),
+        ('Enviada',  'bi-send',              '#1e40af'),
+        ('Aceita',   'bi-check-circle-fill', '#166534'),
+        ('Recusada', 'bi-x-circle-fill',     '#991b1b'),
+        ('Expirada', 'bi-clock-history',     '#92400e'),
+    ] %}
+    {% for label, icon, color in stats %}
+    <div class="col-4 col-sm-4 col-md">
+        <a href="{{ url_for('propostas.listar', status=label, ano=filtro_ano) }}"
+           class="text-decoration-none d-block h-100">
+            <div class="stat-card {% if filtro_status == label %}active{% endif %}">
+                <i class="bi {{ icon }}" style="font-size:1.3rem;color:{{ color }}"></i>
+                <div class="stat-number" style="color:{{ color }}">
+                    {{ contadores.get(label, 0) }}
+                </div>
+                <div class="stat-label">{{ label }}</div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body py-3">
+        <form method="get" class="row g-2 align-items-end flex-wrap">
+            <div class="col-auto">
+                <label class="form-label small fw-semibold mb-1">Ano</label>
+                <select name="ano" class="form-select form-select-sm rounded-pill" style="width:90px;">
+                    {% for a in anos %}
+                    <option value="{{ a }}" {% if a == filtro_ano %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-4 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Cliente</label>
+                <select name="cliente_id" class="form-select form-select-sm rounded-pill">
+                    <option value="">Todos os clientes</option>
+                    {% for c in clientes %}
+                    <option value="{{ c.id }}"
+                        {% if filtro_cliente|string == c.id|string %}selected{% endif %}>
+                        {{ c.nome_empresa }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label small fw-semibold mb-1">Status</label>
+                <select name="status" class="form-select form-select-sm rounded-pill" style="width:130px;">
+                    <option value="">Todos</option>
+                    {% for s in ['Rascunho','Enviada','Aceita','Recusada','Expirada'] %}
+                    <option value="{{ s }}" {% if filtro_status == s %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-dark rounded-pill px-3">
+                    <i class="bi bi-funnel me-1"></i>Filtrar
+                </button>
+                <a href="{{ url_for('propostas.listar') }}"
+                   class="btn btn-sm btn-outline-secondary rounded-pill px-3 ms-1">
+                    <i class="bi bi-x"></i> Limpar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+        {% if propostas %}
+
+        <!-- ── LISTA MOBILE (cards) ── -->
+        <div class="d-md-none px-3 pt-3 pb-2">
+            {% for p in propostas %}
+            <div class="proposta-card">
+                <!-- Linha 1: número + status -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="prop-num">{{ p.numero }}</span>
+                    <span class="badge rounded-pill
+                        {% if p.status == 'Aceita' %}bg-success-subtle text-success border border-success-subtle
+                        {% elif p.status == 'Enviada' %}bg-primary-subtle text-primary border border-primary-subtle
+                        {% elif p.status == 'Recusada' %}bg-danger-subtle text-danger border border-danger-subtle
+                        {% elif p.status == 'Expirada' %}bg-warning-subtle text-warning border border-warning-subtle
+                        {% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %}"
+                        style="font-size:.7rem;font-weight:700;">{{ p.status }}</span>
+                </div>
+                <!-- Linha 2: nome do cliente -->
+                <div class="fw-bold text-dark mb-1" style="font-size:.97rem;">{{ p.cliente_nome }}</div>
+                <!-- Linha 3: valor + data -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-bold" style="color:#e67e22;font-size:.95rem;">
+                            {{ p.total_proposta | real if p.total_proposta else '—' }}
+                        </span>
+                        <span class="text-muted ms-2" style="font-size:.78rem;">
+                            <i class="bi bi-calendar3 me-1"></i>{{ p.data_proposta.strftime('%d/%m/%Y') if p.data_proposta else '—' }}
+                        </span>
+                    </div>
+                    <!-- Ações mobile -->
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-light border px-2" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                            <li><a class="dropdown-item small" href="{{ url_for('propostas.ver', id_proposta=p.id) }}" target="_blank"><i class="bi bi-eye me-2 text-primary"></i>Visualizar</a></li>
+                            <li><a class="dropdown-item small" href="{{ url_for('propostas.editar', id_proposta=p.id) }}"><i class="bi bi-pencil me-2 text-warning"></i>Editar</a></li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li><h6 class="dropdown-header small">Alterar status</h6></li>
+                            {% for s in ['Rascunho','Enviada','Aceita','Recusada','Expirada'] %}
+                            <li><a class="dropdown-item small {% if p.status == s %}fw-bold{% endif %}"
+                                   href="#" onclick="event.preventDefault();mudarStatusDireto({{ p.id }},'{{ s }}')">{{ s }}</a></li>
+                            {% endfor %}
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <form method="post" action="{{ url_for('propostas.deletar', id_proposta=p.id) }}"
+                                      onsubmit="return confirm('Excluir proposta {{ p.numero }}?')">
+                                    <button class="dropdown-item small text-danger"><i class="bi bi-trash me-2"></i>Excluir</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- ── TABELA DESKTOP ── -->
+        <div class="d-none d-md-block table-responsive px-2 pt-2 pb-1">
+            <table class="table table-propostas mb-0">
+                <colgroup>
+                    <col class="col-num">
+                    <col class="col-cliente">
+                    <col class="col-data">
+                    <col class="col-validade">
+                    <col class="col-total">
+                    <col class="col-status">
+                    <col class="col-acoes">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th class="ps-3">Proposta</th>
+                        <th>Cliente</th>
+                        <th class="d-none d-md-table-cell">Data</th>
+                        <th class="d-none d-md-table-cell">Validade</th>
+                        <th class="text-end d-none d-md-table-cell">Total</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for p in propostas %}
+                <tr>
+                    <td class="ps-3">
+                        <span class="prop-num">{{ p.numero }}</span>
+                    </td>
+                    <td style="max-width:0;">
+                        <span class="fw-semibold text-dark d-block text-truncate"
+                              title="{{ p.cliente_nome }}">{{ p.cliente_nome }}</span>
+                        <div class="d-md-none" style="font-size:.72rem;color:#64748b;">
+                            <span class="fw-bold" style="color:#e67e22;">{{ p.total_proposta | real if p.total_proposta else '—' }}</span>
+                            &nbsp;·&nbsp;<i class="bi bi-calendar3 me-1"></i>{{ p.data_proposta.strftime('%d/%m/%Y') if p.data_proposta else '—' }}
+                            {% if p.validade %} · val.{{ p.validade.strftime('%d/%m/%Y') }}{% endif %}
+                        </div>
+                    </td>
+                    <td class="text-muted d-none d-md-table-cell" style="font-size:.85rem;">
+                        {{ p.data_proposta.strftime('%d/%m/%Y') if p.data_proposta else '—' }}
+                    </td>
+                    <td class="d-none d-md-table-cell" style="font-size:.85rem;">
+                        {% if p.validade %}
+                            {% if p.validade < today %}
+                                <span class="text-warning fw-semibold" title="Vencida">
+                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                    {{ p.validade.strftime('%d/%m/%Y') }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">{{ p.validade.strftime('%d/%m/%Y') }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end fw-bold d-none d-md-table-cell" style="font-size:.9rem; color:#e67e22;">
+                        {{ p.total_proposta | real if p.total_proposta else '—' }}
+                    </td>
+                    <td class="text-center">
+                        <!-- Status select — desktop -->
+                        <select class="status-select st-{{ p.status|lower }} d-none d-md-inline-block"
+                                data-id="{{ p.id }}"
+                                onchange="mudarStatus(this)">
+                            {% for s in ['Rascunho','Enviada','Aceita','Recusada','Expirada'] %}
+                            <option value="{{ s }}" {% if p.status == s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                        <!-- Status badge compacto — mobile -->
+                        <span class="badge rounded-pill d-md-none
+                            {% if p.status == 'Aceita' %}bg-success-subtle text-success border border-success-subtle
+                            {% elif p.status == 'Enviada' %}bg-primary-subtle text-primary border border-primary-subtle
+                            {% elif p.status == 'Recusada' %}bg-danger-subtle text-danger border border-danger-subtle
+                            {% elif p.status == 'Expirada' %}bg-warning-subtle text-warning border border-warning-subtle
+                            {% else %}bg-secondary-subtle text-secondary border border-secondary-subtle{% endif %}"
+                            style="font-size:.68rem;font-weight:700;">{{ p.status }}</span>
+                    </td>
+                    <td class="text-center">
+                        <!-- Ações — desktop -->
+                        <div class="d-none d-md-flex justify-content-center gap-1">
+                            <a href="{{ url_for('propostas.ver', id_proposta=p.id) }}"
+                               class="btn btn-sm btn-light border" title="Visualizar" target="_blank">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ url_for('propostas.editar', id_proposta=p.id) }}"
+                               class="btn btn-sm btn-outline-primary" title="Editar">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post"
+                                  action="{{ url_for('propostas.deletar', id_proposta=p.id) }}"
+                                  onsubmit="return confirm('Excluir proposta {{ p.numero }}?')">
+                                <button class="btn btn-sm btn-outline-danger" title="Excluir">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                        <!-- Ações — mobile (⋮ dropdown) -->
+                        <div class="dropdown d-md-none">
+                            <button class="btn btn-sm btn-light border px-2" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                <li><a class="dropdown-item small" href="{{ url_for('propostas.ver', id_proposta=p.id) }}" target="_blank"><i class="bi bi-eye me-2"></i>Visualizar</a></li>
+                                <li><a class="dropdown-item small" href="{{ url_for('propostas.editar', id_proposta=p.id) }}"><i class="bi bi-pencil me-2"></i>Editar</a></li>
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li><h6 class="dropdown-header small">Alterar status</h6></li>
+                                {% for s in ['Rascunho','Enviada','Aceita','Recusada','Expirada'] %}
+                                <li><a class="dropdown-item small {% if p.status == s %}fw-bold{% endif %}"
+                                       href="#" onclick="event.preventDefault();mudarStatusDireto({{ p.id }},'{{ s }}')">{{ s }}</a></li>
+                                {% endfor %}
+                                <li><hr class="dropdown-divider my-1"></li>
+                                <li>
+                                    <form method="post" action="{{ url_for('propostas.deletar', id_proposta=p.id) }}"
+                                          onsubmit="return confirm('Excluir proposta {{ p.numero }}?')">
+                                        <button class="dropdown-item small text-danger"><i class="bi bi-trash me-2"></i>Excluir</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div><!-- /tabela desktop -->
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="bi bi-file-earmark-x" style="font-size:3rem; opacity:.3;"></i>
+            <p class="mt-3 mb-1 fw-semibold">Nenhuma proposta encontrada</p>
+            <p class="small">Ajuste os filtros ou crie uma nova proposta</p>
+            <a href="{{ url_for('propostas.nova') }}" class="btn btn-success rounded-pill px-4 mt-2">
+                <i class="bi bi-plus-lg me-1"></i> Criar Primeira Proposta
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999;">
+    <div id="toastStatus" class="toast align-items-center text-white border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toastMsg"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                    data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<script>
+const STATUS_CLASSES = {
+    'Rascunho':'st-rascunho','Enviada':'st-enviada',
+    'Aceita':'st-aceita','Recusada':'st-recusada','Expirada':'st-expirada'
+};
+
+async function mudarStatus(sel) {
+    const id          = sel.dataset.id;
+    const novoStatus  = sel.value;
+    const form        = new FormData();
+    form.append('status', novoStatus);
+
+    try {
+        const resp = await fetch(`/propostas/status/${id}`, { method:'POST', body: form });
+        const data = await resp.json();
+        if (data.ok) {
+            // Atualiza a cor do select sem recarregar
+            sel.className = 'status-select ' + STATUS_CLASSES[novoStatus];
+            showToast('Status atualizado: ' + novoStatus, '#27ae60');
+        } else {
+            showToast('Erro ao atualizar status', '#dc3545');
+        }
+    } catch(e) {
+        showToast('Erro de conexão', '#dc3545');
+    }
+}
+
+// Muda status pelo menu mobile (sem elemento select, chama o mesmo endpoint)
+async function mudarStatusDireto(id, novoStatus) {
+    const form = new FormData();
+    form.append('status', novoStatus);
+    try {
+        const resp = await fetch(`/propostas/status/${id}`, { method:'POST', body: form });
+        const data = await resp.json();
+        if (data.ok) {
+            showToast('Status: ' + novoStatus, '#27ae60');
+            // Atualiza badge mobile na linha correspondente
+            const badge = document.querySelector(`[data-id="${id}"]`)?.closest('tr')?.querySelector('.badge.d-md-none');
+            if (badge) {
+                badge.textContent = novoStatus;
+                badge.className = badge.className.replace(/bg-\w+-subtle text-\w+ border border-\w+-subtle/g,'');
+                const cls = {'Aceita':'bg-success-subtle text-success border border-success-subtle','Enviada':'bg-primary-subtle text-primary border border-primary-subtle','Recusada':'bg-danger-subtle text-danger border border-danger-subtle','Expirada':'bg-warning-subtle text-warning border border-warning-subtle','Rascunho':'bg-secondary-subtle text-secondary border border-secondary-subtle'};
+                badge.classList.add(...(cls[novoStatus]||cls['Rascunho']).split(' '));
+            }
+        } else { showToast('Erro ao atualizar status', '#dc3545'); }
+    } catch(e) { showToast('Erro de conexão', '#dc3545'); }
+}
+
+function showToast(msg, bg) {
+    const el = document.getElementById('toastStatus');
+    el.style.backgroundColor = bg;
+    document.getElementById('toastMsg').textContent = msg;
+    bootstrap.Toast.getOrCreateInstance(el, { delay: 3000 }).show();
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Folha de Ponto Geral — {{ MESES_PT[mes-1] }}/{{ ano }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 8.5pt;
+      color: #000;
+      background: #e8e8e8;
+      padding: 16px;
+    }
+
+    /* Cada colaborador é uma "folha" visual */
+    .sheet {
+      background: #fff;
+      max-width: 277mm;
+      margin: 0 auto 20px;
+      padding: 10mm 12mm;
+      box-shadow: 0 4px 24px rgba(0,0,0,.2);
+    }
+
+    /* ── Cabeçalho global ────────────────────── */
+    .header-global {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #000;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .header-global h1  { font-size: 11pt; font-weight: 700; }
+    .header-global p   { font-size: 7pt; color: #555; margin-top: 1px; }
+    .header-logo       { width: 38px; height: 38px; border-radius: 4px; object-fit: contain; border: 1px solid #ccc; padding: 2px; }
+    .periodo-global    { font-size: 11pt; font-weight: 700; border: 1.5px solid #000; padding: 2px 8px; }
+
+    /* ── Cabeçalho por colaborador ───────────── */
+    .colab-header {
+      background: #000;
+      color: #fff;
+      padding: 4px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .colab-header .nome    { font-weight: 700; font-size: 8.5pt; }
+    .colab-header .periodo { font-size: 7pt; opacity: .8; }
+
+    /* ── Tabela ──────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7pt;
+      table-layout: fixed;
+      border: 1.5px solid #000;
+    }
+    col.c-data { width: 52px; }
+    col.c-dia  { width: 58px; }
+    col.c-sit  { width: 48px; }
+    col.c-hora { width: 52px; }    /* 4 × IGUAL */
+    col.c-obs  { }
+
+    thead th {
+      background: #333;
+      color: #fff;
+      font-size: 6.5pt;
+      font-weight: 700;
+      padding: 3px 2px;
+      border: 1px solid #333;
+      text-align: center;
+      white-space: nowrap;
+    }
+    thead th.th-l { text-align: left; padding-left: 5px; }
+
+    tbody tr       { height: 13px; border-bottom: 1px solid #ccc; }
+    tbody tr.fds   { border-bottom: 1px solid #aaa; }
+
+    tbody td {
+      border-left: 1px solid #ccc;
+      border-right: 1px solid #ccc;
+      padding: 0 2px;
+      text-align: center;
+      vertical-align: middle;
+      overflow: hidden;
+    }
+    tbody td:first-child { border-left: 1px solid #000; }
+    tbody td:last-child  { border-right: 1px solid #000; }
+
+    tbody td.td-data { text-align: left; font-weight: 700; padding-left: 4px; font-size: 6.5pt; }
+    tbody td.td-dia  { text-align: left; font-size: 6pt; color: #333; padding-left: 3px; font-style: italic; }
+    tbody tr.fds td.td-data { color: #666; }
+
+    tbody td.td-hora {
+      font-size: 7.5pt;
+      font-weight: 600;
+      color: #999;
+      letter-spacing: .4px;
+    }
+
+    /* ── Rodapé do bloco ─────────────────────── */
+    .bloco-bottom {
+      display: flex;
+      gap: 5px;
+      margin-top: 4px;
+    }
+    .legenda {
+      flex: 2;
+      border: 1px solid #aaa;
+      border-radius: 2px;
+      padding: 3px 7px;
+      font-size: 6pt;
+      color: #333;
+      line-height: 1.6;
+    }
+    .totais-mini {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3px;
+    }
+    .tot-mini {
+      border: 1px solid #aaa;
+      border-radius: 2px;
+      padding: 1px 4px;
+      font-size: 5.5pt;
+      color: #666;
+    }
+
+    .assin-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 6px;
+    }
+    .assin-line {
+      flex: 1;
+      border-top: 1px solid #000;
+      padding-top: 3px;
+      text-align: center;
+      font-size: 6.5pt;
+      color: #333;
+    }
+
+    .rodape-global {
+      max-width: 277mm;
+      margin: 0 auto;
+      text-align: right;
+      font-size: 6.5pt;
+      color: #888;
+      padding-top: 4px;
+    }
+
+    /* ── Barra de ações ──────────────────────── */
+    .print-bar {
+      max-width: 277mm;
+      margin: 0 auto 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .btn-print  { padding: 8px 22px; background: #2c7a4b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 10pt; }
+    .btn-fechar { padding: 8px 14px; background: #eee; border: 1px solid #ccc; border-radius: 6px; cursor: pointer; font-size: 10pt; }
+    .aviso      { font-size: 8pt; color: #7a6000; background: #fffbe6; border: 1px solid #f0d060; border-radius: 5px; padding: 5px 10px; }
+
+    /* ── Print ───────────────────────────────── */
+    @page { margin: 10mm; }
+
+    @media print {
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body   { background: #fff !important; padding: 0 !important; }
+      .print-bar { display: none !important; }
+      .sheet { box-shadow: none !important; padding: 0 !important; max-width: 100% !important;
+               margin: 0 !important; page-break-after: always; }
+      .sheet:last-of-type { page-break-after: auto; }
+      tbody td.td-hora { color: #555 !important; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="print-bar">
+  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+  <button class="btn-fechar" onclick="window.close()">Fechar</button>
+  <div class="aviso">⚠️ No diálogo: selecione <strong>Orientação Paisagem</strong> e habilite <strong>"Imprimir fundos"</strong> para melhor resultado.</div>
+</div>
+
+{% set dias_nomes = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'] %}
+
+{% for colab in colaboradores %}
+<div class="sheet">
+
+  {% if loop.first %}
+  <div class="header-global" style="margin-bottom:10px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <img src="/static/img/logo.png" alt="Logo" class="header-logo">
+      <div>
+        <h1>Folha de Ponto — Relatório Geral</h1>
+        <p>Preenchimento manual — {{ colaboradores|length }} colaborador(es) ativo(s)</p>
+      </div>
+    </div>
+    <div class="periodo-global">{{ MESES_PT[mes-1] | upper }} / {{ ano }}</div>
+  </div>
+  {% endif %}
+
+  <div class="colab-header">
+    <span class="nome">{{ colab['nome'] }}{% if colab['funcao'] %} — <span style="font-weight:400;">{{ colab['funcao'] }}</span>{% endif %}</span>
+    <span class="periodo">{{ MESES_PT[mes-1] }}/{{ ano }}</span>
+  </div>
+
+  <table>
+    <colgroup>
+      <col class="c-data"><col class="c-dia"><col class="c-sit">
+      <col class="c-hora"><col class="c-hora"><col class="c-hora"><col class="c-hora">
+      <col class="c-obs">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="th-l">Data</th>
+        <th class="th-l">Dia</th>
+        <th>Situação</th>
+        <th>Entrada</th>
+        <th>Saída Almoço</th>
+        <th>Retorno Almoço</th>
+        <th>Saída Final</th>
+        <th>Assinatura / Observações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in dias %}
+      {% set fds = d['weekday'] >= 5 %}
+      <tr{% if fds %} class="fds"{% endif %}>
+        <td class="td-data">{{ "%02d"|format(d['num']) }}/{{ "%02d"|format(mes) }}/{{ ano }}</td>
+        <td class="td-dia">{{ dias_nomes[d['weekday']] }}</td>
+        <td></td>
+        <td class="td-hora">___:___</td>
+        <td class="td-hora">___:___</td>
+        <td class="td-hora">___:___</td>
+        <td class="td-hora">___:___</td>
+        <td></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="bloco-bottom">
+    <div class="legenda">
+      <strong>Situação:</strong> N = Normal | F = Falta | A = Atestado | Fer = Feriado | Fér = Férias | Fg = Folga
+    </div>
+    <div class="totais-mini">
+      <div class="tot-mini">Dias trabalhados: ___</div>
+      <div class="tot-mini">Faltas: ___</div>
+      <div class="tot-mini">Atestados: ___</div>
+      <div class="tot-mini">Horas extras: ___</div>
+    </div>
+  </div>
+
+  <div class="assin-row">
+    <div class="assin-line">{{ colab['nome'] }}<br>Colaborador(a)</div>
+    <div class="assin-line">Responsável RH</div>
+  </div>
+
+  {% if loop.last %}
+  <div style="margin-top:6px; text-align:right; font-size:6.5pt; color:#888;">
+    Gerado em {{ gerado_em }} — NutriSabor | {{ colaboradores|length }} colaboradores
+  </div>
+  {% endif %}
+
+</div>
+{% endfor %}
+
+</body>
+</html>

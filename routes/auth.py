@@ -319,7 +319,7 @@ def editar_usuario():
     return redirect(url_for('auth.listar_usuarios'))
 
 
-@auth_bp.route("/excluir_usuario/<int:id_user>")
+@auth_bp.route("/excluir_usuario/<int:id_user>", methods=["POST"])
 @login_required
 def excluir_usuario(id_user):
     if current_user.tipo != 'admin':

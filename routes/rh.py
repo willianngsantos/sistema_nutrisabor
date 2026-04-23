@@ -190,12 +190,12 @@ def add_exame():
     obs         = request.form.get('observacoes', '').strip() or None
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
 
     if id_colab == 'todos':
         # Insere o exame para TODOS os colaboradores ativos
         cursor.execute("SELECT id FROM colaboradores WHERE status != 'inativo'")
-        ids = [row[0] for row in cursor.fetchall()]
+        ids = [row['id'] for row in cursor.fetchall()]
         for cid in ids:
             cursor.execute("""
                 INSERT INTO rh_exames

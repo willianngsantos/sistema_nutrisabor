@@ -258,30 +258,38 @@
                             <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-1">
                                 <li><h6 class="dropdown-header small text-uppercase text-muted">Alterar status</h6></li>
                                 <li>
-                                    <a class="dropdown-item {% if c.status == 'ativo' %}fw-bold text-success{% endif %}"
-                                       href="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='ativo') }}">
-                                        <i class="bi bi-check-circle-fill text-success me-2"></i>Ativo
-                                    </a>
+                                    <form method="POST" action="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='ativo') }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="dropdown-item {% if c.status == 'ativo' %}fw-bold text-success{% endif %}">
+                                            <i class="bi bi-check-circle-fill text-success me-2"></i>Ativo
+                                        </button>
+                                    </form>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item {% if c.status == 'ferias' %}fw-bold text-primary{% endif %}"
-                                       href="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='ferias') }}">
-                                        <i class="bi bi-umbrella-fill text-primary me-2"></i>Férias
-                                    </a>
+                                    <form method="POST" action="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='ferias') }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="dropdown-item {% if c.status == 'ferias' %}fw-bold text-primary{% endif %}">
+                                            <i class="bi bi-umbrella-fill text-primary me-2"></i>Férias
+                                        </button>
+                                    </form>
                                 </li>
                                 <li>
-                                    <a class="dropdown-item {% if c.status == 'afastado' %}fw-bold text-warning{% endif %}"
-                                       href="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='afastado') }}">
-                                        <i class="bi bi-bandaid-fill text-warning me-2"></i>Afastado
-                                    </a>
+                                    <form method="POST" action="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='afastado') }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="dropdown-item {% if c.status == 'afastado' %}fw-bold text-warning{% endif %}">
+                                            <i class="bi bi-bandaid-fill text-warning me-2"></i>Afastado
+                                        </button>
+                                    </form>
                                 </li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li>
-                                    <a class="dropdown-item {% if c.status == 'inativo' %}fw-bold text-secondary{% endif %}"
-                                       href="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='inativo') }}"
-                                       onclick="return confirm('Marcar {{ c.nome }} como Inativo?')">
-                                        <i class="bi bi-x-circle text-secondary me-2"></i>Inativo
-                                    </a>
+                                    <form method="POST" action="{{ url_for('colaboradores.mudar_status', id_colab=c.id, novo_status='inativo') }}"
+                                          onsubmit="return confirm('Marcar {{ c.nome }} como Inativo?')">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="dropdown-item {% if c.status == 'inativo' %}fw-bold text-secondary{% endif %}">
+                                            <i class="bi bi-x-circle text-secondary me-2"></i>Inativo
+                                        </button>
+                                    </form>
                                 </li>
                             </ul>
                         </div>
@@ -302,12 +310,14 @@
                         {% endif %}
 
                         <!-- Excluir -->
-                        <a href="{{ url_for('colaboradores.excluir_colaborador', id_colab=c.id) }}"
-                           class="btn btn-sm btn-light text-danger border"
-                           onclick="return confirm('Excluir {{ c.nome }}? Esta ação não pode ser desfeita.')"
-                           title="Excluir">
-                            <i class="bi bi-trash-fill"></i>
-                        </a>
+                        <form method="POST" action="{{ url_for('colaboradores.excluir_colaborador', id_colab=c.id) }}"
+                              style="display:inline"
+                              onsubmit="return confirm('Excluir {{ c.nome }}? Esta ação não pode ser desfeita.')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-light text-danger border" title="Excluir">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </form>
                     </div>
                 </td>
             </tr>

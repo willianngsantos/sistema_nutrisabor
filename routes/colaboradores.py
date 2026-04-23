@@ -207,7 +207,7 @@ def editar_colaborador():
 # MUDAR STATUS (acesso rápido via dropdown)
 # ──────────────────────────────────────────────
 
-@colaboradores_bp.route("/status_colaborador/<int:id_colab>/<string:novo_status>")
+@colaboradores_bp.route("/status_colaborador/<int:id_colab>/<string:novo_status>", methods=["POST"])
 @login_required
 @admin_required
 def mudar_status(id_colab, novo_status):
@@ -469,7 +469,7 @@ def recibos_vt_lote():
 # EXCLUIR
 # ──────────────────────────────────────────────
 
-@colaboradores_bp.route("/excluir_colaborador/<int:id_colab>")
+@colaboradores_bp.route("/excluir_colaborador/<int:id_colab>", methods=["POST"])
 @login_required
 @admin_required
 def excluir_colaborador(id_colab):

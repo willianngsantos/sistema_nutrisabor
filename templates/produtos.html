@@ -134,12 +134,14 @@
                             <i class="bi bi-pencil-fill"></i>
                         </button>
                         
-                        <a href="/excluir_produto/{{ prod[0] }}" 
-                           class="btn btn-sm btn-light text-danger border" 
-                           onclick="return confirm('Tem certeza que deseja excluir {{ prod[1] }}?')"
-                           title="Excluir">
-                            <i class="bi bi-trash-fill"></i>
-                        </a>
+                        <form method="POST" action="/excluir_produto/{{ prod[0] }}"
+                              style="display:inline"
+                              onsubmit="return confirm('Tem certeza que deseja excluir {{ prod[1] }}?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-light text-danger border" title="Excluir">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </form>
                     </div>
                 </td>
             </tr>

@@ -206,11 +206,15 @@
                         <a href="/negociar/{{ cli[0] }}" class="btn btn-sm btn-light text-success border me-1" title="Tabela de Preços Individual">
                             <i class="bi bi-cash-coin"></i>
                         </a>
-                        <a href="{{ url_for('cadastros.toggle_unidade', id_cliente=cli[0]) }}"
-                           class="btn btn-sm border me-1 {% if cli[8] %}btn-success text-white{% else %}btn-light text-muted{% endif %}"
-                           title="{{ 'Remover como Unidade de Trabalho' if cli[8] else 'Marcar como Unidade de Trabalho' }}">
-                            <i class="bi bi-building{% if cli[8] %}-check{% endif %}"></i>
-                        </a>
+                        <form method="POST" action="{{ url_for('cadastros.toggle_unidade', id_cliente=cli[0]) }}"
+                              style="display:inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit"
+                                    class="btn btn-sm border me-1 {% if cli[8] %}btn-success text-white{% else %}btn-light text-muted{% endif %}"
+                                    title="{{ 'Remover como Unidade de Trabalho' if cli[8] else 'Marcar como Unidade de Trabalho' }}">
+                                <i class="bi bi-building{% if cli[8] %}-check{% endif %}"></i>
+                            </button>
+                        </form>
                         <button class="btn btn-sm btn-light text-primary border me-1" 
                                 data-bs-toggle="modal" 
                                 data-bs-target="#modalEditarCliente"
@@ -225,12 +229,14 @@
                                 title="Editar">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
-                        <a href="/excluir_cliente/{{ cli[0] }}" 
-                           class="btn btn-sm btn-light text-danger border" 
-                           onclick="return confirm('ATENÇÃO: Excluir este cliente pode afetar o histórico de pedidos.\n\nDeseja continuar?')"
-                           title="Excluir">
-                            <i class="bi bi-trash-fill"></i>
-                        </a>
+                        <form method="POST" action="/excluir_cliente/{{ cli[0] }}"
+                              style="display:inline"
+                              onsubmit="return confirm('ATENÇÃO: Excluir este cliente pode afetar o histórico de pedidos.\n\nDeseja continuar?')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-light text-danger border" title="Excluir">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </form>
                     </div>
                 </td>
             </tr>

@@ -96,7 +96,7 @@ def editar_grupo():
     flash("Grupo atualizado com sucesso!", "success")
     return redirect(url_for('cadastros.grupos'))
 
-@cadastros_bp.route("/excluir_grupo/<int:id_grupo>")
+@cadastros_bp.route("/excluir_grupo/<int:id_grupo>", methods=["POST"])
 @login_required
 def excluir_grupo(id_grupo):
     conn = get_db_connection()
@@ -212,7 +212,7 @@ def editar_cliente():
     flash("Cliente atualizado com sucesso!", "success")
     return redirect(url_for('cadastros.clientes'))
 
-@cadastros_bp.route("/toggle_unidade/<int:id_cliente>")
+@cadastros_bp.route("/toggle_unidade/<int:id_cliente>", methods=["POST"])
 @login_required
 def toggle_unidade(id_cliente):
     conn = get_db_connection()
@@ -230,7 +230,7 @@ def toggle_unidade(id_cliente):
     return redirect(url_for('cadastros.clientes'))
 
 
-@cadastros_bp.route("/excluir_cliente/<int:id_cliente>")
+@cadastros_bp.route("/excluir_cliente/<int:id_cliente>", methods=["POST"])
 @login_required
 def excluir_cliente(id_cliente):
     conn = get_db_connection()
@@ -310,7 +310,7 @@ def editar_produto():
     flash("Produto atualizado com sucesso!", "success")
     return redirect(url_for('cadastros.produtos'))
 
-@cadastros_bp.route("/excluir_produto/<int:id_prod>")
+@cadastros_bp.route("/excluir_produto/<int:id_prod>", methods=["POST"])
 @login_required
 def excluir_produto(id_prod):
     conn = get_db_connection()

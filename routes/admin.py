@@ -69,9 +69,11 @@ def log_atividade():
         page = total_pages
     offset = (page - 1) * per_page
 
+    # NOTE: evitamos DATE_FORMAT(timestamp, '%d/%m/%Y %H:%i:%s') porque o '%s'
+    # (seconds em MySQL) colide com o placeholder de parâmetro do mysql-connector,
+    # gerando off-by-one nos params. Formatamos em Python via strftime.
     cursor.execute(f"""
-        SELECT id, user_id, user_nome, tipo_usuario,
-               DATE_FORMAT(timestamp, '%d/%m/%Y %H:%i:%s') AS timestamp_fmt,
+        SELECT id, user_id, user_nome, tipo_usuario, timestamp,
                action_type, entity_type, entity_id, descricao,
                ip_address, user_agent
         FROM audit_log
@@ -80,6 +82,8 @@ def log_atividade():
         LIMIT %s OFFSET %s
     """, tuple(params) + (per_page, offset))
     registros = cursor.fetchall()
+    for r in registros:
+        r['timestamp_fmt'] = r['timestamp'].strftime('%d/%m/%Y %H:%M:%S') if r.get('timestamp') else ''
 
     # Lista de usuários para o filtro (distinct do próprio audit_log —
     # pega inclusive usuários já deletados que aparecem no log)

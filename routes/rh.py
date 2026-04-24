@@ -558,11 +558,15 @@ def _coletar_dias_do_form():
     return coletados
 
 
-@rh_bp.route("/rh/jornadas/add", methods=["POST"])
+@rh_bp.route("/rh/jornadas/salvar", methods=["POST"])
 @login_required
 @rh_access
-def add_jornada():
+def salvar_jornada():
+    """Endpoint único de create/update. Se id_jornada vier vazio → cria nova;
+    se vier preenchido → atualiza existente. Evita precisar trocar o `action`
+    do form via JS (o que causa quirks com CSRF em certos browsers)."""
     nome = request.form.get('nome', '').strip()
+    id_jornada = (request.form.get('id_jornada') or '').strip()
     dias = _coletar_dias_do_form()
     if not nome or not dias:
         flash("Informe o nome e pelo menos um dia com entrada/saída.", "warning")
@@ -570,55 +574,44 @@ def add_jornada():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("INSERT INTO rh_jornadas (nome) VALUES (%s)", (nome,))
-    id_jornada = cursor.lastrowid
-    for d, ent, sai, iv in dias:
-        cursor.execute("""
-            INSERT INTO rh_jornada_dias (id_jornada, dia_semana, hora_entrada, hora_saida, intervalo_min)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (id_jornada, d, ent, sai, iv))
-    conn.commit()
-    conn.close()
-
     total = sum(_carga_min(ent, sai, iv) for _, ent, sai, iv in dias)
-    log_action('create', entity_type='rh_jornada', entity_id=id_jornada,
-               descricao=f"Criou jornada '{nome}' ({len(dias)} dia(s), total semanal {_fmt_duracao(total)})")
-    flash("Jornada cadastrada!", "success")
-    return redirect(url_for('rh.jornadas'))
 
+    if id_jornada:
+        cursor.execute("SELECT nome FROM rh_jornadas WHERE id=%s", (id_jornada,))
+        existente = cursor.fetchone()
+        if not existente:
+            conn.close()
+            flash("Jornada não encontrada.", "danger")
+            return redirect(url_for('rh.jornadas'))
+        nome_antigo = existente['nome']
+        cursor.execute("UPDATE rh_jornadas SET nome=%s WHERE id=%s", (nome, id_jornada))
+        cursor.execute("DELETE FROM rh_jornada_dias WHERE id_jornada=%s", (id_jornada,))
+        for d, ent, sai, iv in dias:
+            cursor.execute("""
+                INSERT INTO rh_jornada_dias (id_jornada, dia_semana, hora_entrada, hora_saida, intervalo_min)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (id_jornada, d, ent, sai, iv))
+        conn.commit()
+        conn.close()
+        descr = f"Editou jornada '{nome}' ({len(dias)} dia(s), total semanal {_fmt_duracao(total)})"
+        if nome_antigo != nome:
+            descr += f" — nome: '{nome_antigo}'→'{nome}'"
+        log_action('update', entity_type='rh_jornada', entity_id=int(id_jornada), descricao=descr)
+        flash("Jornada atualizada!", "success")
+    else:
+        cursor.execute("INSERT INTO rh_jornadas (nome) VALUES (%s)", (nome,))
+        novo_id = cursor.lastrowid
+        for d, ent, sai, iv in dias:
+            cursor.execute("""
+                INSERT INTO rh_jornada_dias (id_jornada, dia_semana, hora_entrada, hora_saida, intervalo_min)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (novo_id, d, ent, sai, iv))
+        conn.commit()
+        conn.close()
+        log_action('create', entity_type='rh_jornada', entity_id=novo_id,
+                   descricao=f"Criou jornada '{nome}' ({len(dias)} dia(s), total semanal {_fmt_duracao(total)})")
+        flash("Jornada cadastrada!", "success")
 
-@rh_bp.route("/rh/jornadas/editar", methods=["POST"])
-@login_required
-@rh_access
-def editar_jornada():
-    id_jornada = request.form.get('id_jornada')
-    nome = request.form.get('nome', '').strip()
-    dias = _coletar_dias_do_form()
-    if not id_jornada or not nome or not dias:
-        flash("Informe nome e pelo menos um dia com entrada/saída.", "warning")
-        return redirect(url_for('rh.jornadas'))
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT nome FROM rh_jornadas WHERE id=%s", (id_jornada,))
-    nome_antigo = (cursor.fetchone() or {}).get('nome')
-    cursor.execute("UPDATE rh_jornadas SET nome=%s WHERE id=%s", (nome, id_jornada))
-    cursor.execute("DELETE FROM rh_jornada_dias WHERE id_jornada=%s", (id_jornada,))
-    for d, ent, sai, iv in dias:
-        cursor.execute("""
-            INSERT INTO rh_jornada_dias (id_jornada, dia_semana, hora_entrada, hora_saida, intervalo_min)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (id_jornada, d, ent, sai, iv))
-    conn.commit()
-    conn.close()
-
-    total = sum(_carga_min(ent, sai, iv) for _, ent, sai, iv in dias)
-    nome_mudou = nome_antigo and nome_antigo != nome
-    descr = f"Editou jornada '{nome}' ({len(dias)} dia(s), total semanal {_fmt_duracao(total)})"
-    if nome_mudou:
-        descr += f" — nome: '{nome_antigo}'→'{nome}'"
-    log_action('update', entity_type='rh_jornada', entity_id=int(id_jornada), descricao=descr)
-    flash("Jornada atualizada!", "success")
     return redirect(url_for('rh.jornadas'))
 
 

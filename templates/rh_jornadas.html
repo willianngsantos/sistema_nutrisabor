@@ -79,7 +79,7 @@
         <h6 class="modal-title fw-bold" id="modalJornadaTitulo"><i class="bi bi-clock me-2"></i>Nova Jornada</h6>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
-      <form id="formJornada" method="POST">
+      <form id="formJornada" action="/rh/jornadas/salvar" method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="id_jornada" id="jorn_id">
         <div class="modal-body bg-light p-4">
@@ -200,9 +200,9 @@ function limparForm() {
 
 function abrirModalNova() {
   limparForm();
+  // O action do form é fixo (/rh/jornadas/salvar); só o visual muda.
   document.getElementById('modalJornadaTitulo').innerHTML = '<i class="bi bi-clock me-2"></i>Nova Jornada';
   document.getElementById('modalJornadaHeader').style.background = '#198754';
-  document.getElementById('formJornada').action = '/rh/jornadas/add';
   document.getElementById('btnSalvarJornada').className = 'btn btn-success fw-bold px-4 shadow-sm';
   document.getElementById('btnSalvarJornada').textContent = 'Salvar';
   new bootstrap.Modal(document.getElementById('modalJornada')).show();
@@ -227,7 +227,6 @@ function editarJornada(j) {
 
   document.getElementById('modalJornadaTitulo').innerHTML = '<i class="bi bi-pencil me-2"></i>Editar Jornada';
   document.getElementById('modalJornadaHeader').style.background = '#0d6efd';
-  document.getElementById('formJornada').action = '/rh/jornadas/editar';
   document.getElementById('btnSalvarJornada').className = 'btn btn-primary fw-bold px-4 shadow-sm';
   document.getElementById('btnSalvarJornada').textContent = 'Salvar alterações';
   new bootstrap.Modal(document.getElementById('modalJornada')).show();

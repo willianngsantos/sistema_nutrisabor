@@ -24,6 +24,72 @@ DIAS_SEMANA_LABELS = {
     'seg': 'Seg', 'ter': 'Ter', 'qua': 'Qua',
     'qui': 'Qui', 'sex': 'Sex', 'sab': 'Sáb', 'dom': 'Dom'
 }
+DIAS_ORDEM = ['seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'dom']
+
+
+# ─── HELPERS JORNADAS ─────────────────────────────────────────────
+def _fmt_hhmm(t):
+    """Converte timedelta / time / None em string 'HH:MM'."""
+    if t is None:
+        return ''
+    if hasattr(t, 'total_seconds'):        # timedelta (é como MySQL TIME chega)
+        total_s = int(t.total_seconds())
+    else:                                   # datetime.time
+        total_s = t.hour * 3600 + t.minute * 60
+    h = total_s // 3600
+    m = (total_s % 3600) // 60
+    return f"{h:02d}:{m:02d}"
+
+
+def _carga_min(entrada_hhmm, saida_hhmm, intervalo_min):
+    """Minutos úteis entre entrada e saída descontando intervalo."""
+    try:
+        eh, em = [int(x) for x in entrada_hhmm.split(':')]
+        sh, sm = [int(x) for x in saida_hhmm.split(':')]
+        return max(0, (sh * 60 + sm) - (eh * 60 + em) - (intervalo_min or 0))
+    except (ValueError, AttributeError):
+        return 0
+
+
+def _fmt_duracao(total_min):
+    """Formata minutos como '44h 30min' ou '40h'."""
+    h = total_min // 60
+    m = total_min % 60
+    if m == 0:
+        return f"{h}h"
+    return f"{h}h {m:02d}min"
+
+
+def _agrupa_dias(dias_ordenados):
+    """Agrupa dias CONSECUTIVOS com mesmo horário/intervalo.
+    Ex: [seg,ter,qua,qui,sex com 6:30-14:30] + [sáb com 6:30-13:30]
+        → [{label:'Seg-Sex',...}, {label:'Sáb',...}]
+    """
+    if not dias_ordenados:
+        return []
+    ordem = {d: i for i, d in enumerate(DIAS_ORDEM)}
+    grupos = []
+    atual = None
+    for d in dias_ordenados:
+        key = (d['entrada'], d['saida'], d['intervalo'])
+        consecutive = (atual and atual['_key'] == key
+                       and ordem.get(d['dia_semana'], -1) == ordem.get(atual['_dias'][-1], -2) + 1)
+        if consecutive:
+            atual['_dias'].append(d['dia_semana'])
+        else:
+            atual = {
+                '_key': key,
+                '_dias': [d['dia_semana']],
+                'entrada': d['entrada'], 'saida': d['saida'],
+                'intervalo': d['intervalo'], 'carga_min': d['carga_min'],
+            }
+            grupos.append(atual)
+    for g in grupos:
+        if len(g['_dias']) == 1:
+            g['label'] = DIAS_SEMANA_LABELS[g['_dias'][0]]
+        else:
+            g['label'] = f"{DIAS_SEMANA_LABELS[g['_dias'][0]]}-{DIAS_SEMANA_LABELS[g['_dias'][-1]]}"
+    return grupos
 
 
 # ─── HELPERS ──────────────────────────────────────────────────────
@@ -429,32 +495,94 @@ def excluir_documento(id_doc):
 def jornadas():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM rh_jornadas ORDER BY nome")
-    lista = cursor.fetchall()
+    # Puxa jornadas + seus dias em uma query só (LEFT JOIN para incluir
+    # jornadas sem dias cadastrados)
+    cursor.execute("""
+        SELECT j.id, j.nome,
+               d.dia_semana, d.hora_entrada, d.hora_saida, d.intervalo_min
+        FROM rh_jornadas j
+        LEFT JOIN rh_jornada_dias d ON d.id_jornada = j.id
+        ORDER BY j.nome,
+                 FIELD(d.dia_semana, 'seg','ter','qua','qui','sex','sab','dom')
+    """)
+    rows = cursor.fetchall()
     conn.close()
+
+    # Agrupa linhas em estrutura por jornada
+    jmap = {}
+    for r in rows:
+        jid = r['id']
+        if jid not in jmap:
+            jmap[jid] = {'id': jid, 'nome': r['nome'], 'dias': []}
+        if r['dia_semana']:
+            ent = _fmt_hhmm(r['hora_entrada'])
+            sai = _fmt_hhmm(r['hora_saida'])
+            iv = r['intervalo_min'] or 0
+            jmap[jid]['dias'].append({
+                'dia_semana': r['dia_semana'],
+                'entrada': ent, 'saida': sai, 'intervalo': iv,
+                'carga_min': _carga_min(ent, sai, iv),
+            })
+
+    lista = sorted(jmap.values(), key=lambda x: x['nome'].lower())
+    for j in lista:
+        j['grupos'] = _agrupa_dias(j['dias'])
+        j['total_min'] = sum(d['carga_min'] for d in j['dias'])
+        j['total_fmt'] = _fmt_duracao(j['total_min'])
+        # Mapa por dia para popular o modal de edição
+        j['dias_por_nome'] = {d['dia_semana']: d for d in j['dias']}
+
     return render_template('rh_jornadas.html', jornadas=lista,
+                           dias_ordem=DIAS_ORDEM,
                            dias_labels=DIAS_SEMANA_LABELS)
+
+
+def _coletar_dias_do_form():
+    """Extrai do request.form os dias ativos com seus horários.
+    Retorna lista de tuplas (dia, entrada, saida, intervalo). Ignora dias
+    inválidos ou sem entrada/saida.
+    """
+    coletados = []
+    for dia in DIAS_ORDEM:
+        if not request.form.get(f'ativo_{dia}'):
+            continue
+        entrada = (request.form.get(f'entrada_{dia}') or '').strip()
+        saida = (request.form.get(f'saida_{dia}') or '').strip()
+        if not entrada or not saida:
+            continue
+        try:
+            intervalo = int(request.form.get(f'intervalo_{dia}', 0) or 0)
+        except ValueError:
+            intervalo = 0
+        coletados.append((dia, entrada, saida, intervalo))
+    return coletados
 
 
 @rh_bp.route("/rh/jornadas/add", methods=["POST"])
 @login_required
 @rh_access
 def add_jornada():
-    dias = ','.join(request.form.getlist('dias_semana'))
     nome = request.form.get('nome', '').strip()
-    entrada = request.form.get('hora_entrada')
-    saida = request.form.get('hora_saida')
+    dias = _coletar_dias_do_form()
+    if not nome or not dias:
+        flash("Informe o nome e pelo menos um dia com entrada/saída.", "warning")
+        return redirect(url_for('rh.jornadas'))
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("""
-        INSERT INTO rh_jornadas (nome, hora_entrada, hora_saida, intervalo_min, dias_semana)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (nome, entrada, saida, int(request.form.get('intervalo_min', 60)), dias))
-    novo_id = cursor.lastrowid
+    cursor.execute("INSERT INTO rh_jornadas (nome) VALUES (%s)", (nome,))
+    id_jornada = cursor.lastrowid
+    for d, ent, sai, iv in dias:
+        cursor.execute("""
+            INSERT INTO rh_jornada_dias (id_jornada, dia_semana, hora_entrada, hora_saida, intervalo_min)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (id_jornada, d, ent, sai, iv))
     conn.commit()
     conn.close()
-    log_action('create', entity_type='rh_jornada', entity_id=novo_id,
-               descricao=f"Criou jornada '{nome}' ({entrada}-{saida}, dias: {dias})")
+
+    total = sum(_carga_min(ent, sai, iv) for _, ent, sai, iv in dias)
+    log_action('create', entity_type='rh_jornada', entity_id=id_jornada,
+               descricao=f"Criou jornada '{nome}' ({len(dias)} dia(s), total semanal {_fmt_duracao(total)})")
     flash("Jornada cadastrada!", "success")
     return redirect(url_for('rh.jornadas'))
 
@@ -464,32 +592,32 @@ def add_jornada():
 @rh_access
 def editar_jornada():
     id_jornada = request.form.get('id_jornada')
-    depois = {
-        'nome': request.form.get('nome', '').strip(),
-        'hora_entrada': request.form.get('hora_entrada'),
-        'hora_saida': request.form.get('hora_saida'),
-        'intervalo_min': int(request.form.get('intervalo_min', 60)),
-        'dias_semana': ','.join(request.form.getlist('dias_semana')),
-    }
+    nome = request.form.get('nome', '').strip()
+    dias = _coletar_dias_do_form()
+    if not id_jornada or not nome or not dias:
+        flash("Informe nome e pelo menos um dia com entrada/saída.", "warning")
+        return redirect(url_for('rh.jornadas'))
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT nome, hora_entrada, hora_saida, intervalo_min, dias_semana FROM rh_jornadas WHERE id=%s", (id_jornada,))
-    antes = cursor.fetchone() or {}
-    # Normaliza horários para strings (em MySQL TIME vem como timedelta)
-    for k in ('hora_entrada', 'hora_saida'):
-        v = antes.get(k)
-        if v is not None:
-            antes[k] = str(v)
-    cursor.execute("""
-        UPDATE rh_jornadas
-        SET nome=%s, hora_entrada=%s, hora_saida=%s, intervalo_min=%s, dias_semana=%s
-        WHERE id=%s
-    """, (depois['nome'], depois['hora_entrada'], depois['hora_saida'],
-          depois['intervalo_min'], depois['dias_semana'], id_jornada))
+    cursor.execute("SELECT nome FROM rh_jornadas WHERE id=%s", (id_jornada,))
+    nome_antigo = (cursor.fetchone() or {}).get('nome')
+    cursor.execute("UPDATE rh_jornadas SET nome=%s WHERE id=%s", (nome, id_jornada))
+    cursor.execute("DELETE FROM rh_jornada_dias WHERE id_jornada=%s", (id_jornada,))
+    for d, ent, sai, iv in dias:
+        cursor.execute("""
+            INSERT INTO rh_jornada_dias (id_jornada, dia_semana, hora_entrada, hora_saida, intervalo_min)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (id_jornada, d, ent, sai, iv))
     conn.commit()
     conn.close()
-    log_action('update', entity_type='rh_jornada', entity_id=int(id_jornada),
-               descricao=f"Editou jornada '{depois['nome']}' — {format_field_diff(antes, depois)}")
+
+    total = sum(_carga_min(ent, sai, iv) for _, ent, sai, iv in dias)
+    nome_mudou = nome_antigo and nome_antigo != nome
+    descr = f"Editou jornada '{nome}' ({len(dias)} dia(s), total semanal {_fmt_duracao(total)})"
+    if nome_mudou:
+        descr += f" — nome: '{nome_antigo}'→'{nome}'"
+    log_action('update', entity_type='rh_jornada', entity_id=int(id_jornada), descricao=descr)
     flash("Jornada atualizada!", "success")
     return redirect(url_for('rh.jornadas'))
 

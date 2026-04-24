@@ -24,7 +24,7 @@ echo "📦 Instalando/atualizando dependências Python..."
 ssh "$SERVER" "cd $REMOTE_PATH && source venv/bin/activate && pip install -r requirements.txt"
 
 echo "🔄 Rodando migrações pendentes..."
-ssh "$SERVER" "cd $REMOTE_PATH && source venv/bin/activate && python scripts/add_tokens_acesso.py 2>/dev/null || true && python scripts/add_feriado_cardapio.py 2>/dev/null || true && python scripts/add_editado_por_cardapio.py 2>/dev/null || true && python scripts/add_rh_tables.py 2>/dev/null || true && python scripts/add_ponto_almoco.py 2>/dev/null || true && python scripts/add_data_pagamento.py 2>/dev/null || true && python scripts/add_audit_log.py 2>/dev/null || true"
+ssh "$SERVER" "cd $REMOTE_PATH && source venv/bin/activate && python scripts/add_tokens_acesso.py 2>/dev/null || true && python scripts/add_feriado_cardapio.py 2>/dev/null || true && python scripts/add_editado_por_cardapio.py 2>/dev/null || true && python scripts/add_rh_tables.py 2>/dev/null || true && python scripts/add_ponto_almoco.py 2>/dev/null || true && python scripts/add_data_pagamento.py 2>/dev/null || true && python scripts/add_audit_log.py 2>/dev/null || true && python scripts/add_jornada_dias.py 2>/dev/null || true"
 
 echo "🔄 Ajustando permissões e reiniciando serviço..."
 ssh "$SERVER" "chown -R www-data:www-data $REMOTE_PATH && systemctl restart nutrisabor && systemctl status nutrisabor --no-pager -l"

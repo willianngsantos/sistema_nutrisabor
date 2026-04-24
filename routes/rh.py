@@ -599,7 +599,14 @@ def salvar_jornada():
         log_action('update', entity_type='rh_jornada', entity_id=int(id_jornada), descricao=descr)
         flash("Jornada atualizada!", "success")
     else:
-        cursor.execute("INSERT INTO rh_jornadas (nome) VALUES (%s)", (nome,))
+        # Passamos valores dummy em hora_entrada/hora_saida porque as colunas
+        # legacy em rh_jornadas são NOT NULL sem default — os dados reais vão
+        # todos para rh_jornada_dias. As legacy podem ser dropadas em migração
+        # futura sem afetar o código novo.
+        cursor.execute("""
+            INSERT INTO rh_jornadas (nome, hora_entrada, hora_saida)
+            VALUES (%s, '00:00:00', '00:00:00')
+        """, (nome,))
         novo_id = cursor.lastrowid
         for d, ent, sai, iv in dias:
             cursor.execute("""

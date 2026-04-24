@@ -1,6 +1,37 @@
 {% extends "base.html" %}
 
 {% block conteudo %}
+<style>
+    .log-table { border-collapse: separate; border-spacing: 0; }
+    .log-table thead th {
+        position: sticky; top: 0; z-index: 1;
+        background: #f8fafc; border-bottom: 2px solid #e2e8f0;
+        font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px;
+        color: #64748b; font-weight: 700; padding: 10px 14px;
+    }
+    .log-table tbody td {
+        padding: 10px 14px; border-bottom: 1px solid #f1f5f9;
+        font-size: 0.82rem; vertical-align: top;
+    }
+    .log-table tbody tr:hover { background: #f8fafc; }
+    .log-ts { font-variant-numeric: tabular-nums; color: #475569; white-space: nowrap; }
+    .log-user { font-weight: 600; color: #1e293b; }
+    .log-user-tipo { font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .log-desc { color: #334155; word-break: break-word; }
+    .log-ip { font-family: monospace; font-size: 0.75rem; color: #94a3b8; }
+    .badge-action {
+        display: inline-block; font-size: 0.68rem; font-weight: 700;
+        padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .ba-view          { background: #eff6ff; color: #1e40af; border: 1px solid #dbeafe; }
+    .ba-login         { background: #ecfdf5; color: #065f46; border: 1px solid #d1fae5; }
+    .ba-login_failed  { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .ba-logout        { background: #f5f5f4; color: #44403c; border: 1px solid #e7e5e4; }
+    .ba-create        { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .ba-update        { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
+    .ba-delete        { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+</style>
+
 <div class="row align-items-center mb-3 mt-3 g-2">
     <div class="col">
         <h4 class="fw-bold mb-0"><i class="bi bi-clock-history me-2 text-primary"></i>Log de Atividade</h4>
@@ -8,14 +39,118 @@
     </div>
 </div>
 
-<div class="card border-0 shadow-sm">
-    <div class="card-body text-center py-5 text-muted">
-        <i class="bi bi-tools fs-1 opacity-25 d-block mb-3"></i>
-        <h6 class="text-secondary fw-normal mb-2">Em construção</h6>
-        <p class="mb-0 small">
-            A página de Log de Atividade será implementada em breve — vai mostrar o histórico completo
-            de acessos e alterações de todos os usuários, com filtros por usuário, período e tipo de ação.
-        </p>
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('admin.log_atividade') }}" class="row g-2 align-items-end">
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size:.68rem;">Usuário</label>
+                <select name="user_id" class="form-select form-select-sm border-1 shadow-sm bg-light">
+                    <option value="">Todos</option>
+                    {% for u in usuarios_log %}
+                    <option value="{{ u.user_id }}" {% if f_user == u.user_id|string %}selected{% endif %}>{{ u.user_nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size:.68rem;">Ação</label>
+                <select name="action_type" class="form-select form-select-sm border-1 shadow-sm bg-light">
+                    <option value="">Todas</option>
+                    {% for a in action_types %}
+                    <option value="{{ a }}" {% if f_acao == a %}selected{% endif %}>{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size:.68rem;">De</label>
+                <input type="date" name="data_inicio" value="{{ f_inicio }}" class="form-control form-control-sm border-1 shadow-sm bg-light">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size:.68rem;">Até</label>
+                <input type="date" name="data_fim" value="{{ f_fim }}" class="form-control form-control-sm border-1 shadow-sm bg-light">
+            </div>
+            <div class="col-8 col-md-3">
+                <label class="form-label small fw-bold text-secondary text-uppercase" style="font-size:.68rem;">Buscar</label>
+                <input type="text" name="busca" value="{{ f_busca }}" placeholder="descrição ou entidade" class="form-control form-control-sm border-1 shadow-sm bg-light">
+            </div>
+            <div class="col-4 col-md-1">
+                <button type="submit" class="btn btn-dark btn-sm w-100 shadow-sm">
+                    <i class="bi bi-funnel-fill"></i>
+                </button>
+            </div>
+        </form>
     </div>
+</div>
+
+<!-- Tabela -->
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive" style="max-height: 70vh;">
+        <table class="table log-table mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 145px;">Data/Hora</th>
+                    <th style="width: 180px;">Usuário</th>
+                    <th style="width: 90px;">Ação</th>
+                    <th>Descrição</th>
+                    <th style="width: 120px;" class="d-none d-md-table-cell">IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in registros %}
+                <tr>
+                    <td class="log-ts small">{{ r.timestamp_fmt }}</td>
+                    <td>
+                        <div class="log-user">{{ r.user_nome or '—' }}</div>
+                        {% if r.tipo_usuario %}<div class="log-user-tipo">{{ r.tipo_usuario }}</div>{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge-action ba-{{ r.action_type }}">{{ r.action_type }}</span>
+                    </td>
+                    <td class="log-desc">
+                        {{ r.descricao or '—' }}
+                        {% if r.entity_type and r.entity_type != 'page' %}
+                        <div class="text-muted" style="font-size:.7rem;">
+                            <i class="bi bi-tag"></i> {{ r.entity_type }}{% if r.entity_id %} #{{ r.entity_id }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </td>
+                    <td class="log-ip d-none d-md-table-cell">{{ r.ip_address or '—' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-5 text-muted">
+                        <i class="bi bi-inbox fs-1 opacity-25 d-block mb-2"></i>
+                        Nenhum registro encontrado para os filtros selecionados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if total_count > 0 %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-3 py-3 border-top small">
+        <div class="text-muted">
+            {% if total_pages > 1 %}Página <strong>{{ page }}</strong> de <strong>{{ total_pages }}</strong> · {% endif %}
+            Total: <strong>{{ total_count }}</strong> registro{% if total_count != 1 %}s{% endif %}
+        </div>
+        {% if total_pages > 1 %}
+        <div class="btn-group btn-group-sm shadow-sm">
+            {% if page > 1 %}
+            <a href="{{ url_for('admin.log_atividade', user_id=f_user, action_type=f_acao, data_inicio=f_inicio, data_fim=f_fim, busca=f_busca, page=page-1) }}"
+               class="btn btn-outline-secondary"><i class="bi bi-chevron-left"></i> Anterior</a>
+            {% else %}
+            <button class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i> Anterior</button>
+            {% endif %}
+            {% if page < total_pages %}
+            <a href="{{ url_for('admin.log_atividade', user_id=f_user, action_type=f_acao, data_inicio=f_inicio, data_fim=f_fim, busca=f_busca, page=page+1) }}"
+               class="btn btn-outline-secondary">Próxima <i class="bi bi-chevron-right"></i></a>
+            {% else %}
+            <button class="btn btn-outline-secondary" disabled>Próxima <i class="bi bi-chevron-right"></i></button>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -8,6 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database import get_db_connection
 from models import User
 from email_utils import email_codigo
+from utils.audit import log_action
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -70,8 +71,12 @@ def login():
             )
             session.permanent = False
             login_user(usuario_objeto, remember=False)
+            log_action('login', entity_type='usuario', entity_id=usuario_db['id'],
+                       descricao=f"Login bem-sucedido ({email})")
             return redirect(url_for('home'))
         else:
+            log_action('login_failed', entity_type='usuario',
+                       descricao=f"Tentativa de login falhou para email={email}")
             flash('Credenciais inválidas. Tente novamente.', 'danger')
 
     return render_template('login.html')
@@ -80,6 +85,8 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
+    log_action('logout', entity_type='usuario', entity_id=current_user.id,
+               descricao=f"Logout ({current_user.email})")
     session.clear()
     logout_user()
     flash('Você saiu do sistema.', 'info')

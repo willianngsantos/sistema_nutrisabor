@@ -11,6 +11,7 @@ from routes.cadastros import cadastros_bp
 from routes.vendas import vendas_bp
 from routes.colaboradores import colaboradores_bp
 from routes.propostas import propostas_bp
+from utils.audit import log_action
 import re
 
 load_dotenv()
@@ -22,6 +23,28 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30) # Expira em 30 
 
 # --- CSRF PROTECTION ---
 csrf = CSRFProtect(app)
+
+
+# --- AUDIT LOG (page views) ---
+# Registra automaticamente qualquer GET autenticado como 'view' no audit_log.
+# POSTs (mutações) são logados individualmente pelas rotas com descrição mais rica.
+_AUDIT_SKIP_PREFIXES = ('/static/', '/favicon', '/_')
+
+@app.before_request
+def _audit_page_view():
+    if request.method != 'GET':
+        return
+    if not current_user.is_authenticated:
+        return
+    path = request.path or ''
+    if any(path.startswith(p) for p in _AUDIT_SKIP_PREFIXES):
+        return
+    # Descrição = caminho + querystring (útil para saber qual filtro foi aplicado)
+    descricao = path
+    if request.query_string:
+        descricao = f"{path}?{request.query_string.decode('utf-8', errors='replace')}"
+    log_action('view', entity_type='page', descricao=descricao[:500])
+
 
 # --- FILTROS ---
 @app.template_filter('real')

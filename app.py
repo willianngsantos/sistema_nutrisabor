@@ -89,30 +89,34 @@ def home():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # 3. INDICADORES FINANCEIROS (Cards Inteligentes)
+    # 3. INDICADORES FINANCEIROS — regime de caixa (somente faturas PAGAS,
+    # usando data_pagamento como referência para o período).
     cursor.execute("""
         SELECT SUM(i.quantidade * i.preco_praticado) as total
-        FROM itens_pedido i JOIN pedidos p ON i.id_pedido = p.id 
-        WHERE p.status IN ('Aprovado', 'Pago') 
-          AND MONTH(p.data_fim) = MONTH(CURRENT_DATE()) 
-          AND YEAR(p.data_fim) = YEAR(CURRENT_DATE())
+        FROM itens_pedido i JOIN pedidos p ON i.id_pedido = p.id
+        WHERE p.status = 'Pago'
+          AND p.data_pagamento IS NOT NULL
+          AND MONTH(p.data_pagamento) = MONTH(CURRENT_DATE())
+          AND YEAR(p.data_pagamento) = YEAR(CURRENT_DATE())
     """)
     fat_mes_atual = cursor.fetchone()['total'] or 0
 
     cursor.execute("""
         SELECT SUM(i.quantidade * i.preco_praticado) as total
-        FROM itens_pedido i JOIN pedidos p ON i.id_pedido = p.id 
-        WHERE p.status IN ('Aprovado', 'Pago') 
-          AND MONTH(p.data_fim) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH) 
-          AND YEAR(p.data_fim) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH)
+        FROM itens_pedido i JOIN pedidos p ON i.id_pedido = p.id
+        WHERE p.status = 'Pago'
+          AND p.data_pagamento IS NOT NULL
+          AND MONTH(p.data_pagamento) = MONTH(CURRENT_DATE() - INTERVAL 1 MONTH)
+          AND YEAR(p.data_pagamento) = YEAR(CURRENT_DATE() - INTERVAL 1 MONTH)
     """)
     fat_mes_passado = cursor.fetchone()['total'] or 0
 
     cursor.execute("""
         SELECT SUM(i.quantidade * i.preco_praticado) as total
-        FROM itens_pedido i JOIN pedidos p ON i.id_pedido = p.id 
-        WHERE p.status IN ('Aprovado', 'Pago') 
-          AND YEAR(p.data_fim) = YEAR(CURRENT_DATE())
+        FROM itens_pedido i JOIN pedidos p ON i.id_pedido = p.id
+        WHERE p.status = 'Pago'
+          AND p.data_pagamento IS NOT NULL
+          AND YEAR(p.data_pagamento) = YEAR(CURRENT_DATE())
     """)
     fat_ano_atual = cursor.fetchone()['total'] or 0
 

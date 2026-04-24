@@ -1,6 +1,9 @@
 {% extends "base.html" %}
+{% from "_rh_nav.html" import rh_nav with context %}
 
 {% block conteudo %}
+{{ rh_nav('colaboradores') }}
+
 <style>
     .table-colab {
         border-collapse: separate;

@@ -41,3 +41,18 @@ def rh_access(f):
             return redirect(url_for('home'))
         return f(*args, **kwargs)
     return decorated
+
+
+def admin_or_gerencial(f):
+    """Permite acesso a admin ou gerencial (exclui nutricionista e vendedor).
+
+    Use em rotas de consulta a dados mestre/gerenciais que nutricionista não
+    deve ver (ex: listagem de colaboradores com dados salariais).
+    """
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.tipo not in ('admin', 'gerencial'):
+            flash("Acesso restrito.", "danger")
+            return redirect(url_for('home'))
+        return f(*args, **kwargs)
+    return decorated

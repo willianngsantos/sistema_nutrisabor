@@ -51,9 +51,11 @@
     <a class="nav-link {% if active=='hub' %}active{% endif %}" href="/rh">
       <i class="bi bi-grid-1x2-fill"></i>Painel RH
     </a>
+    {% if current_user.tipo in ['admin', 'gerencial'] %}
     <a class="nav-link {% if active=='colaboradores' %}active{% endif %}" href="/colaboradores">
       <i class="bi bi-people-fill"></i>Colaboradores
     </a>
+    {% endif %}
     {% if current_user.tipo == 'admin' %}
     <a class="nav-link {% if active=='vt' %}active{% endif %}" href="/recibos_vt/lote">
       <i class="bi bi-bus-front-fill"></i>Vale Transp.

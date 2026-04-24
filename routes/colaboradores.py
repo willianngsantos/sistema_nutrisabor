@@ -2,7 +2,7 @@ from datetime import date
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from database import get_db_connection
-from utils.permissions import admin_only, rh_access
+from utils.permissions import admin_only, admin_or_gerencial
 
 colaboradores_bp = Blueprint('colaboradores', __name__)
 
@@ -37,7 +37,7 @@ def _salvar_unidades(cursor, id_colaborador, ids_clientes):
 
 @colaboradores_bp.route("/colaboradores")
 @login_required
-@rh_access
+@admin_or_gerencial
 def listar():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)

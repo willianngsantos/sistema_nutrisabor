@@ -191,10 +191,29 @@
                     </li>
                     {% endif %}
                     {% if current_user.tipo == 'admin' %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.listar_usuarios') }}">
-                            <i class="bi bi-shield-lock me-1"></i> Equipe
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navAdminDropdown"
+                           role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-shield-lock me-1"></i> Admin
                         </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0" aria-labelledby="navAdminDropdown">
+                            <li>
+                                <a class="dropdown-item small" href="{{ url_for('auth.listar_usuarios') }}">
+                                    <i class="bi bi-people-fill me-2 text-primary"></i>Equipe
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item small" href="{{ url_for('auth.configuracao_empresa') }}">
+                                    <i class="bi bi-gear-fill me-2 text-warning"></i>Minha Empresa
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider my-1"></li>
+                            <li>
+                                <a class="dropdown-item small" href="{{ url_for('admin.log_atividade') }}">
+                                    <i class="bi bi-clock-history me-2 text-secondary"></i>Log de Atividade
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                     {% endif %}
 
@@ -202,13 +221,6 @@
                     <li class="nav-item d-lg-none">
                         <span class="nav-link text-white-50"><i class="bi bi-person-circle me-1"></i> Olá, {{ current_user.nome }}</span>
                     </li>
-                    {% if current_user.tipo == 'admin' %}
-                    <li class="nav-item d-lg-none">
-                        <a class="nav-link text-warning" href="{{ url_for('auth.configuracao_empresa') }}">
-                            <i class="bi bi-gear-fill me-1"></i> Minha Empresa
-                        </a>
-                    </li>
-                    {% endif %}
                     <li class="nav-item d-lg-none mb-2">
                         <a class="nav-link text-danger" href="{{ url_for('auth.logout') }}">
                             <i class="bi bi-box-arrow-right me-1"></i> Sair do Sistema
@@ -243,12 +255,6 @@
                         <i class="bi bi-box-arrow-right fs-5"></i>
                     </a>
                 </div>
-
-                {% if current_user.tipo == 'admin' %}
-                <a class="btn-company-mini d-flex align-items-center" href="{{ url_for('auth.configuracao_empresa') }}">
-                    <i class="bi bi-gear-fill me-1"></i> Minha Empresa
-                </a>
-                {% endif %}
 
             </div>
             {% endif %}

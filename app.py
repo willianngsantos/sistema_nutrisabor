@@ -234,5 +234,8 @@ app.register_blueprint(cardapios_bp)
 from routes.rh import rh_bp
 app.register_blueprint(rh_bp)
 
+from routes.admin import admin_bp
+app.register_blueprint(admin_bp)
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001, debug=True)

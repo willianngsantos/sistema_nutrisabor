@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only, admin_or_gerencial
+from utils.audit import log_action, format_field_diff
 
 colaboradores_bp = Blueprint('colaboradores', __name__)
 
@@ -111,6 +112,8 @@ def add_colaborador():
         id_novo = cursor.lastrowid
         _salvar_unidades(cursor, id_novo, ids_unidades)
         conn.commit()
+        log_action('create', entity_type='colaborador', entity_id=id_novo,
+                   descricao=f"Criou colaborador '{nome}' ({funcao or '—'}) salário R${salario:.2f}")
         flash(f"✅ Colaborador {nome} cadastrado com sucesso!", "success")
     except Exception as e:
         conn.rollback()
@@ -148,6 +151,25 @@ def editar_colaborador():
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("""
+            SELECT nome, funcao, status, salario_bruto, vale_transporte,
+                   vale_refeicao, diversos, data_admissao, recebe_vt
+            FROM colaboradores WHERE id=%s
+        """, (id_colab,))
+        antes = cursor.fetchone() or {}
+        # Normaliza decimais para comparar com floats
+        for k in ('salario_bruto', 'vale_transporte', 'vale_refeicao', 'diversos'):
+            if antes.get(k) is not None:
+                antes[k] = float(antes[k])
+        # data_admissao vem como date, depois vem como string; normaliza
+        if antes.get('data_admissao') is not None:
+            antes['data_admissao'] = antes['data_admissao'].strftime('%Y-%m-%d')
+        depois = {
+            'nome': nome, 'funcao': funcao, 'status': status,
+            'salario_bruto': salario, 'vale_transporte': vt,
+            'vale_refeicao': vr, 'diversos': diversos,
+            'data_admissao': data_admissao, 'recebe_vt': recebe_vt,
+        }
+        cursor.execute("""
             UPDATE colaboradores
             SET nome=%s, funcao=%s, status=%s,
                 salario_bruto=%s, vale_transporte=%s, vale_refeicao=%s, diversos=%s,
@@ -156,6 +178,8 @@ def editar_colaborador():
         """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt, id_colab))
         _salvar_unidades(cursor, id_colab, ids_unidades)
         conn.commit()
+        log_action('update', entity_type='colaborador', entity_id=int(id_colab),
+                   descricao=f"Editou colaborador '{nome}' — {format_field_diff(antes, depois)}")
         flash("✅ Colaborador atualizado com sucesso!", "success")
     except Exception as e:
         conn.rollback()
@@ -180,14 +204,17 @@ def mudar_status(id_colab, novo_status):
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT nome FROM colaboradores WHERE id = %s", (id_colab,))
+    cursor.execute("SELECT nome, status FROM colaboradores WHERE id = %s", (id_colab,))
     colab = cursor.fetchone()
 
     if colab:
+        status_antigo = colab['status']
         cursor2 = conn.cursor(dictionary=True)
         cursor2.execute("UPDATE colaboradores SET status = %s WHERE id = %s", (novo_status, id_colab))
         conn.commit()
         labels = {'ativo': 'Ativo', 'afastado': 'Afastado', 'ferias': 'Férias', 'inativo': 'Inativo'}
+        log_action('update', entity_type='colaborador', entity_id=int(id_colab),
+                   descricao=f"Colaborador '{colab['nome']}': status {status_antigo}→{novo_status}")
         flash(f"{colab['nome']} → {labels.get(novo_status, novo_status)}.", "info")
 
     conn.close()
@@ -375,9 +402,14 @@ def recibos_vt_lote():
 def excluir_colaborador(id_colab):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome, funcao FROM colaboradores WHERE id=%s", (id_colab,))
+    colab = cursor.fetchone() or {}
+    nome_antigo = colab.get('nome') or f'#{id_colab}'
     try:
         cursor.execute("DELETE FROM colaboradores WHERE id = %s", (id_colab,))
         conn.commit()
+        log_action('delete', entity_type='colaborador', entity_id=int(id_colab),
+                   descricao=f"Excluiu colaborador '{nome_antigo}' ({colab.get('funcao') or '—'})")
         flash("Colaborador removido.", "success")
     except Exception as e:
         conn.rollback()

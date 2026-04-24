@@ -4,6 +4,7 @@ from flask import (Blueprint, render_template, request, redirect,
 from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only
+from utils.audit import log_action, format_field_diff
 
 # ── Blueprint ─────────────────────────────────────────────────────────────────
 propostas_bp = Blueprint('propostas', __name__)
@@ -175,8 +176,12 @@ def nova():
                 VALUES (%s,%s,%s,%s,%s)
             """, (id_proposta, desc, qtd, und, vunit))
 
+        cur.execute("SELECT nome_empresa FROM clientes WHERE id=%s", (id_cliente,))
+        cli = cur.fetchone()
         conn.commit()
         conn.close()
+        log_action('create', entity_type='proposta', entity_id=id_proposta,
+                   descricao=f"Criou proposta {numero} para '{cli['nome_empresa'] if cli else id_cliente}' com {len(descricoes)} item(s)")
         flash(f"Proposta {numero} criada com sucesso!", "success")
         return redirect(url_for('propostas.listar'))
 
@@ -248,6 +253,9 @@ def editar(id_proposta):
 
         conn.commit()
         conn.close()
+        log_action('update', entity_type='proposta', entity_id=int(id_proposta),
+                   descricao=f"Editou proposta {proposta.get('numero')} (status {proposta.get('status')}→{status}, "
+                             f"{len(descricoes)} item(s))")
         flash("Proposta atualizada com sucesso!", "success")
         return redirect(url_for('propostas.listar'))
 
@@ -276,9 +284,13 @@ def atualizar_status(id_proposta):
 
     conn = get_db_connection()
     cur  = conn.cursor(dictionary=True)
+    cur.execute("SELECT numero, status FROM propostas WHERE id=%s", (id_proposta,))
+    p = cur.fetchone() or {}
     cur.execute("UPDATE propostas SET status=%s WHERE id=%s", (novo_status, id_proposta))
     conn.commit()
     conn.close()
+    log_action('update', entity_type='proposta', entity_id=int(id_proposta),
+               descricao=f"Proposta {p.get('numero') or id_proposta}: status {p.get('status') or '—'}→{novo_status}")
     return jsonify({'ok': True, 'status': novo_status})
 
 
@@ -291,11 +303,13 @@ def atualizar_status(id_proposta):
 def deletar(id_proposta):
     conn = get_db_connection()
     cur  = conn.cursor(dictionary=True)
-    cur.execute("SELECT numero FROM propostas WHERE id=%s", (id_proposta,))
+    cur.execute("SELECT numero, status FROM propostas WHERE id=%s", (id_proposta,))
     row = cur.fetchone()
     if row:
         cur.execute("DELETE FROM propostas WHERE id=%s", (id_proposta,))
         conn.commit()
+        log_action('delete', entity_type='proposta', entity_id=int(id_proposta),
+                   descricao=f"Excluiu proposta {row['numero']} (status {row.get('status') or '—'})")
         flash(f"Proposta {row['numero']} excluída.", "success")
     conn.close()
     return redirect(url_for('propostas.listar'))

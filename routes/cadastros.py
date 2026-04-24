@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only
+from utils.audit import log_action, format_field_diff
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -57,17 +58,19 @@ def add_grupo():
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    # CORRIGIDO PARA PLURAL AQUI
     cursor.execute("""
         INSERT INTO grupos_clientes (nome, chave_pix, pix_nome, pix_banco)
         VALUES (%s, %s, %s, %s)
-    """, (nome, 
+    """, (nome,
           chave_pix if chave_pix else None,
           pix_nome if pix_nome else None,
           pix_banco if pix_banco else None))
+    novo_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    
+
+    log_action('create', entity_type='grupo', entity_id=novo_id,
+               descricao=f"Criou grupo '{nome}'")
     flash("Grupo cadastrado com sucesso!", "success")
     return redirect(url_for('cadastros.grupos'))
 
@@ -83,19 +86,24 @@ def editar_grupo():
     
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    # CORRIGIDO PARA PLURAL AQUI
+    cursor.execute("SELECT nome, chave_pix, pix_nome, pix_banco FROM grupos_clientes WHERE id=%s", (id_grupo,))
+    antes = cursor.fetchone() or {}
+    depois = {
+        'nome': nome,
+        'chave_pix': chave_pix or None,
+        'pix_nome': pix_nome or None,
+        'pix_banco': pix_banco or None,
+    }
     cursor.execute("""
         UPDATE grupos_clientes
-        SET nome=%s, chave_pix=%s, pix_nome=%s, pix_banco=%s 
+        SET nome=%s, chave_pix=%s, pix_nome=%s, pix_banco=%s
         WHERE id=%s
-    """, (nome, 
-          chave_pix if chave_pix else None, 
-          pix_nome if pix_nome else None,
-          pix_banco if pix_banco else None,
-          id_grupo))
+    """, (depois['nome'], depois['chave_pix'], depois['pix_nome'], depois['pix_banco'], id_grupo))
     conn.commit()
     conn.close()
-    
+
+    log_action('update', entity_type='grupo', entity_id=int(id_grupo),
+               descricao=f"Editou grupo '{nome}' — {format_field_diff(antes, depois)}")
     flash("Grupo atualizado com sucesso!", "success")
     return redirect(url_for('cadastros.grupos'))
 
@@ -105,12 +113,16 @@ def editar_grupo():
 def excluir_grupo(id_grupo):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome FROM grupos_clientes WHERE id=%s", (id_grupo,))
+    grupo = cursor.fetchone()
+    nome_antigo = grupo['nome'] if grupo else f'#{id_grupo}'
     try:
-        # CORRIGIDO PARA PLURAL AQUI
         cursor.execute("DELETE FROM grupos_clientes WHERE id=%s", (id_grupo,))
         conn.commit()
+        log_action('delete', entity_type='grupo', entity_id=int(id_grupo),
+                   descricao=f"Excluiu grupo '{nome_antigo}'")
         flash("Grupo excluído com sucesso!", "success")
-    except:
+    except Exception:
         flash("Erro: Este grupo possui clientes vinculados e não pode ser excluído.", "danger")
     finally:
         conn.close()
@@ -160,8 +172,12 @@ def add_cliente():
         INSERT INTO clientes (nome_empresa, cnpj, email, celular, id_grupo, apelido, logo_path)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (nome, cnpj, email, celular, id_grupo, apelido if apelido else None, logo_path))
+    novo_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    log_action('create', entity_type='cliente', entity_id=novo_id,
+               descricao=f"Criou cliente '{nome}' (CNPJ {cnpj})")
     flash("Cliente cadastrado com sucesso!", "success")
     return redirect(url_for('cadastros.clientes'))
 
@@ -184,10 +200,13 @@ def editar_cliente():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Busca logo atual para deletar o arquivo se necessário
-    cursor.execute("SELECT logo_path FROM clientes WHERE id=%s", (id_cliente,))
-    row = cursor.fetchone()
-    logo_atual = row['logo_path'] if row else None
+    # Estado ANTES (para diff + pegar logo atual)
+    cursor.execute("""
+        SELECT nome_empresa, cnpj, email, celular, id_grupo, apelido, logo_path
+        FROM clientes WHERE id=%s
+    """, (id_cliente,))
+    antes = cursor.fetchone() or {}
+    logo_atual = antes.get('logo_path')
 
     if remover_logo:
         logo_path = None
@@ -206,6 +225,12 @@ def editar_cliente():
     else:
         logo_path = logo_atual  # mantém o logo existente
 
+    depois = {
+        'nome_empresa': nome, 'cnpj': cnpj, 'email': email, 'celular': celular,
+        'id_grupo': int(id_grupo) if id_grupo else None,
+        'apelido': apelido if apelido else None,
+        'logo_path': logo_path,
+    }
     cursor2 = conn.cursor(dictionary=True)
     cursor2.execute("""
         UPDATE clientes SET nome_empresa=%s, cnpj=%s, email=%s, celular=%s, id_grupo=%s, apelido=%s, logo_path=%s
@@ -213,6 +238,9 @@ def editar_cliente():
     """, (nome, cnpj, email, celular, id_grupo, apelido if apelido else None, logo_path, id_cliente))
     conn.commit()
     conn.close()
+
+    log_action('update', entity_type='cliente', entity_id=int(id_cliente),
+               descricao=f"Editou cliente '{nome}' — {format_field_diff(antes, depois)}")
     flash("Cliente atualizado com sucesso!", "success")
     return redirect(url_for('cadastros.clientes'))
 
@@ -230,6 +258,8 @@ def toggle_unidade(id_cliente):
         cursor2.execute("UPDATE clientes SET atende_local = %s WHERE id = %s", (novo, id_cliente))
         conn.commit()
         acao = "marcado como Unidade de Trabalho" if novo else "removido das Unidades de Trabalho"
+        log_action('update', entity_type='cliente', entity_id=int(id_cliente),
+                   descricao=f"Cliente '{cliente['nome_empresa']}' {acao}")
         flash(f"{cliente['nome_empresa']} foi {acao}.", "info")
     conn.close()
     return redirect(url_for('cadastros.clientes'))
@@ -241,13 +271,18 @@ def toggle_unidade(id_cliente):
 def excluir_cliente(id_cliente):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome_empresa, cnpj FROM clientes WHERE id=%s", (id_cliente,))
+    cli = cursor.fetchone() or {}
+    nome_antigo = cli.get('nome_empresa') or f'#{id_cliente}'
     try:
         cursor.execute("DELETE FROM tabela_precos WHERE id_cliente=%s", (id_cliente,))
         cursor.execute("DELETE FROM clientes WHERE id=%s", (id_cliente,))
         conn.commit()
+        log_action('delete', entity_type='cliente', entity_id=int(id_cliente),
+                   descricao=f"Excluiu cliente '{nome_antigo}' (CNPJ {cli.get('cnpj') or '—'})")
         flash("Cliente excluído com sucesso!", "success")
-    except Exception as e:
-        conn.rollback() 
+    except Exception:
+        conn.rollback()
         flash("Erro: Este cliente possui faturas no histórico e não pode ser excluído.", "danger")
     finally:
         conn.close()
@@ -286,9 +321,12 @@ def add_produto():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("INSERT INTO produtos (nome, unidade, custo_base) VALUES (%s, %s, %s)", (nome, unidade, custo))
+    novo_id = cursor.lastrowid
     conn.commit()
     conn.close()
-    
+
+    log_action('create', entity_type='produto', entity_id=novo_id,
+               descricao=f"Criou produto '{nome}' ({unidade}) custo R${custo:.2f}")
     flash("Produto adicionado com sucesso!", "success")
     return redirect(url_for('cadastros.produtos'))
 
@@ -311,10 +349,17 @@ def editar_produto():
             
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome, unidade, custo_base FROM produtos WHERE id=%s", (id_produto,))
+    antes = cursor.fetchone() or {}
+    if antes.get('custo_base') is not None:
+        antes['custo_base'] = float(antes['custo_base'])
+    depois = {'nome': nome, 'unidade': unidade, 'custo_base': custo}
     cursor.execute("UPDATE produtos SET nome=%s, unidade=%s, custo_base=%s WHERE id=%s", (nome, unidade, custo, id_produto))
     conn.commit()
     conn.close()
-    
+
+    log_action('update', entity_type='produto', entity_id=int(id_produto),
+               descricao=f"Editou produto '{nome}' — {format_field_diff(antes, depois)}")
     flash("Produto atualizado com sucesso!", "success")
     return redirect(url_for('cadastros.produtos'))
 
@@ -324,11 +369,16 @@ def editar_produto():
 def excluir_produto(id_prod):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome FROM produtos WHERE id=%s", (id_prod,))
+    prod = cursor.fetchone()
+    nome_antigo = prod['nome'] if prod else f'#{id_prod}'
     try:
         cursor.execute("DELETE FROM produtos WHERE id=%s", (id_prod,))
         conn.commit()
+        log_action('delete', entity_type='produto', entity_id=int(id_prod),
+                   descricao=f"Excluiu produto '{nome_antigo}'")
         flash("Produto removido!", "success")
-    except:
+    except Exception:
         flash("Erro: Produto vinculado a pedidos.", "danger")
     finally:
         conn.close()
@@ -367,27 +417,35 @@ def salvar_precos_grupo(id_grupo):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
+    cursor.execute("SELECT nome FROM grupos_clientes WHERE id=%s", (id_grupo,))
+    grupo = cursor.fetchone()
+    nome_grupo = grupo['nome'] if grupo else f'#{id_grupo}'
+
     cursor.execute("DELETE FROM tabela_precos_grupos WHERE id_grupo = %s", (id_grupo,))
 
     cursor.execute("SELECT id FROM produtos")
     produtos = cursor.fetchall()
 
+    qtd_salvos = 0
     for p in produtos:
         prod_id = p['id']
         preco_str = request.form.get(f"preco_{prod_id}", "").strip()
-        
+
         if preco_str:
             try:
                 preco_venda = float(preco_str.replace(",", "."))
                 cursor.execute("""
-                    INSERT INTO tabela_precos_grupos (id_grupo, id_produto, preco_venda) 
+                    INSERT INTO tabela_precos_grupos (id_grupo, id_produto, preco_venda)
                     VALUES (%s, %s, %s)
                 """, (id_grupo, prod_id, preco_venda))
+                qtd_salvos += 1
             except ValueError:
-                pass 
-                
+                pass
+
     conn.commit()
     conn.close()
-    
+
+    log_action('update', entity_type='tabela_precos_grupo', entity_id=int(id_grupo),
+               descricao=f"Atualizou tabela de preços do grupo '{nome_grupo}': {qtd_salvos} produto(s) com preço")
     flash("Tabela de preços do grupo atualizada com sucesso!", "success")
     return redirect(url_for('cadastros.grupos'))

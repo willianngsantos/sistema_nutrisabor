@@ -7,6 +7,7 @@ from flask import (Blueprint, render_template, request, redirect,
 from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only, rh_access
+from utils.audit import log_action, format_field_diff
 
 rh_bp = Blueprint('rh', __name__)
 
@@ -191,6 +192,10 @@ def add_exame():
                     (id_colaborador, tipo, data_realizado, data_vencimento, resultado, clinica, observacoes)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (cid, tipo, data_real, data_venc, resultado, clinica, obs))
+        conn.commit()
+        conn.close()
+        log_action('create', entity_type='rh_exame',
+                   descricao=f"Criou exame '{tipo}' ({resultado}) para {len(ids)} colaborador(es)")
         flash(f"Exame registrado para {len(ids)} colaborador(es)!", "success")
     else:
         cursor.execute("""
@@ -198,10 +203,15 @@ def add_exame():
                 (id_colaborador, tipo, data_realizado, data_vencimento, resultado, clinica, observacoes)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """, (id_colab, tipo, data_real, data_venc, resultado, clinica, obs))
+        novo_id = cursor.lastrowid
+        cursor.execute("SELECT nome FROM colaboradores WHERE id=%s", (id_colab,))
+        colab = cursor.fetchone()
+        conn.commit()
+        conn.close()
+        log_action('create', entity_type='rh_exame', entity_id=novo_id,
+                   descricao=f"Criou exame '{tipo}' ({resultado}) para colaborador '{colab['nome'] if colab else id_colab}'")
         flash("Exame registrado com sucesso!", "success")
 
-    conn.commit()
-    conn.close()
     return redirect(url_for('rh.exames'))
 
 
@@ -209,22 +219,34 @@ def add_exame():
 @login_required
 @rh_access
 def editar_exame():
+    id_exame = request.form.get('id_exame')
+    depois = {
+        'tipo': request.form.get('tipo'),
+        'data_realizado': request.form.get('data_realizado') or None,
+        'data_vencimento': request.form.get('data_vencimento') or None,
+        'resultado': request.form.get('resultado', 'apto'),
+        'clinica': request.form.get('clinica', '').strip() or None,
+        'observacoes': request.form.get('observacoes', '').strip() or None,
+    }
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
+        SELECT tipo, data_realizado, data_vencimento, resultado, clinica, observacoes
+        FROM rh_exames WHERE id=%s
+    """, (id_exame,))
+    antes = cursor.fetchone() or {}
+    for k in ('data_realizado', 'data_vencimento'):
+        if antes.get(k) is not None:
+            antes[k] = antes[k].strftime('%Y-%m-%d')
+    cursor.execute("""
         UPDATE rh_exames SET tipo=%s, data_realizado=%s, data_vencimento=%s,
                resultado=%s, clinica=%s, observacoes=%s WHERE id=%s
-    """, (
-        request.form.get('tipo'),
-        request.form.get('data_realizado') or None,
-        request.form.get('data_vencimento') or None,
-        request.form.get('resultado', 'apto'),
-        request.form.get('clinica', '').strip() or None,
-        request.form.get('observacoes', '').strip() or None,
-        request.form.get('id_exame'),
-    ))
+    """, (depois['tipo'], depois['data_realizado'], depois['data_vencimento'],
+          depois['resultado'], depois['clinica'], depois['observacoes'], id_exame))
     conn.commit()
     conn.close()
+    log_action('update', entity_type='rh_exame', entity_id=int(id_exame),
+               descricao=f"Editou exame #{id_exame} — {format_field_diff(antes, depois)}")
     flash("Exame atualizado!", "success")
     return redirect(url_for('rh.exames'))
 
@@ -234,9 +256,18 @@ def editar_exame():
 @rh_access
 def excluir_exame(id_exame):
     conn = get_db_connection()
-    conn.cursor(dictionary=True).execute("DELETE FROM rh_exames WHERE id = %s", (id_exame,))
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT e.tipo, c.nome AS colaborador
+        FROM rh_exames e LEFT JOIN colaboradores c ON c.id = e.id_colaborador
+        WHERE e.id = %s
+    """, (id_exame,))
+    info = cursor.fetchone() or {}
+    cursor.execute("DELETE FROM rh_exames WHERE id = %s", (id_exame,))
     conn.commit()
     conn.close()
+    log_action('delete', entity_type='rh_exame', entity_id=int(id_exame),
+               descricao=f"Excluiu exame '{info.get('tipo') or '—'}' de '{info.get('colaborador') or '—'}'")
     flash("Exame removido.", "success")
     return redirect(url_for('rh.exames'))
 
@@ -299,10 +330,13 @@ def aplicar_reajuste():
         INSERT INTO rh_reajustes (data_reajuste, tipo, valor, motivo, aplicado_por, qtd_colaboradores)
         VALUES (%s, %s, %s, %s, %s, %s)
     """, (data_reajuste, tipo, valor, motivo, current_user.nome, qtd))
+    id_reajuste = cursor2.lastrowid
 
     conn.commit()
     conn.close()
     label = f"{valor}%" if tipo == 'percentual' else f"R$ {valor:.2f}".replace('.', ',')
+    log_action('create', entity_type='rh_reajuste', entity_id=id_reajuste,
+               descricao=f"Aplicou reajuste {tipo} de {label} em {qtd} colaborador(es). Motivo: {motivo or '—'}")
     flash(f"Reajuste de {label} aplicado a {qtd} colaborador(es).", "success")
     return redirect(url_for('rh.reajuste'))
 
@@ -339,21 +373,27 @@ def upload_documento():
         arquivo.save(os.path.join(_upload_path(), filename))
         arquivo_path = f"uploads/rh_docs/{filename}"
 
+    nome_doc = request.form.get('nome', '').strip()
+    categoria = request.form.get('categoria', 'outros')
     conn = get_db_connection()
-    conn.cursor(dictionary=True).execute("""
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
         INSERT INTO rh_documentos (nome, categoria, arquivo_path, validade, responsavel, observacoes, criado_por)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
     """, (
-        request.form.get('nome', '').strip(),
-        request.form.get('categoria', 'outros'),
+        nome_doc,
+        categoria,
         arquivo_path,
         request.form.get('validade') or None,
         request.form.get('responsavel', '').strip() or None,
         request.form.get('observacoes', '').strip() or None,
         current_user.nome,
     ))
+    novo_id = cursor.lastrowid
     conn.commit()
     conn.close()
+    log_action('create', entity_type='rh_documento', entity_id=novo_id,
+               descricao=f"Cadastrou documento '{nome_doc}' (cat: {categoria}, arq: {arquivo_path or 'nenhum'})")
     flash("Documento cadastrado com sucesso!", "success")
     return redirect(url_for('rh.documentos'))
 
@@ -364,15 +404,18 @@ def upload_documento():
 def excluir_documento(id_doc):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT arquivo_path FROM rh_documentos WHERE id = %s", (id_doc,))
-    doc = cursor.fetchone()
-    if doc and doc['arquivo_path']:
+    cursor.execute("SELECT nome, arquivo_path FROM rh_documentos WHERE id = %s", (id_doc,))
+    doc = cursor.fetchone() or {}
+    nome_antigo = doc.get('nome') or f'#{id_doc}'
+    if doc.get('arquivo_path'):
         full = os.path.join(current_app.root_path, 'static', doc['arquivo_path'])
         if os.path.exists(full):
             os.remove(full)
-    conn.cursor(dictionary=True).execute("DELETE FROM rh_documentos WHERE id = %s", (id_doc,))
+    cursor.execute("DELETE FROM rh_documentos WHERE id = %s", (id_doc,))
     conn.commit()
     conn.close()
+    log_action('delete', entity_type='rh_documento', entity_id=int(id_doc),
+               descricao=f"Excluiu documento '{nome_antigo}'")
     flash("Documento removido.", "success")
     return redirect(url_for('rh.documentos'))
 
@@ -398,19 +441,20 @@ def jornadas():
 @rh_access
 def add_jornada():
     dias = ','.join(request.form.getlist('dias_semana'))
+    nome = request.form.get('nome', '').strip()
+    entrada = request.form.get('hora_entrada')
+    saida = request.form.get('hora_saida')
     conn = get_db_connection()
-    conn.cursor(dictionary=True).execute("""
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
         INSERT INTO rh_jornadas (nome, hora_entrada, hora_saida, intervalo_min, dias_semana)
         VALUES (%s, %s, %s, %s, %s)
-    """, (
-        request.form.get('nome', '').strip(),
-        request.form.get('hora_entrada'),
-        request.form.get('hora_saida'),
-        int(request.form.get('intervalo_min', 60)),
-        dias,
-    ))
+    """, (nome, entrada, saida, int(request.form.get('intervalo_min', 60)), dias))
+    novo_id = cursor.lastrowid
     conn.commit()
     conn.close()
+    log_action('create', entity_type='rh_jornada', entity_id=novo_id,
+               descricao=f"Criou jornada '{nome}' ({entrada}-{saida}, dias: {dias})")
     flash("Jornada cadastrada!", "success")
     return redirect(url_for('rh.jornadas'))
 
@@ -419,22 +463,33 @@ def add_jornada():
 @login_required
 @rh_access
 def editar_jornada():
-    dias = ','.join(request.form.getlist('dias_semana'))
+    id_jornada = request.form.get('id_jornada')
+    depois = {
+        'nome': request.form.get('nome', '').strip(),
+        'hora_entrada': request.form.get('hora_entrada'),
+        'hora_saida': request.form.get('hora_saida'),
+        'intervalo_min': int(request.form.get('intervalo_min', 60)),
+        'dias_semana': ','.join(request.form.getlist('dias_semana')),
+    }
     conn = get_db_connection()
-    conn.cursor(dictionary=True).execute("""
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome, hora_entrada, hora_saida, intervalo_min, dias_semana FROM rh_jornadas WHERE id=%s", (id_jornada,))
+    antes = cursor.fetchone() or {}
+    # Normaliza horários para strings (em MySQL TIME vem como timedelta)
+    for k in ('hora_entrada', 'hora_saida'):
+        v = antes.get(k)
+        if v is not None:
+            antes[k] = str(v)
+    cursor.execute("""
         UPDATE rh_jornadas
         SET nome=%s, hora_entrada=%s, hora_saida=%s, intervalo_min=%s, dias_semana=%s
         WHERE id=%s
-    """, (
-        request.form.get('nome', '').strip(),
-        request.form.get('hora_entrada'),
-        request.form.get('hora_saida'),
-        int(request.form.get('intervalo_min', 60)),
-        dias,
-        request.form.get('id_jornada'),
-    ))
+    """, (depois['nome'], depois['hora_entrada'], depois['hora_saida'],
+          depois['intervalo_min'], depois['dias_semana'], id_jornada))
     conn.commit()
     conn.close()
+    log_action('update', entity_type='rh_jornada', entity_id=int(id_jornada),
+               descricao=f"Editou jornada '{depois['nome']}' — {format_field_diff(antes, depois)}")
     flash("Jornada atualizada!", "success")
     return redirect(url_for('rh.jornadas'))
 
@@ -444,9 +499,15 @@ def editar_jornada():
 @rh_access
 def excluir_jornada(id_jornada):
     conn = get_db_connection()
-    conn.cursor(dictionary=True).execute("DELETE FROM rh_jornadas WHERE id = %s", (id_jornada,))
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome FROM rh_jornadas WHERE id = %s", (id_jornada,))
+    j = cursor.fetchone() or {}
+    nome_antigo = j.get('nome') or f'#{id_jornada}'
+    cursor.execute("DELETE FROM rh_jornadas WHERE id = %s", (id_jornada,))
     conn.commit()
     conn.close()
+    log_action('delete', entity_type='rh_jornada', entity_id=int(id_jornada),
+               descricao=f"Excluiu jornada '{nome_antigo}'")
     flash("Jornada removida.", "success")
     return redirect(url_for('rh.jornadas'))
 
@@ -483,22 +544,29 @@ def ferias():
 def add_ferias():
     data_inicio = request.form.get('data_inicio')
     data_fim = request.form.get('data_fim')
+    id_colaborador = request.form.get('id_colaborador')
     try:
         dias = (datetime.strptime(data_fim, '%Y-%m-%d') - datetime.strptime(data_inicio, '%Y-%m-%d')).days + 1
     except Exception:
         dias = int(request.form.get('dias', 30))
 
     conn = get_db_connection()
-    conn.cursor(dictionary=True).execute("""
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
         INSERT INTO rh_ferias (id_colaborador, data_inicio, data_fim, dias, observacoes)
         VALUES (%s, %s, %s, %s, %s)
     """, (
-        request.form.get('id_colaborador'),
+        id_colaborador,
         data_inicio, data_fim, dias,
         request.form.get('observacoes', '').strip() or None,
     ))
+    novo_id = cursor.lastrowid
+    cursor.execute("SELECT nome FROM colaboradores WHERE id=%s", (id_colaborador,))
+    colab = cursor.fetchone()
     conn.commit()
     conn.close()
+    log_action('create', entity_type='rh_ferias', entity_id=novo_id,
+               descricao=f"Agendou férias para '{colab['nome'] if colab else id_colaborador}' ({data_inicio} a {data_fim}, {dias} dias)")
     flash("Férias agendadas com sucesso!", "success")
     return redirect(url_for('rh.ferias'))
 
@@ -511,9 +579,18 @@ def status_ferias(id_ferias, novo_status):
         flash("Status inválido.", "danger")
         return redirect(url_for('rh.ferias'))
     conn = get_db_connection()
-    conn.cursor(dictionary=True).execute("UPDATE rh_ferias SET status=%s WHERE id=%s", (novo_status, id_ferias))
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT f.status, c.nome FROM rh_ferias f
+        LEFT JOIN colaboradores c ON c.id = f.id_colaborador
+        WHERE f.id=%s
+    """, (id_ferias,))
+    info = cursor.fetchone() or {}
+    cursor.execute("UPDATE rh_ferias SET status=%s WHERE id=%s", (novo_status, id_ferias))
     conn.commit()
     conn.close()
+    log_action('update', entity_type='rh_ferias', entity_id=int(id_ferias),
+               descricao=f"Férias de '{info.get('nome') or '—'}': status {info.get('status') or '—'}→{novo_status}")
     flash("Status atualizado.", "success")
     return redirect(url_for('rh.ferias'))
 
@@ -523,9 +600,19 @@ def status_ferias(id_ferias, novo_status):
 @rh_access
 def excluir_ferias(id_ferias):
     conn = get_db_connection()
-    conn.cursor(dictionary=True).execute("DELETE FROM rh_ferias WHERE id=%s", (id_ferias,))
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT f.data_inicio, f.data_fim, c.nome FROM rh_ferias f
+        LEFT JOIN colaboradores c ON c.id = f.id_colaborador
+        WHERE f.id=%s
+    """, (id_ferias,))
+    info = cursor.fetchone() or {}
+    cursor.execute("DELETE FROM rh_ferias WHERE id=%s", (id_ferias,))
     conn.commit()
     conn.close()
+    log_action('delete', entity_type='rh_ferias', entity_id=int(id_ferias),
+               descricao=f"Excluiu férias de '{info.get('nome') or '—'}' "
+                         f"({info.get('data_inicio')} a {info.get('data_fim')})")
     flash("Registro de férias removido.", "success")
     return redirect(url_for('rh.ferias'))
 
@@ -572,6 +659,7 @@ def registrar_ponto():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    qtd_dias = 0
     # Processa cada dia enviado no form
     for key, value in request.form.items():
         if key.startswith('tipo_'):
@@ -593,8 +681,14 @@ def registrar_ponto():
             """, (id_colaborador, data_str, tipo,
                   hora_entrada, hora_saida_almoco, hora_retorno_almoco, hora_saida, obs,
                   tipo, hora_entrada, hora_saida_almoco, hora_retorno_almoco, hora_saida, obs))
+            qtd_dias += 1
+
+    cursor.execute("SELECT nome FROM colaboradores WHERE id=%s", (id_colaborador,))
+    colab = cursor.fetchone()
     conn.commit()
     conn.close()
+    log_action('update', entity_type='rh_ponto', entity_id=int(id_colaborador) if id_colaborador else None,
+               descricao=f"Registrou ponto de '{colab['nome'] if colab else id_colaborador}' em {mes}/{ano}: {qtd_dias} dia(s)")
     flash("Ponto salvo com sucesso!", "success")
     return redirect(url_for('rh.ponto', colab_id=id_colaborador, mes=mes, ano=ano))
 

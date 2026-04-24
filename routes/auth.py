@@ -8,7 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from database import get_db_connection
 from models import User
 from email_utils import email_codigo
-from utils.audit import log_action
+from utils.audit import log_action, format_field_diff
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -270,6 +270,7 @@ def add_usuario():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    novo_id = None
     try:
         if senha_plana:
             senha_segura = generate_password_hash(senha_plana)
@@ -283,7 +284,10 @@ def add_usuario():
                 "INSERT INTO usuarios (nome, email, tipo) VALUES (%s, %s, %s)",
                 (nome, email, tipo)
             )
+        novo_id = cursor.lastrowid
         conn.commit()
+        log_action('create', entity_type='usuario', entity_id=novo_id,
+                   descricao=f"Criou usuário '{nome}' ({email}, tipo={tipo})")
         flash(f"Usuário {nome} criado com sucesso! Oriente-o a usar 'Primeiro Acesso' na tela de login.", "success")
     except Exception:
         flash("Erro ao criar usuário. E-mail já pode estar em uso.", "danger")
@@ -307,6 +311,9 @@ def editar_usuario():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
+        cursor.execute("SELECT nome, email, tipo FROM usuarios WHERE id=%s", (id_usuario,))
+        antes = cursor.fetchone() or {}
+        depois = {'nome': nome, 'email': email, 'tipo': tipo}
         if senha:
             senha_hash = generate_password_hash(senha)
             cursor.execute("""
@@ -317,6 +324,11 @@ def editar_usuario():
                 UPDATE usuarios SET nome=%s, email=%s, tipo=%s WHERE id=%s
             """, (nome, email, tipo, id_usuario))
         conn.commit()
+        diff_txt = format_field_diff(antes, depois)
+        if senha:
+            diff_txt = (diff_txt + "; " if diff_txt != "(sem alterações)" else "") + "senha redefinida"
+        log_action('update', entity_type='usuario', entity_id=int(id_usuario),
+                   descricao=f"Editou usuário '{nome}' — {diff_txt}")
         flash("Usuário atualizado com sucesso!", "success")
     except Exception as e:
         conn.rollback()
@@ -338,9 +350,13 @@ def excluir_usuario(id_user):
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome, email, tipo FROM usuarios WHERE id=%s", (id_user,))
+    u = cursor.fetchone() or {}
     try:
         cursor.execute("DELETE FROM usuarios WHERE id = %s", (id_user,))
         conn.commit()
+        log_action('delete', entity_type='usuario', entity_id=int(id_user),
+                   descricao=f"Excluiu usuário '{u.get('nome') or id_user}' ({u.get('email') or '—'}, tipo={u.get('tipo') or '—'})")
         flash("Usuário removido com sucesso!", "success")
     except Exception:
         flash("Erro ao remover usuário.", "danger")
@@ -360,11 +376,32 @@ def configuracao_empresa():
     cursor = conn.cursor(dictionary=True)
 
     if request.method == "POST":
+        # Carrega estado anterior para diff
+        cursor.execute("""
+            SELECT razao_social, cnpj, cep, endereco, cidade, estado,
+                   telefone, email, banco_nome, agencia, conta, pix_chave
+            FROM empresa WHERE id=1
+        """)
+        antes = cursor.fetchone() or {}
+        depois = {
+            'razao_social': request.form["razao_social"],
+            'cnpj': request.form["cnpj"],
+            'cep': request.form["cep"],
+            'endereco': request.form["endereco"],
+            'cidade': request.form["cidade"],
+            'estado': request.form["estado"],
+            'telefone': request.form["telefone"],
+            'email': request.form["email"],
+            'banco_nome': request.form["banco_nome"],
+            'agencia': request.form["agencia"],
+            'conta': request.form["conta"],
+            'pix_chave': request.form["pix_chave"],
+        }
         dados = (
-            request.form["razao_social"], request.form["cnpj"], request.form["cep"],
-            request.form["endereco"], request.form["cidade"], request.form["estado"],
-            request.form["telefone"], request.form["email"], request.form["banco_nome"],
-            request.form["agencia"], request.form["conta"], request.form["pix_chave"]
+            depois['razao_social'], depois['cnpj'], depois['cep'],
+            depois['endereco'], depois['cidade'], depois['estado'],
+            depois['telefone'], depois['email'], depois['banco_nome'],
+            depois['agencia'], depois['conta'], depois['pix_chave']
         )
         cursor.execute("""
             UPDATE empresa
@@ -373,6 +410,8 @@ def configuracao_empresa():
             WHERE id=1
         """, dados)
         conn.commit()
+        log_action('update', entity_type='empresa', entity_id=1,
+                   descricao=f"Atualizou dados da empresa — {format_field_diff(antes, depois)}")
         flash("Dados da empresa atualizados com sucesso!", "success")
 
     cursor.execute("SELECT * FROM empresa WHERE id = 1")

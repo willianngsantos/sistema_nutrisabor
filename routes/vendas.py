@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from database import get_db_connection
 from datetime import datetime
 from utils.permissions import admin_only
+from utils.audit import log_action
 
 vendas_bp = Blueprint('vendas', __name__)
 
@@ -42,6 +43,10 @@ def negociar(id_cliente):
 def salvar_precos(id_cliente):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome_empresa FROM clientes WHERE id=%s", (id_cliente,))
+    cli = cursor.fetchone()
+    nome_cli = cli['nome_empresa'] if cli else f'#{id_cliente}'
+    qtd_alterados = 0
     for key, valor in request.form.items():
         if key.startswith("preco_"):
             id_produto = key.split("_")[1]
@@ -52,8 +57,11 @@ def salvar_precos(id_cliente):
                     cursor.execute("UPDATE tabela_precos SET preco_venda=%s WHERE id=%s", (valor, existe['id']))
                 else:
                     cursor.execute("INSERT INTO tabela_precos (id_cliente, id_produto, preco_venda) VALUES (%s, %s, %s)", (id_cliente, id_produto, valor))
+                qtd_alterados += 1
     conn.commit()
     conn.close()
+    log_action('update', entity_type='tabela_precos_cliente', entity_id=int(id_cliente),
+               descricao=f"Atualizou tabela de preços do cliente '{nome_cli}': {qtd_alterados} produto(s)")
     flash("Tabela de preços atualizada!", "success")
     return redirect(url_for('vendas.negociar', id_cliente=id_cliente))
 
@@ -168,7 +176,8 @@ def salvar_pedido():
         conn.close()
         return redirect(url_for('vendas.fazer_pedido', id_cliente=id_cliente))
 
-    if id_pedido:
+    is_update = bool(id_pedido)
+    if is_update:
         cursor.execute("UPDATE pedidos SET data_inicio=%s, data_fim=%s, codigo_fatura=%s WHERE id=%s", (data_inicio, data_fim, codigo_fatura, id_pedido))
         cursor.execute("DELETE FROM itens_pedido WHERE id_pedido=%s", (id_pedido,))
         p_id = id_pedido
@@ -178,9 +187,19 @@ def salvar_pedido():
 
     for item in itens_para_salvar:
         cursor.execute("INSERT INTO itens_pedido (id_pedido, id_produto, quantidade, preco_praticado) VALUES (%s, %s, %s, %s)", (p_id, item[0], item[1], item[2]))
-    
+
+    # Busca nome do cliente para descricao mais util
+    cursor.execute("SELECT nome_empresa FROM clientes WHERE id=%s", (id_cliente,))
+    cli = cursor.fetchone()
+    nome_cli = cli['nome_empresa'] if cli else f'#{id_cliente}'
+
     conn.commit()
     conn.close()
+
+    log_action('update' if is_update else 'create', entity_type='fatura', entity_id=int(p_id),
+               descricao=f"{'Editou' if is_update else 'Criou'} fatura #{codigo_fatura} cliente '{nome_cli}': "
+                         f"{len(itens_para_salvar)} itens, total R${total_pedido:.2f}, "
+                         f"período {data_inicio} a {data_fim}")
     flash("✅ Fatura salva!", "success")
     return redirect(url_for('home'))
 
@@ -198,7 +217,7 @@ def editar_data_pagamento(id_pedido):
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, status, codigo_fatura FROM pedidos WHERE id = %s", (id_pedido,))
+    cursor.execute("SELECT id, status, codigo_fatura, DATE_FORMAT(data_pagamento,'%d/%m/%Y') AS pagamento_atual FROM pedidos WHERE id = %s", (id_pedido,))
     pedido = cursor.fetchone()
     if not pedido:
         conn.close()
@@ -212,6 +231,10 @@ def editar_data_pagamento(id_pedido):
     cursor.execute("UPDATE pedidos SET data_pagamento = %s WHERE id = %s", (nova_data, id_pedido))
     conn.commit()
     conn.close()
+
+    log_action('update', entity_type='fatura', entity_id=int(id_pedido),
+               descricao=f"Ajustou data de pagamento da fatura #{pedido['codigo_fatura']}: "
+                         f"{pedido.get('pagamento_atual') or 'NULL'}→{nova_data}")
     flash(f"Data de pagamento da fatura #{pedido['codigo_fatura']} atualizada.", "success")
     return redirect(url_for('home'))
 
@@ -226,7 +249,7 @@ def mudar_status(id_pedido, novo_status):
     # sair de 'Pago' para qualquer outro status (estornar recebimento) é
     # restrito a admin. Outras transições continuam liberadas para qualquer
     # usuário autenticado.
-    cursor.execute("SELECT status FROM pedidos WHERE id = %s", (id_pedido,))
+    cursor.execute("SELECT status, codigo_fatura FROM pedidos WHERE id = %s", (id_pedido,))
     atual = cursor.fetchone()
     if not atual:
         conn.close()
@@ -251,6 +274,9 @@ def mudar_status(id_pedido, novo_status):
         )
     conn.commit()
     conn.close()
+
+    log_action('update', entity_type='fatura', entity_id=int(id_pedido),
+               descricao=f"Fatura #{atual['codigo_fatura']}: status {atual['status']}→{novo_status}")
     flash(f"Status da fatura #{id_pedido} atualizado!", "success")
     return redirect(url_for('home'))
 
@@ -259,10 +285,16 @@ def mudar_status(id_pedido, novo_status):
 def excluir_pedido(id_pedido):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT codigo_fatura, status FROM pedidos WHERE id = %s", (id_pedido,))
+    ped = cursor.fetchone() or {}
+    codigo = ped.get('codigo_fatura') or f'#{id_pedido}'
+    status = ped.get('status') or '—'
     try:
         cursor.execute("DELETE FROM itens_pedido WHERE id_pedido = %s", (id_pedido,))
         cursor.execute("DELETE FROM pedidos WHERE id = %s", (id_pedido,))
         conn.commit()
+        log_action('delete', entity_type='fatura', entity_id=int(id_pedido),
+                   descricao=f"Excluiu fatura #{codigo} (status {status})")
         flash(f"Pedido #{id_pedido} excluído com sucesso.", "success")
     except Exception as e:
         conn.rollback()
@@ -275,18 +307,24 @@ def excluir_pedido(id_pedido):
 @login_required
 def salvar_nf(id_pedido):
     numero_nf = request.form.get("numero_nf", "").strip()
-    
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT codigo_fatura, numero_nf FROM pedidos WHERE id = %s", (id_pedido,))
+    ped = cursor.fetchone() or {}
+    codigo = ped.get('codigo_fatura') or f'#{id_pedido}'
+    nf_antiga = ped.get('numero_nf') or 'NULL'
     cursor.execute("UPDATE pedidos SET numero_nf = %s WHERE id = %s", (numero_nf if numero_nf else None, id_pedido))
     conn.commit()
     conn.close()
-    
+
+    log_action('update', entity_type='fatura', entity_id=int(id_pedido),
+               descricao=f"Fatura #{codigo}: NF {nf_antiga}→{numero_nf or 'NULL'}")
     if numero_nf:
         flash(f"Nota Fiscal {numero_nf} vinculada à fatura #{id_pedido}!", "success")
     else:
         flash(f"Nota Fiscal removida da fatura #{id_pedido}.", "info")
-        
+
     return redirect(url_for('home'))
 
 # ==============================================================================

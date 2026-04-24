@@ -27,6 +27,48 @@ def _client_ip():
     return request.remote_addr or ''
 
 
+def _trunc(s, n):
+    s = str(s) if s is not None else 'NULL'
+    return s if len(s) <= n else s[:n - 1] + '…'
+
+
+def format_field_diff(antes, depois, *, campos_ignore=None, max_fields=8, max_len=60):
+    """Compara dois dicts e retorna texto 'campo: antes→depois; ...'.
+
+    Usado para gerar descrições humanas em logs de UPDATE, mostrando só os
+    campos que realmente mudaram.
+
+    Args:
+        antes: dict com estado anterior (ex: SELECT antes do UPDATE)
+        depois: dict com estado novo (ex: valores do form ou novo estado)
+        campos_ignore: iterable de chaves a pular (ex: 'senha_hash', 'id')
+        max_fields: máximo de campos na descrição (limita tamanho total)
+        max_len: máximo de chars por valor individual
+    """
+    campos_ignore = set(campos_ignore or [])
+    mudancas = []
+    chaves = set((antes or {}).keys()) | set((depois or {}).keys())
+    for k in sorted(chaves):
+        if k in campos_ignore:
+            continue
+        va = (antes or {}).get(k)
+        vd = (depois or {}).get(k)
+        # Normaliza para permitir comparar string vs número etc
+        if va is None and vd is None:
+            continue
+        if va == vd:
+            continue
+        if str(va) == str(vd):
+            continue
+        mudancas.append(f"{k}: {_trunc(va, max_len)}→{_trunc(vd, max_len)}")
+        if len(mudancas) >= max_fields:
+            mudancas.append('…')
+            break
+    if not mudancas:
+        return "(sem alterações)"
+    return "; ".join(mudancas)
+
+
 def log_action(action_type, entity_type=None, entity_id=None, descricao=None):
     """Registra uma ação no audit_log.
 

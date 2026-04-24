@@ -49,17 +49,6 @@ apt install -y python3 python3-pip python3-venv git nginx \
   libxrender1 libxext6 libfontconfig1
 ```
 
-### Instalar wkhtmltopdf (versão com Qt patches)
-
-```bash
-wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.jammy_amd64.deb
-apt install -y ./wkhtmltox_0.12.6.1-3.jammy_amd64.deb
-rm wkhtmltox_0.12.6.1-3.jammy_amd64.deb
-
-# Verificar instalação:
-wkhtmltopdf --version
-```
-
 ### Configurar firewall
 
 ```bash

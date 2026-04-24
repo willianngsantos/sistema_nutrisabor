@@ -351,14 +351,9 @@
             </select>
         </form>
 
-        <a href="{{ url_for('colaboradores.download_recibo_vt', id_colab=colab['id'], mes=mes, ano=ano) }}"
-           class="btn btn-sm btn-dark rounded-pill px-4 ms-auto"
-           download>
-            <i class="bi bi-download me-1"></i> Baixar PDF
-        </a>
-        <button onclick="window.print()" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
-                title="Imprimir manualmente">
-            <i class="bi bi-printer"></i>
+        <button onclick="window.print()" class="btn btn-sm btn-dark rounded-pill px-4 ms-auto"
+                title="Imprimir ou salvar como PDF">
+            <i class="bi bi-printer me-1"></i> Imprimir / Salvar PDF
         </button>
     </div>
 

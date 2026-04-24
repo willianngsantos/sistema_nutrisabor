@@ -1,41 +1,9 @@
-import os
-import re
 from datetime import date, datetime
 from functools import wraps
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, make_response, current_app, jsonify)
+                   url_for, flash, jsonify)
 from flask_login import login_required, current_user
 from database import get_db_connection
-import pdfkit
-
-# ── wkhtmltopdf ───────────────────────────────────────────────────────────────
-def _pdfkit_config():
-    for c in ['/opt/homebrew/bin/wkhtmltopdf',
-              '/usr/local/bin/wkhtmltopdf',
-              '/usr/bin/wkhtmltopdf']:
-        if os.path.isfile(c):
-            return pdfkit.configuration(wkhtmltopdf=c)
-    return None
-
-def _fix_static_paths(html):
-    static_dir = os.path.join(current_app.root_path, 'static')
-    return html.replace('/static/', f'file://{static_dir}/')
-
-_PDF_OPTIONS = {
-    'page-size':                'A4',
-    'margin-top':               '0mm',
-    'margin-right':             '0mm',
-    'margin-bottom':            '0mm',
-    'margin-left':              '0mm',
-    'encoding':                 'UTF-8',
-    'print-media-type':         None,
-    'no-outline':               None,
-    'disable-smart-shrinking':  None,
-    'quiet':                    None,
-    'load-error-handling':      'ignore',
-    'load-media-error-handling':'ignore',
-    'enable-local-file-access': None,
-}
 
 # ── Blueprint ─────────────────────────────────────────────────────────────────
 propostas_bp = Blueprint('propostas', __name__)
@@ -380,54 +348,6 @@ def ver(id_proposta):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  DOWNLOAD PDF
+#  (rota /propostas/pdf/<id> removida: usar 'Imprimir / Salvar PDF' na tela de
+#  visualização (propostas.ver) que gera PDF via dialogo nativo do navegador)
 # ─────────────────────────────────────────────────────────────────────────────
-@propostas_bp.route('/propostas/pdf/<int:id_proposta>')
-@login_required
-@admin_required
-def download_pdf(id_proposta):
-    conn = get_db_connection()
-    cur  = conn.cursor(dictionary=True)
-    cur.execute("""
-        SELECT p.*, c.nome_empresa, c.cnpj, c.email, c.celular, c.apelido
-        FROM propostas p
-        JOIN clientes c ON c.id = p.id_cliente
-        WHERE p.id = %s
-    """, (id_proposta,))
-    proposta = cur.fetchone()
-    if not proposta:
-        flash("Proposta não encontrada.", "warning")
-        conn.close()
-        return redirect(url_for('propostas.listar'))
-
-    cur.execute("""
-        SELECT *, (quantidade * valor_unitario) AS subtotal
-        FROM proposta_itens WHERE id_proposta = %s ORDER BY id
-    """, (id_proposta,))
-    itens = cur.fetchall()
-    conn.close()
-
-    total = sum(float(i['subtotal'] or 0) for i in itens)
-    empresa = _get_empresa()
-
-    try:
-        html = render_template('proposta_pdf.html',
-                               proposta=proposta, itens=itens,
-                               total=total, empresa=empresa,
-                               modo='pdf')
-        html = _fix_static_paths(html)
-
-        nome_limpo  = re.sub(r'[^\w\s-]', '', proposta['nome_empresa']).strip().replace(' ', '_')
-        nome_arquivo = f"Proposta_{proposta['numero']}_{nome_limpo}.pdf"
-
-        cfg = _pdfkit_config()
-        pdf = pdfkit.from_string(html, False,
-                                 options=_PDF_OPTIONS,
-                                 configuration=cfg if cfg else pdfkit.configuration())
-        response = make_response(pdf)
-        response.headers['Content-Type']        = 'application/octet-stream'
-        response.headers['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
-        return response
-    except Exception as e:
-        flash(f"Erro ao gerar PDF: {e}. Verifique se o wkhtmltopdf está instalado.", "danger")
-        return redirect(url_for('propostas.ver', id_proposta=id_proposta))

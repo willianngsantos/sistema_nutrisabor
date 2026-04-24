@@ -12,7 +12,7 @@ O **Sistema NutriSabor** é uma aplicação web construída em **Python/Flask** 
 - Banco de dados: MySQL (via `mysql-connector-python` com connection pool)
 - Autenticação: Flask-Login 0.6.3 + Werkzeug (bcrypt hash)
 - Frontend: Bootstrap 5 + Bootstrap Icons
-- PDF: pdfkit (depende do `wkhtmltopdf` instalado no OS)
+- PDF: gerado pelo diálogo de impressão do navegador (`window.print` → "Salvar como PDF"), sem dependência de binário externo
 
 ---
 
@@ -36,7 +36,7 @@ O **Sistema NutriSabor** é uma aplicação web construída em **Python/Flask** 
 - Criação e edição de pedidos/faturas com itens
 - Sistema de preço inteligente: prioridade **Cliente → Grupo → Padrão**
 - Fluxo de status: `Pendente → Aprovado → Pago`
-- Geração de PDF das faturas (via pdfkit/wkhtmltopdf)
+- Impressão/exportação PDF da fatura via diálogo do navegador
 - Vinculação de Nota Fiscal (NF) às faturas
 - Relatórios com filtro por período, cliente e status
 - Código de fatura automático por quinzena

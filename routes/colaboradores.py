@@ -1,37 +1,8 @@
-import os
 from datetime import date
 from functools import wraps
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from database import get_db_connection
-import pdfkit
-
-def _pdfkit_config():
-    for c in ['/opt/homebrew/bin/wkhtmltopdf', '/usr/local/bin/wkhtmltopdf', '/usr/bin/wkhtmltopdf']:
-        if os.path.isfile(c):
-            return pdfkit.configuration(wkhtmltopdf=c)
-    return None
-
-def _fix_static_paths(html):
-    """Converte /static/ para file:// absoluto para o wkhtmltopdf carregar assets locais."""
-    static_dir = os.path.join(current_app.root_path, 'static')
-    return html.replace('/static/', f'file://{static_dir}/')
-
-_PDF_OPTIONS_VT = {
-    'page-size':               'A4',
-    'margin-top':              '0mm',
-    'margin-right':            '0mm',
-    'margin-bottom':           '0mm',
-    'margin-left':             '0mm',
-    'encoding':                'UTF-8',
-    'print-media-type':        None,
-    'no-outline':              None,
-    'disable-smart-shrinking': None,
-    'quiet':                   None,
-    'load-error-handling':     'ignore',
-    'load-media-error-handling': 'ignore',
-    'enable-local-file-access': None,
-}
 
 colaboradores_bp = Blueprint('colaboradores', __name__)
 
@@ -298,69 +269,6 @@ def recibo_vt(id_colab):
         periodo=periodo,
         MESES=MESES_PT,
     )
-
-
-# ──────────────────────────────────────────────
-# DOWNLOAD PDF — RECIBO VT INDIVIDUAL
-# ──────────────────────────────────────────────
-
-@colaboradores_bp.route("/recibo_vt/pdf/<int:id_colab>")
-@login_required
-@admin_required
-def download_recibo_vt(id_colab):
-    hoje = date.today()
-    try:
-        mes = int(request.args.get('mes', hoje.month))
-        ano = int(request.args.get('ano', hoje.year))
-        if not (1 <= mes <= 12):
-            mes = hoje.month
-    except ValueError:
-        mes, ano = hoje.month, hoje.year
-
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("""
-        SELECT col.id, col.nome, col.funcao, col.recebe_vt,
-               col.vale_transporte, col.vale_refeicao, col.diversos,
-               GROUP_CONCAT(c.nome_empresa ORDER BY c.nome_empresa SEPARATOR ', ') AS unidades
-        FROM colaboradores col
-        LEFT JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
-        LEFT JOIN clientes c ON cu.id_cliente = c.id
-        WHERE col.id = %s
-        GROUP BY col.id
-    """, (id_colab,))
-    colab = cursor.fetchone()
-
-    if not colab or not colab.get('recebe_vt'):
-        conn.close()
-        flash("Colaborador não encontrado ou não recebe VT.", "warning")
-        return redirect(url_for('colaboradores.listar'))
-
-    cursor2 = conn.cursor(dictionary=True)
-    cursor2.execute("SELECT * FROM empresa WHERE id = 1")
-    empresa = cursor2.fetchone()
-    conn.close()
-
-    periodo = f"{MESES_PT[mes - 1]}/{ano}"
-    html = render_template("recibo_vt.html", colab=colab, empresa=empresa,
-                           mes=mes, ano=ano, periodo=periodo, MESES=MESES_PT)
-    html = _fix_static_paths(html)   # resolve logo para wkhtmltopdf
-
-    nome_limpo = "".join(x for x in colab['nome'] if x.isalnum() or x in " _-").strip().replace(" ", "_")
-    nome_arquivo = f"Recibo_VT_{nome_limpo}_{MESES_PT[mes-1]}_{ano}.pdf"
-
-    try:
-        cfg = _pdfkit_config()
-        pdf = pdfkit.from_string(html, False, options=_PDF_OPTIONS_VT,
-                                 configuration=cfg if cfg else pdfkit.configuration())
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/octet-stream'
-        response.headers['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
-        return response
-    except Exception as e:
-        flash(f"Erro ao gerar PDF: {e}. Verifique se o wkhtmltopdf está instalado.", "danger")
-        return redirect(url_for('colaboradores.recibo_vt', id_colab=id_colab, mes=mes, ano=ano))
 
 
 # ──────────────────────────────────────────────

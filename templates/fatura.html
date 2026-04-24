@@ -41,12 +41,36 @@
         .stamp-paid { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); font-size: 6rem; font-weight: 900; color: #27ae60; border: 8px solid #27ae60; padding: 10px 50px; border-radius: 15px; opacity: 0.15; text-transform: uppercase; pointer-events: none; z-index: 0; }
         @page { size: A4; margin: 0; }
         @media print {
-            body { background: white; margin: 0; padding: 0; }
+            html, body { margin: 0 !important; padding: 0 !important; height: auto !important; background: white; }
             .no-print { display: none !important; }
-            .page { box-shadow: none; margin: 0; width: 100%; border: none; min-height: unset !important; }
-            .content-wrap { padding: 12mm 15mm 4mm 15mm; }
-            .page-footer { padding-bottom: 4mm !important; }
-            .top-bar, .pix-tag { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            /* zera min-height e height para evitar pagina 2 em branco
+               quando o conteudo chega proximo ao limite do A4 */
+            .page {
+                box-shadow: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                border: none !important;
+                min-height: 0 !important;
+                height: auto !important;
+                page-break-after: avoid !important;
+            }
+            .content-wrap { padding: 12mm 15mm 2mm 15mm !important; }
+            .page-footer { padding: 6px 0 0 0 !important; }
+            /* garante que o bloco final (dados bancarios | valor total) fique
+               side-by-side tambem no Safari/Chrome print, nao so no wkhtmltopdf */
+            .bottom-section {
+                display: flex !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                page-break-inside: avoid !important;
+            }
+            .bottom-section .payment-info { flex: 0 0 58% !important; max-width: 58% !important; }
+            .bottom-section .total-block  { flex: 0 0 40% !important; max-width: 40% !important; text-align: right; }
+            .top-bar, .pix-tag, .stamp-paid {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         }
         /* 📱 AJUSTE PARA TELA DE CELULAR (Não afeta a impressão) */
         @media screen and (max-width: 768px) {
@@ -76,17 +100,10 @@
 
             <span class="text-muted border-start ps-3 small">Visualização de {{ nome_documento | title }}</span>
 
-            <!-- Download direto via pdfkit (recomendado) -->
-            <a href="{{ url_for('vendas.baixar_pdf', id_pedido=pedido['id']) }}"
-               class="btn btn-sm btn-dark rounded-pill px-4 ms-2"
-               download>
-                <i class="bi bi-download me-1"></i> Baixar PDF
-            </a>
-
-            <!-- Imprimir (fallback manual) -->
-            <button onclick="window.print()" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
-                    title="Imprimir / Salvar manualmente">
-                <i class="bi bi-printer"></i>
+            <!-- Imprimir / Salvar como PDF via dialogo do navegador -->
+            <button onclick="window.print()" class="btn btn-sm btn-dark rounded-pill px-4 ms-2"
+                    title="Imprimir ou salvar como PDF">
+                <i class="bi bi-printer me-1"></i> Imprimir / Salvar PDF
             </button>
 
             {% if cliente['celular'] %}

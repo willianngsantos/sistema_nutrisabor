@@ -168,11 +168,6 @@
                                     <a href="{{ url_for('vendas.ver_fatura', id_pedido=ped.id) }}" class="btn btn-sm btn-light border" title="Ver / Enviar WhatsApp">
                                         <i class="bi bi-whatsapp text-success me-1"></i> Ver/Enviar
                                     </a>
-                                    <a href="{{ url_for('vendas.baixar_pdf', id_pedido=ped.id) }}"
-                                       class="btn btn-sm btn-light border" title="Baixar PDF"
-                                       download>
-                                        <i class="bi bi-download text-dark"></i>
-                                    </a>
 
                                     {% if ped.status == 'Pendente' or not ped.status %}
                                         <a href="{{ url_for('vendas.fazer_pedido', id_pedido=ped.id) }}" class="btn btn-sm btn-outline-warning" title="Editar">
@@ -227,7 +222,6 @@
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width:190px;">
                                         <li><a class="dropdown-item small" href="{{ url_for('vendas.ver_fatura', id_pedido=ped.id) }}"><i class="bi bi-whatsapp text-success me-2"></i>Ver / Enviar</a></li>
-                                        <li><a class="dropdown-item small" href="{{ url_for('vendas.baixar_pdf', id_pedido=ped.id) }}" download><i class="bi bi-download me-2"></i>Baixar PDF</a></li>
                                         {% if ped.status == 'Pendente' or not ped.status %}
                                         <li><hr class="dropdown-divider my-1"></li>
                                         <li><a class="dropdown-item small" href="{{ url_for('vendas.fazer_pedido', id_pedido=ped.id) }}"><i class="bi bi-pencil text-warning me-2"></i>Editar</a></li>

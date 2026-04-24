@@ -1,42 +1,7 @@
-import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required
 from database import get_db_connection
 from datetime import datetime
-import pdfkit
-
-# ── Detecta o caminho do wkhtmltopdf automaticamente (macOS Intel / Apple Silicon / Linux)
-def _pdfkit_config():
-    caminhos = [
-        '/opt/homebrew/bin/wkhtmltopdf',   # macOS Apple Silicon
-        '/usr/local/bin/wkhtmltopdf',       # macOS Intel / Linux
-        '/usr/bin/wkhtmltopdf',             # Linux apt
-    ]
-    for c in caminhos:
-        if os.path.isfile(c):
-            return pdfkit.configuration(wkhtmltopdf=c)
-    return None
-
-_PDF_OPTIONS = {
-    'page-size':               'A4',
-    'margin-top':              '0mm',
-    'margin-right':            '0mm',
-    'margin-bottom':           '0mm',
-    'margin-left':             '0mm',
-    'encoding':                'UTF-8',
-    'print-media-type':        None,   # respeita @media print (oculta .no-print)
-    'no-outline':              None,
-    'disable-smart-shrinking': None,
-    'quiet':                   None,
-    'load-error-handling':     'ignore',       # ignora falhas de CDN/SSL
-    'load-media-error-handling': 'ignore',
-    'enable-local-file-access': None,          # permite carregar file:// locais
-}
-
-def _fix_static_paths(html):
-    """Substitui /static/ por file:// absoluto para wkhtmltopdf achar os assets locais."""
-    static_dir = os.path.join(current_app.root_path, 'static')
-    return html.replace('/static/', f'file://{static_dir}/')
 
 vendas_bp = Blueprint('vendas', __name__)
 
@@ -274,65 +239,9 @@ def salvar_nf(id_pedido):
     return redirect(url_for('home'))
 
 # ==============================================================================
-# ROTA DE PDF E VISUALIZAÇÃO
+# VISUALIZAÇÃO DA FATURA (para salvar como PDF, usar o botão 'Imprimir' na
+# tela de visualização e escolher 'Salvar como PDF' no diálogo do navegador)
 # ==============================================================================
-@vendas_bp.route("/fatura/pdf/<int:id_pedido>")
-@login_required
-def baixar_pdf(id_pedido):
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-
-    cursor.execute("""
-        SELECT id, id_cliente, DATE_FORMAT(data_emissao, '%d/%m/%Y') as emissao,
-               DATE_FORMAT(data_inicio, '%d/%m/%Y') as inicio, DATE_FORMAT(data_fim, '%d/%m/%Y') as fim,
-               DATE_FORMAT(data_pagamento, '%d/%m/%Y') as pagamento,
-               codigo_fatura, status, numero_nf
-        FROM pedidos WHERE id = %s""", (id_pedido,))
-    pedido = cursor.fetchone()
-
-    cursor.execute("SELECT id, nome_empresa, cnpj, email, celular, id_grupo, apelido FROM clientes WHERE id = %s", (pedido['id_cliente'],))
-    cliente = cursor.fetchone()
-
-    grupo_info = None
-    if cliente and cliente['id_grupo']:
-        cursor.execute("SELECT chave_pix, pix_nome, pix_banco FROM grupos_clientes WHERE id = %s", (cliente['id_grupo'],))
-        grupo_info = cursor.fetchone()
-
-    cursor.execute("""
-        SELECT prod.nome, prod.unidade, i.quantidade, i.preco_praticado, (i.quantidade * i.preco_praticado) as subtotal
-        FROM itens_pedido i JOIN produtos prod ON i.id_produto = prod.id
-        WHERE i.id_pedido = %s""", (id_pedido,))
-    itens = cursor.fetchall()
-
-    cursor.execute("SELECT * FROM empresa WHERE id = 1")
-    empresa = cursor.fetchone()
-    conn.close()
-
-    total = sum(item['subtotal'] for item in itens)
-    total_whatsapp = f"R$ {total:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-    html = render_template("fatura.html", pedido=pedido, cliente=cliente, itens=itens,
-                           empresa=empresa, total_geral=total, total_whatsapp=total_whatsapp,
-                           grupo_info=grupo_info)
-    html = _fix_static_paths(html)   # resolve logo e assets locais para wkhtmltopdf
-
-    nome_doc = 'RESUMO' if pedido['status'] == 'Pendente' else 'FATURA'
-    nome_cliente_arquivo = cliente['apelido'] if cliente['apelido'] else cliente['nome_empresa']
-    nome_cliente_limpo = "".join(x for x in nome_cliente_arquivo if x.isalnum() or x in " _-").strip().replace(" ", "_")
-    nome_arquivo_final = f"{nome_doc}_{nome_cliente_limpo}_Ref{pedido['codigo_fatura']}.pdf"
-
-    try:
-        cfg = _pdfkit_config()
-        pdf = pdfkit.from_string(html, False, options=_PDF_OPTIONS,
-                                 configuration=cfg if cfg else pdfkit.configuration())
-        response = make_response(pdf)
-        response.headers['Content-Type'] = 'application/octet-stream'
-        response.headers['Content-Disposition'] = f'attachment; filename="{nome_arquivo_final}"'
-        return response
-    except Exception as e:
-        flash(f"Erro ao gerar PDF: {e}. Verifique se o wkhtmltopdf está instalado.", "danger")
-        return redirect(url_for('vendas.ver_fatura', id_pedido=id_pedido))
-
 @vendas_bp.route("/fatura/<int:id_pedido>")
 @login_required
 def ver_fatura(id_pedido):

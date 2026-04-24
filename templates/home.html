@@ -167,6 +167,7 @@
                             <td class="small d-none d-md-table-cell">
                                 {% if ped.status == 'Pago' and ped.data_pagamento_fmt %}
                                     <span class="text-success fw-semibold"><i class="bi bi-check2-circle me-1"></i>{{ ped.data_pagamento_fmt }}</span>
+                                    {% if current_user.tipo == 'admin' %}
                                     <button type="button"
                                             class="btn btn-link btn-sm p-0 ms-1 text-muted align-baseline"
                                             data-bs-toggle="modal"
@@ -177,6 +178,7 @@
                                             title="Ajustar data de pagamento">
                                         <i class="bi bi-pencil-square"></i>
                                     </button>
+                                    {% endif %}
                                 {% else %}
                                     <span class="text-muted">—</span>
                                 {% endif %}
@@ -225,12 +227,14 @@
                                         <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}" title="Editar Nota Fiscal">
                                             <i class="bi bi-file-earmark-text"></i> NF
                                         </button>
+                                        {% if current_user.tipo == 'admin' %}
                                         <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}" style="display:inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Estornar Recebimento">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Estornar Recebimento (só admin)">
                                                 <i class="bi bi-arrow-counterclockwise"></i>
                                             </button>
                                         </form>
+                                        {% endif %}
                                     {% endif %}
                                 </div>
 
@@ -275,12 +279,14 @@
                                         {% elif ped.status == 'Pago' %}
                                         <li><hr class="dropdown-divider my-1"></li>
                                         <li><a class="dropdown-item small" href="#" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}"><i class="bi bi-file-earmark-text me-2"></i>Nota Fiscal</a></li>
+                                        {% if current_user.tipo == 'admin' %}
                                         <li>
                                             <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Aprovado') }}">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <button type="submit" class="dropdown-item small"><i class="bi bi-arrow-counterclockwise me-2"></i>Estornar</button>
                                             </form>
                                         </li>
+                                        {% endif %}
                                         {% endif %}
                                     </ul>
                                 </div>

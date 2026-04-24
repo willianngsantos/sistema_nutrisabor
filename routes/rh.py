@@ -1,12 +1,12 @@
 import os
 from datetime import date, datetime
 from calendar import monthrange
-from functools import wraps
 from werkzeug.utils import secure_filename
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, current_app)
 from flask_login import login_required, current_user
 from database import get_db_connection
+from utils.permissions import admin_only
 
 rh_bp = Blueprint('rh', __name__)
 
@@ -23,17 +23,6 @@ DIAS_SEMANA_LABELS = {
     'seg': 'Seg', 'ter': 'Ter', 'qua': 'Qua',
     'qui': 'Qui', 'sex': 'Sex', 'sab': 'Sáb', 'dom': 'Dom'
 }
-
-
-# ─── GUARDS ───────────────────────────────────────────────────────
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if current_user.tipo not in ['admin', 'gerencial']:
-            flash("Acesso restrito.", "danger")
-            return redirect(url_for('home'))
-        return f(*args, **kwargs)
-    return decorated
 
 
 # ─── HELPERS ──────────────────────────────────────────────────────
@@ -62,7 +51,7 @@ def _fmt_date(d):
 # ══════════════════════════════════════════════════════════════════
 @rh_bp.route("/rh")
 @login_required
-@admin_required
+@admin_only
 def hub():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -144,7 +133,7 @@ def hub():
 # ══════════════════════════════════════════════════════════════════
 @rh_bp.route("/rh/exames")
 @login_required
-@admin_required
+@admin_only
 def exames():
     filtro_colab = request.args.get('colab_id', '')
     conn = get_db_connection()
@@ -179,7 +168,7 @@ def exames():
 
 @rh_bp.route("/rh/exames/add", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def add_exame():
     id_colab    = request.form.get('id_colaborador')
     tipo        = request.form.get('tipo')
@@ -218,7 +207,7 @@ def add_exame():
 
 @rh_bp.route("/rh/exames/editar", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def editar_exame():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -242,7 +231,7 @@ def editar_exame():
 
 @rh_bp.route("/rh/exames/excluir/<int:id_exame>", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def excluir_exame(id_exame):
     conn = get_db_connection()
     conn.cursor(dictionary=True).execute("DELETE FROM rh_exames WHERE id = %s", (id_exame,))
@@ -257,7 +246,7 @@ def excluir_exame(id_exame):
 # ══════════════════════════════════════════════════════════════════
 @rh_bp.route("/rh/reajuste")
 @login_required
-@admin_required
+@admin_only
 def reajuste():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -276,7 +265,7 @@ def reajuste():
 
 @rh_bp.route("/rh/reajuste/aplicar", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def aplicar_reajuste():
     tipo = request.form.get('tipo')
     motivo = request.form.get('motivo', '').strip()
@@ -323,7 +312,7 @@ def aplicar_reajuste():
 # ══════════════════════════════════════════════════════════════════
 @rh_bp.route("/rh/documentos")
 @login_required
-@admin_required
+@admin_only
 def documentos():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -341,7 +330,7 @@ def documentos():
 
 @rh_bp.route("/rh/documentos/upload", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def upload_documento():
     arquivo = request.files.get('arquivo')
     arquivo_path = None
@@ -371,7 +360,7 @@ def upload_documento():
 
 @rh_bp.route("/rh/documentos/excluir/<int:id_doc>", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def excluir_documento(id_doc):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -393,7 +382,7 @@ def excluir_documento(id_doc):
 # ══════════════════════════════════════════════════════════════════
 @rh_bp.route("/rh/jornadas")
 @login_required
-@admin_required
+@admin_only
 def jornadas():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -406,7 +395,7 @@ def jornadas():
 
 @rh_bp.route("/rh/jornadas/add", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def add_jornada():
     dias = ','.join(request.form.getlist('dias_semana'))
     conn = get_db_connection()
@@ -428,7 +417,7 @@ def add_jornada():
 
 @rh_bp.route("/rh/jornadas/editar", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def editar_jornada():
     dias = ','.join(request.form.getlist('dias_semana'))
     conn = get_db_connection()
@@ -452,7 +441,7 @@ def editar_jornada():
 
 @rh_bp.route("/rh/jornadas/excluir/<int:id_jornada>", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def excluir_jornada(id_jornada):
     conn = get_db_connection()
     conn.cursor(dictionary=True).execute("DELETE FROM rh_jornadas WHERE id = %s", (id_jornada,))
@@ -467,7 +456,7 @@ def excluir_jornada(id_jornada):
 # ══════════════════════════════════════════════════════════════════
 @rh_bp.route("/rh/ferias")
 @login_required
-@admin_required
+@admin_only
 def ferias():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -490,7 +479,7 @@ def ferias():
 
 @rh_bp.route("/rh/ferias/add", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def add_ferias():
     data_inicio = request.form.get('data_inicio')
     data_fim = request.form.get('data_fim')
@@ -516,7 +505,7 @@ def add_ferias():
 
 @rh_bp.route("/rh/ferias/status/<int:id_ferias>/<string:novo_status>", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def status_ferias(id_ferias, novo_status):
     if novo_status not in {'agendado', 'em_andamento', 'concluido', 'cancelado'}:
         flash("Status inválido.", "danger")
@@ -531,7 +520,7 @@ def status_ferias(id_ferias, novo_status):
 
 @rh_bp.route("/rh/ferias/excluir/<int:id_ferias>", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def excluir_ferias(id_ferias):
     conn = get_db_connection()
     conn.cursor(dictionary=True).execute("DELETE FROM rh_ferias WHERE id=%s", (id_ferias,))
@@ -546,7 +535,7 @@ def excluir_ferias(id_ferias):
 # ══════════════════════════════════════════════════════════════════
 @rh_bp.route("/rh/ponto")
 @login_required
-@admin_required
+@admin_only
 def ponto():
     hoje = date.today()
     try:
@@ -575,7 +564,7 @@ def ponto():
 
 @rh_bp.route("/rh/ponto/registrar", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def registrar_ponto():
     id_colaborador = request.form.get('id_colaborador')
     mes = request.form.get('mes', date.today().month)
@@ -612,7 +601,7 @@ def registrar_ponto():
 
 @rh_bp.route("/rh/ponto/imprimir")
 @login_required
-@admin_required
+@admin_only
 def imprimir_ponto():
     """Impressão individual: formulário em branco para preenchimento manual."""
     hoje = date.today()
@@ -650,7 +639,7 @@ def imprimir_ponto():
 
 @rh_bp.route("/rh/ponto/imprimir_geral")
 @login_required
-@admin_required
+@admin_only
 def imprimir_ponto_geral():
     """Impressão geral: formulários em branco para todos os colaboradores."""
     hoje = date.today()

@@ -1,22 +1,12 @@
 from datetime import date, datetime
-from functools import wraps
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, jsonify)
 from flask_login import login_required, current_user
 from database import get_db_connection
+from utils.permissions import admin_only
 
 # ── Blueprint ─────────────────────────────────────────────────────────────────
 propostas_bp = Blueprint('propostas', __name__)
-
-# ── Decorator admin-only ──────────────────────────────────────────────────────
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if current_user.tipo not in ['admin', 'gerencial']:
-            flash("Acesso restrito.", "danger")
-            return redirect(url_for('home'))
-        return f(*args, **kwargs)
-    return decorated
 
 # ── Unidades de medida disponíveis ────────────────────────────────────────────
 UNIDADES = [
@@ -70,7 +60,7 @@ def _get_empresa():
 # ─────────────────────────────────────────────────────────────────────────────
 @propostas_bp.route('/propostas')
 @login_required
-@admin_required
+@admin_only
 def listar():
     filtro_status  = request.args.get('status', '')
     filtro_cliente = request.args.get('cliente_id', '')
@@ -134,7 +124,7 @@ def listar():
 # ─────────────────────────────────────────────────────────────────────────────
 @propostas_bp.route('/propostas/nova', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@admin_only
 def nova():
     conn = get_db_connection()
     cur  = conn.cursor(dictionary=True)
@@ -201,7 +191,7 @@ def nova():
 # ─────────────────────────────────────────────────────────────────────────────
 @propostas_bp.route('/propostas/editar/<int:id_proposta>', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@admin_only
 def editar(id_proposta):
     conn = get_db_connection()
     cur  = conn.cursor(dictionary=True)
@@ -277,7 +267,7 @@ def editar(id_proposta):
 # ─────────────────────────────────────────────────────────────────────────────
 @propostas_bp.route('/propostas/status/<int:id_proposta>', methods=['POST'])
 @login_required
-@admin_required
+@admin_only
 def atualizar_status(id_proposta):
     novo_status = request.form.get('status')
     validos = {'Rascunho', 'Enviada', 'Aceita', 'Recusada', 'Expirada'}
@@ -297,7 +287,7 @@ def atualizar_status(id_proposta):
 # ─────────────────────────────────────────────────────────────────────────────
 @propostas_bp.route('/propostas/deletar/<int:id_proposta>', methods=['POST'])
 @login_required
-@admin_required
+@admin_only
 def deletar(id_proposta):
     conn = get_db_connection()
     cur  = conn.cursor(dictionary=True)
@@ -316,7 +306,7 @@ def deletar(id_proposta):
 # ─────────────────────────────────────────────────────────────────────────────
 @propostas_bp.route('/propostas/ver/<int:id_proposta>')
 @login_required
-@admin_required
+@admin_only
 def ver(id_proposta):
     conn = get_db_connection()
     cur  = conn.cursor(dictionary=True)

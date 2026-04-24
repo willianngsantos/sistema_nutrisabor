@@ -19,9 +19,11 @@
         <p class="text-muted small mb-0">Crie categorias para aplicar tabelas de preços em lote e rotas de PIX.</p>
     </div>
     <div class="col-12 col-md-4 text-end">
+        {% if current_user.tipo == 'admin' %}
         <button class="btn btn-primary shadow-sm px-4 py-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalAddGrupo" style="background-color: #4f46e5; border-color: #4f46e5;">
             <i class="bi bi-plus-lg me-1"></i> Novo Grupo
         </button>
+        {% endif %}
     </div>
 </div>
 
@@ -76,13 +78,14 @@
                     {% endif %}
                 </td>
                 <td class="text-end pe-4">
+                    {% if current_user.tipo == 'admin' %}
                     <div class="btn-group">
                         <a href="/negociar_grupo/{{ g['id'] }}" class="btn btn-sm btn-light text-success border me-1" title="Tabela de Preços do Grupo">
                             <i class="bi bi-cash-coin"></i> Tabela
                         </a>
-                        
-                        <button class="btn btn-sm btn-light text-primary border me-1" 
-                                data-bs-toggle="modal" 
+
+                        <button class="btn btn-sm btn-light text-primary border me-1"
+                                data-bs-toggle="modal"
                                 data-bs-target="#modalEditarGrupo"
                                 data-id="{{ g['id'] }}"
                                 data-nome="{{ g['nome'] }}"
@@ -92,7 +95,7 @@
                                 title="Editar">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
-                        
+
                         <form method="POST" action="/excluir_grupo/{{ g['id'] }}"
                               style="display:inline"
                               onsubmit="return confirm('Tem certeza que deseja excluir o grupo {{ g['nome'] }}?')">
@@ -102,6 +105,9 @@
                             </button>
                         </form>
                     </div>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}

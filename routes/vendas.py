@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_required
+from flask_login import login_required, current_user
 from database import get_db_connection
 from datetime import datetime
+from utils.permissions import admin_only
 
 vendas_bp = Blueprint('vendas', __name__)
 
@@ -17,6 +18,7 @@ def gerar_codigo_quinzena(data_str):
 
 @vendas_bp.route("/negociar/<int:id_cliente>")
 @login_required
+@admin_only
 def negociar(id_cliente):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -36,6 +38,7 @@ def negociar(id_cliente):
 
 @vendas_bp.route("/salvar_precos/<int:id_cliente>", methods=["POST"])
 @login_required
+@admin_only
 def salvar_precos(id_cliente):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -183,6 +186,7 @@ def salvar_pedido():
 
 @vendas_bp.route("/fatura/editar_pagamento/<int:id_pedido>", methods=["POST"])
 @login_required
+@admin_only
 def editar_data_pagamento(id_pedido):
     """Permite ajustar manualmente a data_pagamento de uma fatura ja marcada
     como Pago (ex: usuario lembrou de marcar como paga depois da data real
@@ -217,6 +221,22 @@ def editar_data_pagamento(id_pedido):
 def mudar_status(id_pedido, novo_status):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
+    # Carrega o status atual para aplicar a regra de reversão:
+    # sair de 'Pago' para qualquer outro status (estornar recebimento) é
+    # restrito a admin. Outras transições continuam liberadas para qualquer
+    # usuário autenticado.
+    cursor.execute("SELECT status FROM pedidos WHERE id = %s", (id_pedido,))
+    atual = cursor.fetchone()
+    if not atual:
+        conn.close()
+        flash("Fatura não encontrada.", "danger")
+        return redirect(url_for('home'))
+    if atual['status'] == 'Pago' and novo_status != 'Pago' and current_user.tipo != 'admin':
+        conn.close()
+        flash("Somente administradores podem estornar uma fatura já paga.", "warning")
+        return redirect(url_for('home'))
+
     # data_pagamento: auto-preenche com CURDATE() ao marcar Pago;
     # limpa (NULL) ao sair de Pago para qualquer outro status.
     if novo_status == 'Pago':

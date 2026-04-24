@@ -1,8 +1,8 @@
 from datetime import date
-from functools import wraps
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from database import get_db_connection
+from utils.permissions import admin_only
 
 colaboradores_bp = Blueprint('colaboradores', __name__)
 
@@ -12,15 +12,6 @@ STATUS_VALIDOS = {'ativo', 'afastado', 'ferias', 'inativo'}
 # ──────────────────────────────────────────────
 # HELPERS
 # ──────────────────────────────────────────────
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if current_user.tipo not in ['admin', 'gerencial']:
-            flash("Acesso restrito.", "danger")
-            return redirect(url_for('home'))
-        return f(*args, **kwargs)
-    return decorated
 
 
 def _parse_moeda(valor_str):
@@ -46,7 +37,7 @@ def _salvar_unidades(cursor, id_colaborador, ids_clientes):
 
 @colaboradores_bp.route("/colaboradores")
 @login_required
-@admin_required
+@admin_only
 def listar():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -93,7 +84,7 @@ def listar():
 
 @colaboradores_bp.route("/add_colaborador", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def add_colaborador():
     nome          = request.form.get("nome", "").strip()
     funcao        = request.form.get("funcao", "").strip() or None
@@ -136,7 +127,7 @@ def add_colaborador():
 
 @colaboradores_bp.route("/editar_colaborador", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def editar_colaborador():
     id_colab      = request.form.get("id_colaborador")
     nome          = request.form.get("nome", "").strip()
@@ -181,7 +172,7 @@ def editar_colaborador():
 
 @colaboradores_bp.route("/status_colaborador/<int:id_colab>/<string:novo_status>", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def mudar_status(id_colab, novo_status):
     if novo_status not in STATUS_VALIDOS:
         flash("Status inválido.", "danger")
@@ -215,7 +206,7 @@ MESES_PT = [
 
 @colaboradores_bp.route("/recibo_vt/<int:id_colab>")
 @login_required
-@admin_required
+@admin_only
 def recibo_vt(id_colab):
     hoje = date.today()
 
@@ -277,7 +268,7 @@ def recibo_vt(id_colab):
 
 @colaboradores_bp.route("/recibos_vt/lote")
 @login_required
-@admin_required
+@admin_only
 def recibos_vt_lote():
     hoje = date.today()
 
@@ -380,7 +371,7 @@ def recibos_vt_lote():
 
 @colaboradores_bp.route("/excluir_colaborador/<int:id_colab>", methods=["POST"])
 @login_required
-@admin_required
+@admin_only
 def excluir_colaborador(id_colab):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)

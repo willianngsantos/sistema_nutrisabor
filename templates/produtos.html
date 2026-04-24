@@ -70,9 +70,11 @@
     </div>
 
     <div class="col-12 col-md-3 text-end">
+        {% if current_user.tipo == 'admin' %}
         <button class="btn btn-primary shadow-sm px-4 py-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalAddProduto">
             <i class="bi bi-plus-lg me-1"></i> Novo Produto
         </button>
+        {% endif %}
     </div>
 </div>
 
@@ -122,9 +124,10 @@
                     <span class="price-tag">R$ {{ "{:,.2f}".format(prod['custo_base']).replace(',', 'X').replace('.', ',').replace('X', '.') }}</span>
                 </td>
                 <td class="text-end pe-4">
+                    {% if current_user.tipo == 'admin' %}
                     <div class="btn-group">
-                        <button class="btn btn-sm btn-light text-primary border me-1" 
-                                data-bs-toggle="modal" 
+                        <button class="btn btn-sm btn-light text-primary border me-1"
+                                data-bs-toggle="modal"
                                 data-bs-target="#modalEditarProduto"
                                 data-id="{{ prod['id'] }}"
                                 data-nome="{{ prod['nome'] }}"
@@ -133,7 +136,7 @@
                                 title="Editar">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
-                        
+
                         <form method="POST" action="/excluir_produto/{{ prod['id'] }}"
                               style="display:inline"
                               onsubmit="return confirm('Tem certeza que deseja excluir {{ prod['nome'] }}?')">
@@ -143,6 +146,9 @@
                             </button>
                         </form>
                     </div>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}

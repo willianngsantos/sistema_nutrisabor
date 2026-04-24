@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from database import get_db_connection
+from utils.permissions import admin_only
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -47,6 +48,7 @@ def grupos():
 
 @cadastros_bp.route("/add_grupo", methods=["POST"])
 @login_required
+@admin_only
 def add_grupo():
     nome = request.form["nome"]
     chave_pix = request.form.get("chave_pix", "").strip()
@@ -71,6 +73,7 @@ def add_grupo():
 
 @cadastros_bp.route("/editar_grupo", methods=["POST"])
 @login_required
+@admin_only
 def editar_grupo():
     id_grupo = request.form["id_grupo"]
     nome = request.form["nome"]
@@ -98,6 +101,7 @@ def editar_grupo():
 
 @cadastros_bp.route("/excluir_grupo/<int:id_grupo>", methods=["POST"])
 @login_required
+@admin_only
 def excluir_grupo(id_grupo):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -138,6 +142,7 @@ def clientes():
 
 @cadastros_bp.route("/add_cliente", methods=["POST"])
 @login_required
+@admin_only
 def add_cliente():
     nome = request.form["nome_empresa"]
     apelido = request.form.get("apelido", "").strip()
@@ -162,6 +167,7 @@ def add_cliente():
 
 @cadastros_bp.route("/editar_cliente", methods=["POST"])
 @login_required
+@admin_only
 def editar_cliente():
     id_cliente = request.form["id_cliente"]
     nome = request.form["nome_empresa"]
@@ -212,6 +218,7 @@ def editar_cliente():
 
 @cadastros_bp.route("/toggle_unidade/<int:id_cliente>", methods=["POST"])
 @login_required
+@admin_only
 def toggle_unidade(id_cliente):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -230,6 +237,7 @@ def toggle_unidade(id_cliente):
 
 @cadastros_bp.route("/excluir_cliente/<int:id_cliente>", methods=["POST"])
 @login_required
+@admin_only
 def excluir_cliente(id_cliente):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -261,6 +269,7 @@ def produtos():
 
 @cadastros_bp.route("/add_produto", methods=["POST"])
 @login_required
+@admin_only
 def add_produto():
     nome = request.form["nome"]
     unidade = request.form["unidade"]
@@ -285,6 +294,7 @@ def add_produto():
 
 @cadastros_bp.route("/editar_produto", methods=["POST"])
 @login_required
+@admin_only
 def editar_produto():
     id_produto = request.form["id_produto"]
     nome = request.form["nome"]
@@ -310,6 +320,7 @@ def editar_produto():
 
 @cadastros_bp.route("/excluir_produto/<int:id_prod>", methods=["POST"])
 @login_required
+@admin_only
 def excluir_produto(id_prod):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -328,6 +339,7 @@ def excluir_produto(id_prod):
 # ==========================================
 @cadastros_bp.route("/negociar_grupo/<int:id_grupo>")
 @login_required
+@admin_only
 def negociar_grupo(id_grupo):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True) 
@@ -350,6 +362,7 @@ def negociar_grupo(id_grupo):
 
 @cadastros_bp.route("/salvar_precos_grupo/<int:id_grupo>", methods=["POST"])
 @login_required
+@admin_only
 def salvar_precos_grupo(id_grupo):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)

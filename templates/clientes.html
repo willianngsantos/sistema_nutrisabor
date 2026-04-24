@@ -121,9 +121,11 @@
     </div>
 
     <div class="col-12 col-md-3 text-end">
+        {% if current_user.tipo == 'admin' %}
         <button class="btn btn-primary shadow-sm px-4 py-2 rounded-pill" data-bs-toggle="modal" data-bs-target="#modalAddCliente">
             <i class="bi bi-person-plus-fill me-1"></i> Novo Cliente
         </button>
+        {% endif %}
     </div>
 </div>
 
@@ -202,6 +204,7 @@
                     </div>
                 </td>
                 <td class="text-end pe-4">
+                    {% if current_user.tipo == 'admin' %}
                     <div class="btn-group">
                         <a href="/negociar/{{ cli['id'] }}" class="btn btn-sm btn-light text-success border me-1" title="Tabela de Preços Individual">
                             <i class="bi bi-cash-coin"></i>
@@ -238,6 +241,9 @@
                             </button>
                         </form>
                     </div>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}

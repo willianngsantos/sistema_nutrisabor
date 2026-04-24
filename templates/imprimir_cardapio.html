@@ -283,16 +283,33 @@
 
         /* ── Print ── */
         @media print {
-            @page { size: landscape; margin: 10mm; }
+            @page { size: A4 landscape; margin: 8mm; }
 
-            body { background: white !important; }
+            /* zera altura do html/body e do container da pagina para evitar
+               pagina 2 em branco quando o conteudo chega proximo ao limite */
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                background: white !important;
+            }
             .action-bar { display: none !important; }
 
             .page {
-                margin: 0;
-                border-radius: 0;
-                box-shadow: none;
-                max-width: 100%;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                max-width: 100% !important;
+                min-height: 0 !important;
+                height: auto !important;
+                page-break-after: avoid !important;
+            }
+
+            /* garante que a tabela nao quebre entre paginas */
+            .table-wrap, table.menu-table, .obs-section, .page-footer {
+                page-break-inside: avoid !important;
             }
 
             .page-header,

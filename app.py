@@ -187,6 +187,7 @@ def home():
                DATE_FORMAT(p.data_emissao, '%d/%m/%Y') as data_emissao,
                DATE_FORMAT(p.data_fim, '%d/%m/%Y') as data_competencia,
                DATE_FORMAT(p.data_pagamento, '%d/%m/%Y') as data_pagamento_fmt,
+               DATE_FORMAT(p.data_pagamento, '%Y-%m-%d') as data_pagamento_iso,
                p.numero_nf
         FROM pedidos p
         JOIN clientes c ON p.id_cliente = c.id

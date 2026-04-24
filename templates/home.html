@@ -167,6 +167,16 @@
                             <td class="small d-none d-md-table-cell">
                                 {% if ped.status == 'Pago' and ped.data_pagamento_fmt %}
                                     <span class="text-success fw-semibold"><i class="bi bi-check2-circle me-1"></i>{{ ped.data_pagamento_fmt }}</span>
+                                    <button type="button"
+                                            class="btn btn-link btn-sm p-0 ms-1 text-muted align-baseline"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#modalDataPagamento"
+                                            data-id="{{ ped.id }}"
+                                            data-data="{{ ped.data_pagamento_iso }}"
+                                            data-fatura="{{ ped.codigo_fatura }}"
+                                            title="Ajustar data de pagamento">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
                                 {% else %}
                                     <span class="text-muted">—</span>
                                 {% endif %}
@@ -322,6 +332,38 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalDataPagamento" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success text-white border-0">
+                <h6 class="modal-title fw-bold"><i class="bi bi-calendar-check me-2"></i>Ajustar Data de Pagamento</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDataPagamento" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-body bg-light p-4">
+                    <div class="mb-2">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Fatura</label>
+                        <div class="fw-bold text-dark" id="labelFaturaPagamento">#</div>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label fw-bold text-secondary small text-uppercase">Data de Pagamento</label>
+                        <input type="date" name="data_pagamento" id="inputDataPagamento"
+                               class="form-control form-control-lg border-0 shadow-sm" required>
+                        <div class="form-text mt-2 small text-muted">
+                            <i class="bi bi-info-circle"></i> Use quando a fatura foi recebida em data diferente do momento em que foi marcada como Paga.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-light">
+                    <button type="button" class="btn btn-link text-decoration-none text-muted" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold shadow-sm">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalNF" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
@@ -354,15 +396,31 @@
     var modalNF = document.getElementById('modalNF');
     if (modalNF) {
         modalNF.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget; 
+            var button = event.relatedTarget;
             var pedidoId = button.getAttribute('data-id');
-            var nfAtual = button.getAttribute('data-nf'); 
-            
+            var nfAtual = button.getAttribute('data-nf');
+
             var form = document.getElementById('formNF');
             form.action = '/salvar_nf/' + pedidoId;
-            
+
             var inputNf = document.getElementById('inputNumeroNF');
             inputNf.value = nfAtual;
+        });
+    }
+
+    var modalDataPagamento = document.getElementById('modalDataPagamento');
+    if (modalDataPagamento) {
+        modalDataPagamento.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var pedidoId = button.getAttribute('data-id');
+            var dataAtual = button.getAttribute('data-data');
+            var codigoFatura = button.getAttribute('data-fatura');
+
+            var form = document.getElementById('formDataPagamento');
+            form.action = '/fatura/editar_pagamento/' + pedidoId;
+
+            document.getElementById('inputDataPagamento').value = dataAtual || '';
+            document.getElementById('labelFaturaPagamento').textContent = '#' + (codigoFatura || pedidoId);
         });
     }
 </script>

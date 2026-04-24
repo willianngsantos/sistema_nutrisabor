@@ -181,6 +181,37 @@ def salvar_pedido():
     flash("✅ Fatura salva!", "success")
     return redirect(url_for('home'))
 
+@vendas_bp.route("/fatura/editar_pagamento/<int:id_pedido>", methods=["POST"])
+@login_required
+def editar_data_pagamento(id_pedido):
+    """Permite ajustar manualmente a data_pagamento de uma fatura ja marcada
+    como Pago (ex: usuario lembrou de marcar como paga depois da data real
+    do recebimento)."""
+    nova_data = request.form.get('data_pagamento', '').strip()
+    if not nova_data:
+        flash("Informe uma data válida.", "danger")
+        return redirect(url_for('home'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT id, status, codigo_fatura FROM pedidos WHERE id = %s", (id_pedido,))
+    pedido = cursor.fetchone()
+    if not pedido:
+        conn.close()
+        flash("Fatura não encontrada.", "danger")
+        return redirect(url_for('home'))
+    if pedido['status'] != 'Pago':
+        conn.close()
+        flash("Só é possível ajustar a data de pagamento em faturas marcadas como Pago.", "warning")
+        return redirect(url_for('home'))
+
+    cursor.execute("UPDATE pedidos SET data_pagamento = %s WHERE id = %s", (nova_data, id_pedido))
+    conn.commit()
+    conn.close()
+    flash(f"Data de pagamento da fatura #{pedido['codigo_fatura']} atualizada.", "success")
+    return redirect(url_for('home'))
+
+
 @vendas_bp.route("/mudar_status/<int:id_pedido>/<string:novo_status>", methods=["POST"])
 @login_required
 def mudar_status(id_pedido, novo_status):

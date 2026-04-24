@@ -135,38 +135,62 @@ def home():
         f_status = session.get('filtro_status', '')
         f_cliente = session.get('filtro_cliente', '')
 
-    sql_pedidos = """
-        SELECT p.id, p.codigo_fatura, c.nome_empresa, p.status, 
-               DATE_FORMAT(p.data_emissao, '%d/%m/%Y') as data_emissao,
-               DATE_FORMAT(p.data_fim, '%d/%m/%Y') as data_competencia,
-               p.numero_nf
-        FROM pedidos p
-        JOIN clientes c ON p.id_cliente = c.id
-        WHERE 1=1
-    """
+    # Monta o WHERE uma vez só — reutilizado pelo COUNT e pelo SELECT
+    where_sql = ""
     params = []
-    
+
     if f_mes:
-        sql_pedidos += " AND MONTH(p.data_fim) = %s"
+        where_sql += " AND MONTH(p.data_fim) = %s"
         params.append(f_mes)
     if f_ano:
-        sql_pedidos += " AND YEAR(p.data_fim) = %s"
+        where_sql += " AND YEAR(p.data_fim) = %s"
         params.append(f_ano)
     if f_cliente:
-        sql_pedidos += " AND p.id_cliente = %s"
+        where_sql += " AND p.id_cliente = %s"
         params.append(f_cliente)
     if f_status:
         if f_status == 'com_nf':
-            sql_pedidos += " AND p.numero_nf IS NOT NULL AND p.numero_nf != ''"
+            where_sql += " AND p.numero_nf IS NOT NULL AND p.numero_nf != ''"
         elif f_status == 'sem_nf':
-            sql_pedidos += " AND (p.numero_nf IS NULL OR p.numero_nf = '')"
+            where_sql += " AND (p.numero_nf IS NULL OR p.numero_nf = '')"
         else:
-            sql_pedidos += " AND p.status = %s"
+            where_sql += " AND p.status = %s"
             params.append(f_status)
-            
-    sql_pedidos += " ORDER BY p.data_fim DESC, p.id DESC"
-    
-    cursor.execute(sql_pedidos, tuple(params))
+
+    # 5. PAGINAÇÃO (50/pág, preservando filtros)
+    per_page = 50
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (TypeError, ValueError):
+        page = 1
+
+    cursor.execute(f"""
+        SELECT COUNT(*) AS total
+        FROM pedidos p
+        JOIN clientes c ON p.id_cliente = c.id
+        WHERE 1=1 {where_sql}
+    """, tuple(params))
+    total_count = cursor.fetchone()['total']
+    total_pages = max(1, -(-total_count // per_page))  # ceil
+
+    # Se a página pedida passou do total (ex: mudou filtro), volta pra última válida
+    if page > total_pages:
+        page = total_pages
+    offset = (page - 1) * per_page
+
+    sql_pedidos = f"""
+        SELECT p.id, p.codigo_fatura, c.nome_empresa, p.status,
+               DATE_FORMAT(p.data_emissao, '%d/%m/%Y') as data_emissao,
+               DATE_FORMAT(p.data_fim, '%d/%m/%Y') as data_competencia,
+               DATE_FORMAT(p.data_pagamento, '%d/%m/%Y') as data_pagamento_fmt,
+               p.numero_nf
+        FROM pedidos p
+        JOIN clientes c ON p.id_cliente = c.id
+        WHERE 1=1 {where_sql}
+        ORDER BY p.data_fim DESC, p.id DESC
+        LIMIT %s OFFSET %s
+    """
+    cursor.execute(sql_pedidos, tuple(params) + (per_page, offset))
     ultimos_pedidos = cursor.fetchall()
 
     cursor.execute("SELECT DISTINCT YEAR(data_fim) as ano FROM pedidos WHERE data_fim IS NOT NULL ORDER BY ano DESC")
@@ -181,13 +205,15 @@ def home():
     conn.close()
     
     return render_template('home.html', usuario=current_user,
-                           fat_mes_atual=fat_mes_atual, 
-                           fat_mes_passado=fat_mes_passado, 
-                           fat_ano_atual=fat_ano_atual, 
+                           fat_mes_atual=fat_mes_atual,
+                           fat_mes_passado=fat_mes_passado,
+                           fat_ano_atual=fat_ano_atual,
                            ultimos_pedidos=ultimos_pedidos,
                            clientes=lista_clientes,
                            f_mes=f_mes, f_ano=f_ano, f_status=f_status, f_cliente=f_cliente,
-                           anos_disponiveis=anos_disponiveis)
+                           anos_disponiveis=anos_disponiveis,
+                           page=page, total_pages=total_pages,
+                           total_count=total_count, per_page=per_page)
                            
 
 # Blueprints

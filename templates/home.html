@@ -139,6 +139,7 @@
                             <th class="ps-4" style="width: 150px;">Status</th>
                             <th>Cliente / Fatura</th>
                             <th class="d-none d-md-table-cell">Competência</th>
+                            <th class="d-none d-md-table-cell">Pago em</th>
                             <th class="text-end pe-4">Ações</th>
                         </tr>
                     </thead>
@@ -162,7 +163,15 @@
                                 <div class="d-md-none text-muted mt-1" style="font-size:.72rem;"><i class="bi bi-calendar-event me-1"></i>{{ ped.data_competencia if ped.data_competencia else '-' }}</div>
                             </td>
                             <td class="small text-muted fw-bold d-none d-md-table-cell"><i class="bi bi-calendar-event me-1"></i> {{ ped.data_competencia if ped.data_competencia else '-' }}</td>
-                            
+
+                            <td class="small d-none d-md-table-cell">
+                                {% if ped.status == 'Pago' and ped.data_pagamento_fmt %}
+                                    <span class="text-success fw-semibold"><i class="bi bi-check2-circle me-1"></i>{{ ped.data_pagamento_fmt }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+
                             <td class="text-end pe-4">
                                 <div class="btn-group shadow-sm d-none d-md-inline-flex">
                                     <a href="{{ url_for('vendas.ver_fatura', id_pedido=ped.id) }}" class="btn btn-sm btn-light border" title="Ver / Enviar WhatsApp">
@@ -269,7 +278,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="4" class="text-center py-5">
+                            <td colspan="5" class="text-center py-5">
                                 <div class="text-muted mb-3"><i class="bi bi-folder-x fs-1 opacity-25"></i></div>
                                 <h6 class="text-secondary fw-normal">Nenhuma fatura encontrada para este período.</h6>
                             </td>
@@ -278,6 +287,37 @@
                     </tbody>
                 </table>
             </div>
+
+            {% if total_count > 0 %}
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 px-3 py-3 border-top small">
+                <div class="text-muted">
+                    {% if total_pages > 1 %}
+                        Página <strong>{{ page }}</strong> de <strong>{{ total_pages }}</strong> ·
+                    {% endif %}
+                    Total: <strong>{{ total_count }}</strong> fatura{% if total_count != 1 %}s{% endif %}
+                </div>
+                {% if total_pages > 1 %}
+                <div class="btn-group btn-group-sm shadow-sm">
+                    {% if page > 1 %}
+                    <a href="{{ url_for('home', mes=f_mes, ano=f_ano, status=f_status, cliente_id=f_cliente, page=page-1) }}"
+                       class="btn btn-outline-secondary">
+                        <i class="bi bi-chevron-left"></i> Anterior
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-secondary" disabled><i class="bi bi-chevron-left"></i> Anterior</button>
+                    {% endif %}
+                    {% if page < total_pages %}
+                    <a href="{{ url_for('home', mes=f_mes, ano=f_ano, status=f_status, cliente_id=f_cliente, page=page+1) }}"
+                       class="btn btn-outline-secondary">
+                        Próxima <i class="bi bi-chevron-right"></i>
+                    </a>
+                    {% else %}
+                    <button class="btn btn-outline-secondary" disabled>Próxima <i class="bi bi-chevron-right"></i></button>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

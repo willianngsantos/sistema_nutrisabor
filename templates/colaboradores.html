@@ -95,6 +95,7 @@
         </div>
     </div>
     <div class="col-12 col-md-3 d-flex gap-2 justify-content-end">
+        {% if current_user.tipo == 'admin' %}
         <a href="{{ url_for('colaboradores.recibos_vt_lote') }}"
            target="_blank"
            class="btn btn-outline-success shadow-sm px-3 py-2 rounded-pill"
@@ -105,6 +106,7 @@
                 data-bs-toggle="modal" data-bs-target="#modalAddColab">
             <i class="bi bi-person-plus-fill me-1"></i> Novo Colaborador
         </button>
+        {% endif %}
     </div>
 </div>
 
@@ -230,6 +232,7 @@
 
                 <!-- Ações -->
                 <td class="text-end pe-4">
+                    {% if current_user.tipo == 'admin' %}
                     <div class="btn-group shadow-sm">
                         <!-- Editar -->
                         <button class="btn btn-sm btn-light text-primary border"
@@ -319,6 +322,9 @@
                             </button>
                         </form>
                     </div>
+                    {% else %}
+                    <span class="text-muted small">—</span>
+                    {% endif %}
                 </td>
             </tr>
             {% else %}
@@ -326,10 +332,12 @@
                 <td colspan="5" class="text-center py-5">
                     <div class="text-muted mb-3"><i class="bi bi-person-badge fs-1 opacity-25"></i></div>
                     <h6 class="text-secondary fw-normal">Nenhum colaborador cadastrado ainda.</h6>
+                    {% if current_user.tipo == 'admin' %}
                     <button class="btn btn-sm btn-outline-primary mt-2"
                             data-bs-toggle="modal" data-bs-target="#modalAddColab">
                         Cadastrar Primeiro Colaborador
                     </button>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

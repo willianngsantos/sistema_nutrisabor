@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <title>Cardápio - {{ cardapio['nome_empresa'] }}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
+            /* Fonte do sistema operacional - evita carregar Google Fonts
+               externamente, o que era a causa raiz do bug de impressão "em branco":
+               quando o usuário demorava no diálogo de impressão do Safari, o
+               preview re-renderizava após a fonte carregar tardiamente e às
+               vezes saía em branco. Sem rede no momento da impressão = sem bug. */
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
             background: #f1f5f9;
-            font-family: 'Inter', 'Arial', sans-serif;
             color: #1e293b;
         }
 

@@ -281,6 +281,78 @@
             color: #94a3b8;
         }
 
+        /* ── Modo Monocromático (P&B) ─────────────────────────────
+           Ativado pelo toggle .mono no body. Otimizado para impressoras
+           preto-e-branco: troca tons pastel por preto/cinza com bordas
+           espessas, mantendo legibilidade e hierarquia visual sem depender
+           de cor. ──────────────────────────────────────────────────── */
+        body.mono .page { border-top-color: #000; border-top-width: 4px; }
+        body.mono .header-label { color: #000; }
+        body.mono .header-period { color: #333; }
+        body.mono .page-header { border-bottom: 2px solid #000; }
+
+        body.mono table.menu-table { border-color: #000; }
+        body.mono table.menu-table thead tr:first-child th { background: #000 !important; color: #fff !important; border-color: #fff; }
+        body.mono table.menu-table thead tr:first-child th:first-child { background: #000 !important; }
+        body.mono table.menu-table thead tr:first-child th.col-feriado {
+            background: #000 !important;
+            background-image: repeating-linear-gradient(45deg, #000 0, #000 4px, #444 4px, #444 8px) !important;
+            color: #fff !important;
+        }
+        body.mono table.menu-table thead tr:last-child th { background: #fff !important; color: #000 !important; border-bottom: 2px solid #000; }
+        body.mono table.menu-table thead tr:last-child th:first-child { background: #f0f0f0 !important; color: #000 !important; }
+        body.mono table.menu-table thead tr:last-child th.col-feriado {
+            background: #f0f0f0 !important;
+            background-image: repeating-linear-gradient(45deg, #f0f0f0 0, #f0f0f0 4px, #d0d0d0 4px, #d0d0d0 8px) !important;
+            color: #000 !important;
+            border-bottom-color: #000 !important;
+        }
+
+        body.mono table.menu-table tbody td { color: #000; border-color: #888; }
+        body.mono table.menu-table tbody td:not(:first-child) { border-left-color: #888; }
+        body.mono table.menu-table tbody tr:nth-child(odd) td:not(.row-header):not(.col-feriado) { background: #ffffff !important; }
+        body.mono table.menu-table tbody tr:nth-child(even) td:not(.row-header):not(.col-feriado) { background: #e8e8e8 !important; }
+        body.mono table.menu-table tbody td.row-header {
+            background: #f0f0f0 !important;
+            color: #000 !important;
+            border-left-color: #000 !important;
+            border-left-width: 4px !important;
+            border-bottom-color: #888 !important;
+        }
+        body.mono table.menu-table tbody td.col-feriado {
+            background: #ffffff !important;
+            background-image: repeating-linear-gradient(45deg, #ffffff 0, #ffffff 4px, #d0d0d0 4px, #d0d0d0 8px) !important;
+            color: #000 !important;
+            border-left-color: #888 !important;
+        }
+
+        body.mono .obs-section {
+            background: #fff !important;
+            border-left: 4px solid #000 !important;
+            color: #000 !important;
+        }
+        body.mono .page-footer { background: #fff !important; border-top: 1px solid #000; }
+        body.mono .footer-brand { color: #000 !important; }
+        body.mono .footer-note { color: #444 !important; }
+
+        /* Toggle visual na barra de ações (não imprime) */
+        .toggle-mono {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border: 1px solid #334155;
+            padding: 8px 14px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle-mono input { margin: 0; cursor: pointer; }
+        .toggle-mono.active { background: #fff; color: #1e293b; border-color: #fff; }
+
         /* ── Print ── */
         @media print {
             @page { size: A4 landscape; margin: 8mm; }
@@ -334,8 +406,30 @@
         <button class="btn-print" onclick="window.print()">
             🖨️ Imprimir / Salvar PDF
         </button>
+        <label class="toggle-mono" id="lblToggleMono">
+            <input type="checkbox" id="chkMono" onchange="toggleMono(this.checked)">
+            <span>Modo P&B</span>
+        </label>
         <button class="btn-close-win" onclick="window.close()">Fechar</button>
     </div>
+
+    <script>
+        function toggleMono(on) {
+            document.body.classList.toggle('mono', on);
+            document.getElementById('lblToggleMono').classList.toggle('active', on);
+            try { localStorage.setItem('cardapio_mono', on ? '1' : '0'); } catch (e) {}
+        }
+        // Restaura preferência ao carregar
+        (function() {
+            try {
+                const saved = localStorage.getItem('cardapio_mono') === '1';
+                if (saved) {
+                    document.getElementById('chkMono').checked = true;
+                    toggleMono(true);
+                }
+            } catch (e) {}
+        })();
+    </script>
 
     <div class="page">
 

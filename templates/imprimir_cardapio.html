@@ -1,8 +1,14 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="color-scheme: light;">
 <head>
     <meta charset="UTF-8">
     <title>Cardápio - {{ cardapio['nome_empresa'] }}</title>
+    <!-- Pre-carrega a logo: garante que esteja em cache antes do dialogo
+         de impressao, evitando re-render tardio que deixa o preview branco -->
+    <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
+    {% if cardapio['logo_path'] %}
+    <link rel="preload" as="image" href="{{ url_for('static', filename=cardapio['logo_path']) }}">
+    {% endif %}
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -407,7 +413,7 @@
 <body>
 
     <div class="action-bar">
-        <button class="btn-print" onclick="window.print()">
+        <button class="btn-print" id="btnImprimir" onclick="imprimirSeguro()">
             🖨️ Imprimir / Salvar PDF
         </button>
         <label class="toggle-mono" id="lblToggleMono">
@@ -433,6 +439,41 @@
                 }
             } catch (e) {}
         })();
+
+        // Aguarda fontes e imagens antes de abrir o diálogo de impressão.
+        // Evita o bug do "preview em branco" causado por recursos que
+        // chegavam tardiamente e disparavam re-render durante o snapshot
+        // de impressão do Safari.
+        async function imprimirSeguro() {
+            const btn = document.getElementById('btnImprimir');
+            const labelOriginal = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Preparando...';
+            try {
+                // 1. Espera todas as fontes terminarem (CSS Font Loading API)
+                if (document.fonts && document.fonts.ready) {
+                    await document.fonts.ready;
+                }
+                // 2. Espera todas as imagens estarem 100% baixadas e decodificadas
+                const imgs = Array.from(document.images);
+                await Promise.all(imgs.map(img => {
+                    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+                    return new Promise(resolve => {
+                        img.addEventListener('load', resolve, { once: true });
+                        img.addEventListener('error', resolve, { once: true });
+                    });
+                }));
+                // 3. Pequeno delay extra para garantir que o layout estabilizou
+                await new Promise(r => setTimeout(r, 100));
+            } catch (e) {
+                // Se algo falhar, segue mesmo assim - melhor imprimir com
+                // possível glitch que travar o usuário
+            } finally {
+                btn.disabled = false;
+                btn.textContent = labelOriginal;
+            }
+            window.print();
+        }
     </script>
 
     <div class="page">

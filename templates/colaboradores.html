@@ -5,6 +5,46 @@
 {{ rh_nav('colaboradores') }}
 
 <style>
+    /* Garante que o footer (botão Salvar) sempre aparece no final do modal,
+       mesmo com form longo. Estrutura HTML é:
+         .modal-content > .modal-header
+                       > <form> > .modal-body + .modal-footer
+       Por isso precisamos transformar o <form> em flex-container também. */
+    #modalAddColab .modal-dialog,
+    #modalEditarColab .modal-dialog {
+        height: calc(100vh - 1rem);
+        max-height: calc(100vh - 1rem);
+        margin: 0.5rem auto;
+    }
+    #modalAddColab .modal-content,
+    #modalEditarColab .modal-content {
+        height: 100%;
+        max-height: 100%;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+    #modalAddColab .modal-content > form,
+    #modalEditarColab .modal-content > form {
+        display: flex !important;
+        flex-direction: column !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+    }
+    #modalAddColab .modal-header,
+    #modalEditarColab .modal-header,
+    #modalAddColab .modal-footer,
+    #modalEditarColab .modal-footer {
+        flex: 0 0 auto !important;
+    }
+    #modalAddColab .modal-body,
+    #modalEditarColab .modal-body {
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+        min-height: 0 !important;
+    }
+
     .table-colab {
         border-collapse: separate;
         border-spacing: 0 8px;
@@ -146,7 +186,12 @@
                     <div class="d-flex align-items-center gap-3">
                         <div class="colab-avatar d-none d-md-flex">{{ c.nome[0]|upper }}</div>
                         <div>
-                            <div class="fw-bold text-dark lh-1 mb-1">{{ c.nome }}</div>
+                            <div class="fw-bold text-dark lh-1 mb-1">
+                                <a href="{{ url_for('colaboradores.ficha', id_colab=c.id) }}"
+                                   class="text-decoration-none text-dark"
+                                   style="border-bottom:1px dashed #cbd5e1;"
+                                   title="Ver ficha completa">{{ c.nome }}</a>
+                            </div>
                             {% if c.funcao %}
                                 <span class="badge-funcao">
                                     <i class="bi bi-briefcase-fill me-1"></i>{{ c.funcao }}
@@ -251,6 +296,19 @@
                                 data-admissao="{{ c.data_admissao.strftime('%Y-%m-%d') if c.data_admissao else '' }}"
                                 data-unidades="{{ c.unidades_ids or '' }}"
                                 data-recebe_vt="{{ c.recebe_vt if c.recebe_vt is not none else 1 }}"
+                                data-rg="{{ c.rg or '' }}"
+                                data-cpf="{{ c.cpf or '' }}"
+                                data-cep="{{ c.endereco_cep or '' }}"
+                                data-logradouro="{{ c.endereco_logradouro or '' }}"
+                                data-numero="{{ c.endereco_numero or '' }}"
+                                data-complemento="{{ c.endereco_complemento or '' }}"
+                                data-bairro="{{ c.endereco_bairro or '' }}"
+                                data-cidade="{{ c.endereco_cidade or '' }}"
+                                data-uf="{{ c.endereco_uf or '' }}"
+                                data-crn3="{{ c.crn3 or '' }}"
+                                data-agencia="{{ c.agencia or '' }}"
+                                data-conta="{{ c.conta or '' }}"
+                                data-banco="{{ c.banco or '' }}"
                                 title="Editar">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
@@ -386,7 +444,12 @@
                                     </div>
                                     <div class="col-md-5">
                                         <label class="form-label fw-semibold small text-secondary mb-1">Função / Cargo</label>
-                                        <input type="text" name="funcao" class="form-control border-0 bg-light" placeholder="Ex: Cozinheira, Auxiliar...">
+                                        <select name="funcao" id="add_funcao" class="form-select border-0 bg-light" onchange="atualizarVisibilidadeCRN3('add')">
+                                            <option value="">— Selecione —</option>
+                                            {% for f in funcoes_validas %}
+                                            <option value="{{ f }}">{{ f }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-semibold small text-secondary mb-1">Data de Admissão</label>
@@ -400,6 +463,106 @@
                                             <option value="afastado">🩹 Afastado</option>
                                             <option value="inativo">⚫ Inativo</option>
                                         </select>
+                                    </div>
+                                    <!-- CRN3 só para Nutricionistas -->
+                                    <div class="col-md-6 d-none" id="add_crn3_wrapper">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">
+                                            <i class="bi bi-patch-check text-success me-1"></i>CRN3 (Nutricionista)
+                                        </label>
+                                        <input type="text" name="crn3" id="add_crn3" class="form-control border-0 bg-light" placeholder="Ex: 54135">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Documentos Pessoais -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-card-list me-1"></i>Documentos Pessoais
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">RG</label>
+                                        <input type="text" name="rg" class="form-control border-0 bg-light" placeholder="Ex: 45.097.745-6">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">CPF</label>
+                                        <input type="text" name="cpf" class="form-control border-0 bg-light" placeholder="000.000.000-00" oninput="mascaraCPF(this)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Endereço -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-geo-alt me-1"></i>Endereço Residencial
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">CEP</label>
+                                        <input type="text" name="endereco_cep" id="add_cep" class="form-control border-0 bg-light"
+                                               placeholder="00000-000" maxlength="9"
+                                               oninput="mascaraCEP(this)" onblur="buscarCEP('add')">
+                                        <div class="form-text small text-muted">Preenche o resto automaticamente.</div>
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Logradouro</label>
+                                        <input type="text" name="endereco_logradouro" id="add_logradouro" class="form-control border-0 bg-light" placeholder="Rua, Avenida, ...">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Número</label>
+                                        <input type="text" name="endereco_numero" class="form-control border-0 bg-light" placeholder="Ex: 246">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Complemento <span class="text-muted">(opcional)</span></label>
+                                        <input type="text" name="endereco_complemento" class="form-control border-0 bg-light" placeholder="Apto, bloco, etc.">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Bairro</label>
+                                        <input type="text" name="endereco_bairro" id="add_bairro" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-9">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Cidade</label>
+                                        <input type="text" name="endereco_cidade" id="add_cidade" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">UF</label>
+                                        <input type="text" name="endereco_uf" id="add_uf" class="form-control border-0 bg-light text-uppercase" maxlength="2">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dados Bancários -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-2" style="letter-spacing:.5px;">
+                                    <i class="bi bi-bank me-1"></i>Dados Bancários
+                                </p>
+                                <p class="text-muted small mb-3" style="font-size:.78rem;">
+                                    Preencher após a abertura da conta-salário. Quando preenchidos,
+                                    o colaborador deixa de aparecer em "Solicitação de Conta Salário".
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Banco</label>
+                                        <select name="banco" class="form-select border-0 bg-light">
+                                            <option value="">— Não informado —</option>
+                                            {% for cod, nome in bancos %}
+                                            <option value="{{ cod }} - {{ nome }}">{{ cod }} — {{ nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Agência</label>
+                                        <input type="text" name="agencia" class="form-control border-0 bg-light" placeholder="Ex: 0130">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Conta</label>
+                                        <input type="text" name="conta" class="form-control border-0 bg-light" placeholder="Ex: 01034199-5">
                                     </div>
                                 </div>
                             </div>
@@ -539,7 +702,12 @@
                                     </div>
                                     <div class="col-md-5">
                                         <label class="form-label fw-semibold small text-secondary mb-1">Função / Cargo</label>
-                                        <input type="text" name="funcao" id="edit_funcao" class="form-control border-0 bg-light">
+                                        <select name="funcao" id="edit_funcao" class="form-select border-0 bg-light" onchange="atualizarVisibilidadeCRN3('edit')">
+                                            <option value="">— Selecione —</option>
+                                            {% for f in funcoes_validas %}
+                                            <option value="{{ f }}">{{ f }}</option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-semibold small text-secondary mb-1">Data de Admissão</label>
@@ -553,6 +721,104 @@
                                             <option value="afastado">🩹 Afastado</option>
                                             <option value="inativo">⚫ Inativo</option>
                                         </select>
+                                    </div>
+                                    <div class="col-md-6 d-none" id="edit_crn3_wrapper">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">
+                                            <i class="bi bi-patch-check text-success me-1"></i>CRN3 (Nutricionista)
+                                        </label>
+                                        <input type="text" name="crn3" id="edit_crn3" class="form-control border-0 bg-light" placeholder="Ex: 54135">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Documentos Pessoais -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-card-list me-1"></i>Documentos Pessoais
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">RG</label>
+                                        <input type="text" name="rg" id="edit_rg" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">CPF</label>
+                                        <input type="text" name="cpf" id="edit_cpf" class="form-control border-0 bg-light" oninput="mascaraCPF(this)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Endereço -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-geo-alt me-1"></i>Endereço Residencial
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">CEP</label>
+                                        <input type="text" name="endereco_cep" id="edit_cep" class="form-control border-0 bg-light"
+                                               placeholder="00000-000" maxlength="9"
+                                               oninput="mascaraCEP(this)" onblur="buscarCEP('edit')">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Logradouro</label>
+                                        <input type="text" name="endereco_logradouro" id="edit_logradouro" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Número</label>
+                                        <input type="text" name="endereco_numero" id="edit_numero" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Complemento <span class="text-muted">(opcional)</span></label>
+                                        <input type="text" name="endereco_complemento" id="edit_complemento" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-7">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Bairro</label>
+                                        <input type="text" name="endereco_bairro" id="edit_bairro" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-9">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Cidade</label>
+                                        <input type="text" name="endereco_cidade" id="edit_cidade" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">UF</label>
+                                        <input type="text" name="endereco_uf" id="edit_uf" class="form-control border-0 bg-light text-uppercase" maxlength="2">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dados Bancários -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-2" style="letter-spacing:.5px;">
+                                    <i class="bi bi-bank me-1"></i>Dados Bancários
+                                </p>
+                                <p class="text-muted small mb-3" style="font-size:.78rem;">
+                                    Preencher após a abertura da conta-salário. Quando preenchidos,
+                                    o colaborador deixa de aparecer em "Solicitação de Conta Salário".
+                                </p>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Banco</label>
+                                        <select name="banco" id="edit_banco" class="form-select border-0 bg-light">
+                                            <option value="">— Não informado —</option>
+                                            {% for cod, nome in bancos %}
+                                            <option value="{{ cod }} - {{ nome }}">{{ cod }} — {{ nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Agência</label>
+                                        <input type="text" name="agencia" id="edit_agencia" class="form-control border-0 bg-light">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">Conta</label>
+                                        <input type="text" name="conta" id="edit_conta" class="form-control border-0 bg-light">
                                     </div>
                                 </div>
                             </div>
@@ -668,6 +934,24 @@
         document.getElementById('edit_vr').value       = fmt(btn.getAttribute('data-vr'));
         document.getElementById('edit_diversos').value = fmt(btn.getAttribute('data-diversos'));
 
+        // Novos campos: documentos pessoais e endereço
+        document.getElementById('edit_rg').value          = btn.getAttribute('data-rg') || '';
+        document.getElementById('edit_cpf').value         = btn.getAttribute('data-cpf') || '';
+        document.getElementById('edit_cep').value         = btn.getAttribute('data-cep') || '';
+        document.getElementById('edit_logradouro').value  = btn.getAttribute('data-logradouro') || '';
+        document.getElementById('edit_numero').value      = btn.getAttribute('data-numero') || '';
+        document.getElementById('edit_complemento').value = btn.getAttribute('data-complemento') || '';
+        document.getElementById('edit_bairro').value      = btn.getAttribute('data-bairro') || '';
+        document.getElementById('edit_cidade').value      = btn.getAttribute('data-cidade') || '';
+        document.getElementById('edit_uf').value          = btn.getAttribute('data-uf') || '';
+        document.getElementById('edit_crn3').value        = btn.getAttribute('data-crn3') || '';
+        document.getElementById('edit_agencia').value     = btn.getAttribute('data-agencia') || '';
+        document.getElementById('edit_conta').value       = btn.getAttribute('data-conta') || '';
+        document.getElementById('edit_banco').value       = btn.getAttribute('data-banco') || '';
+
+        // Mostra/esconde campo CRN3 conforme função
+        atualizarVisibilidadeCRN3('edit');
+
         var ativos = (btn.getAttribute('data-unidades') || '').split(',').map(s => s.trim());
         document.querySelectorAll('.edit-unidade-cb').forEach(function(cb) {
             cb.checked = ativos.includes(cb.value);
@@ -682,6 +966,59 @@
         document.getElementById('edit_subtitle').textContent =
             btn.getAttribute('data-nome') || '—';
     });
+
+    // Mostra/esconde campo CRN3 conforme função selecionada
+    function atualizarVisibilidadeCRN3(prefix) {
+        var funcao = document.getElementById(prefix + '_funcao').value;
+        var wrapper = document.getElementById(prefix + '_crn3_wrapper');
+        if (!wrapper) return;
+        if (funcao === 'Nutricionista') {
+            wrapper.classList.remove('d-none');
+        } else {
+            wrapper.classList.add('d-none');
+        }
+    }
+
+    function mascaraCPF(el) {
+        var v = el.value.replace(/\D/g, '').slice(0, 11);
+        v = v.replace(/(\d{3})(\d)/, '$1.$2');
+        v = v.replace(/(\d{3})(\d)/, '$1.$2');
+        v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        el.value = v;
+    }
+
+    function mascaraCEP(el) {
+        var v = el.value.replace(/\D/g, '').slice(0, 8);
+        if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+        el.value = v;
+    }
+
+    // Busca CEP via ViaCEP e preenche logradouro/bairro/cidade/UF
+    async function buscarCEP(prefix) {
+        var cepEl = document.getElementById(prefix + '_cep');
+        var cep = (cepEl.value || '').replace(/\D/g, '');
+        if (cep.length !== 8) return;
+        try {
+            var resp = await fetch('https://viacep.com.br/ws/' + cep + '/json/');
+            var data = await resp.json();
+            if (data.erro) return;
+            // Só preenche campos vazios — preserva edição manual
+            var setIfEmpty = function(id, val) {
+                var el = document.getElementById(id);
+                if (el && !el.value && val) el.value = val;
+            };
+            // Aqui sempre sobrescreve para refletir o CEP digitado
+            document.getElementById(prefix + '_logradouro').value = data.logradouro || '';
+            document.getElementById(prefix + '_bairro').value     = data.bairro || '';
+            document.getElementById(prefix + '_cidade').value     = data.localidade || '';
+            document.getElementById(prefix + '_uf').value         = (data.uf || '').toUpperCase();
+            // Foco direto no número (próximo campo a preencher)
+            var num = document.querySelector('#modal' + (prefix === 'add' ? 'AddColab' : 'EditarColab') + ' input[name="endereco_numero"]');
+            if (num) num.focus();
+        } catch (e) {
+            // Falha silenciosa — usuário pode digitar manualmente
+        }
+    }
 
     function fmt(val) {
         var n = parseFloat(val);

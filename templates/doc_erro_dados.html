@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-br" style="color-scheme: light;">
+<head>
+    <meta charset="UTF-8">
+    <title>Dados incompletos — {{ titulo }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            background: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 20px;
+        }
+        .erro-card {
+            max-width: 640px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .erro-header {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            padding: 24px 28px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .erro-header i { font-size: 2.4rem; }
+        .erro-body { padding: 24px 28px; }
+        .erros-lista {
+            list-style: none;
+            padding: 0;
+            margin: 16px 0;
+        }
+        .erros-lista li {
+            padding: 12px 16px;
+            background: #fef3c7;
+            border-left: 4px solid #d97706;
+            margin-bottom: 8px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.92rem;
+            color: #78350f;
+        }
+        .actions {
+            display: flex; gap: 8px; flex-wrap: wrap;
+            margin-top: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="erro-card">
+        <div class="erro-header">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <div>
+                <div class="fw-bold" style="font-size:1.15rem;">Dados incompletos</div>
+                <div class="small" style="opacity:.9;">Não foi possível gerar o documento.</div>
+            </div>
+        </div>
+        <div class="erro-body">
+            <p class="text-muted small mb-2">
+                Para gerar o <strong>{{ titulo }}</strong>, é preciso que os cadastros estejam
+                completos. Pendências encontradas:
+            </p>
+            <ul class="erros-lista">
+                {% for e in erros %}
+                <li><i class="bi bi-x-circle-fill text-warning me-2"></i>{{ e }}</li>
+                {% endfor %}
+            </ul>
+
+            <p class="text-muted small mt-3">
+                Acesse a ficha do(a) colaborador(a) abaixo e complete os campos pendentes,
+                depois volte aqui para gerar o documento.
+            </p>
+
+            <div class="actions">
+                {% if colab and colab.id %}
+                <a href="/colaboradores/{{ colab.id }}/ficha" target="_blank"
+                   class="btn btn-warning text-white fw-bold rounded-pill px-4 shadow-sm">
+                    <i class="bi bi-person-vcard me-1"></i>Ficha de {{ colab.nome }}
+                </a>
+                {% endif %}
+                {% if nutri and nutri.id and nutri.id != (colab.id if colab else None) %}
+                <a href="/colaboradores/{{ nutri.id }}/ficha" target="_blank"
+                   class="btn btn-outline-warning fw-bold rounded-pill px-4">
+                    <i class="bi bi-patch-check me-1"></i>Ficha da Nutricionista
+                </a>
+                {% endif %}
+                <a href="{{ voltar_url }}"
+                   class="btn btn-outline-secondary fw-bold rounded-pill px-4">
+                    <i class="bi bi-arrow-left me-1"></i>Voltar
+                </a>
+                <button type="button" onclick="window.close()"
+                   class="btn btn-link text-muted text-decoration-none">
+                    Fechar aba
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

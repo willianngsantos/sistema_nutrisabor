@@ -20,6 +20,13 @@ TIPOS_EXAME = [
 ]
 MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
             'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+def _data_extenso_pt(d=None):
+    """Retorna data no formato 'TAQUARITINGA, 30 DE SETEMBRO DE 2025.'
+    usado em documentos formais. Se d for None, usa hoje."""
+    if d is None:
+        d = date.today()
+    return f"TAQUARITINGA, {d.day:02d} DE {MESES_PT[d.month - 1].upper()} DE {d.year}."
 DIAS_SEMANA_LABELS = {
     'seg': 'Seg', 'ter': 'Ter', 'qua': 'Qua',
     'qui': 'Qui', 'sex': 'Sex', 'sab': 'Sáb', 'dom': 'Dom'
@@ -890,3 +897,148 @@ def imprimir_ponto_geral():
         colaboradores=colaboradores,
         mes=mes, ano=ano, dias=dias, MESES_PT=MESES_PT,
         gerado_em=dt.now().strftime('%d/%m/%Y às %H:%M'))
+
+
+# ══════════════════════════════════════════════════════════════════
+# ADMISSÃO — geração de documentos relacionados ao processo de
+# admissão de novos colaboradores. Restrito a admin.
+# ══════════════════════════════════════════════════════════════════
+
+def _buscar_colaborador_completo(cursor, id_colab):
+    """Carrega todos os dados de um colaborador. Retorna dict ou None."""
+    cursor.execute("""
+        SELECT id, nome, funcao, status, rg, cpf, crn3,
+               endereco_cep, endereco_logradouro, endereco_numero,
+               endereco_complemento, endereco_bairro,
+               endereco_cidade, endereco_uf
+        FROM colaboradores WHERE id = %s
+    """, (id_colab,))
+    return cursor.fetchone()
+
+
+def _validar_dados_conta_salario(colab, nutri):
+    """Retorna lista de erros (vazia se tudo OK)."""
+    erros = []
+    if not colab:
+        return ["Colaborador não encontrado."]
+    if not nutri:
+        return ["Nutricionista não encontrada."]
+    if not colab.get('rg'):
+        erros.append(f"Cadastre o RG de {colab['nome']}.")
+    if not colab.get('cpf'):
+        erros.append(f"Cadastre o CPF de {colab['nome']}.")
+    if not (colab.get('endereco_logradouro') and colab.get('endereco_numero')
+            and colab.get('endereco_bairro') and colab.get('endereco_cep')
+            and colab.get('endereco_cidade') and colab.get('endereco_uf')):
+        erros.append(f"Endereço residencial de {colab['nome']} está incompleto (logradouro, número, bairro, CEP, cidade e UF).")
+    if nutri.get('funcao') != 'Nutricionista':
+        erros.append(f"{nutri['nome']} não está cadastrada com função 'Nutricionista'.")
+    if not nutri.get('crn3'):
+        erros.append(f"Cadastre o CRN3 de {nutri['nome']}.")
+    return erros
+
+
+@rh_bp.route("/rh/admissao")
+@login_required
+@admin_only
+def admissao_hub():
+    """Hub com cards para os documentos de admissão disponíveis."""
+    return render_template('rh_admissao.html')
+
+
+@rh_bp.route("/rh/admissao/conta-salario")
+@login_required
+@admin_only
+def admissao_conta_salario_seletor():
+    """Tela com 2 dropdowns (colaborador + nutricionista). O dropdown de
+    colaborador mostra apenas quem AINDA NÃO tem agência+conta cadastradas
+    — quem já abriu a conta não precisa solicitar de novo."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT id, nome, funcao FROM colaboradores
+        WHERE status != 'inativo'
+          AND (agencia IS NULL OR agencia = '' OR conta IS NULL OR conta = '')
+        ORDER BY nome
+    """)
+    colaboradores = cursor.fetchall()
+    cursor.execute("""
+        SELECT id, nome, crn3 FROM colaboradores
+        WHERE status = 'ativo' AND funcao = 'Nutricionista' AND crn3 IS NOT NULL AND crn3 != ''
+        ORDER BY nome
+    """)
+    nutricionistas = cursor.fetchall()
+    conn.close()
+    return render_template('rh_admissao_conta_salario.html',
+                           colaboradores=colaboradores,
+                           nutricionistas=nutricionistas)
+
+
+@rh_bp.route("/rh/admissao/conta-salario/gerar")
+@login_required
+@admin_only
+def admissao_conta_salario_gerar():
+    """Renderiza o documento de Solicitação de Conta Salário pronto pra
+    impressão. Recebe colab_id e nutri_id por query string."""
+    colab_id = request.args.get('colab_id', type=int)
+    nutri_id = request.args.get('nutri_id', type=int)
+    if not colab_id or not nutri_id:
+        flash("Selecione um colaborador e uma nutricionista responsável.", "warning")
+        return redirect(url_for('rh.admissao_conta_salario_seletor'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    colab = _buscar_colaborador_completo(cursor, colab_id)
+    nutri = _buscar_colaborador_completo(cursor, nutri_id)
+    conn.close()
+
+    erros = _validar_dados_conta_salario(colab, nutri)
+    if erros:
+        # Renderiza tela de erro em vez de redirect, pois o form usa
+        # target="_blank" — um redirect deixaria a nova aba só com o
+        # seletor "vazio" e o flash invisível.
+        return render_template('doc_erro_dados.html',
+                               titulo='Solicitação de Conta Salário',
+                               erros=erros,
+                               colab=colab, nutri=nutri,
+                               voltar_url=url_for('rh.admissao_conta_salario_seletor'))
+
+    return render_template('doc_conta_salario.html',
+                           colab=colab, nutri=nutri,
+                           data_extenso=_data_extenso_pt())
+
+
+@rh_bp.route("/rh/admissao/documentos")
+@login_required
+@admin_only
+def admissao_documentos_seletor():
+    """Tela com seletor opcional de colaborador para personalizar a lista
+    de documentos exigidos na admissão."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT id, nome, funcao FROM colaboradores
+        WHERE status != 'inativo'
+        ORDER BY nome
+    """)
+    colaboradores = cursor.fetchall()
+    conn.close()
+    return render_template('rh_admissao_documentos.html',
+                           colaboradores=colaboradores)
+
+
+@rh_bp.route("/rh/admissao/documentos/gerar")
+@login_required
+@admin_only
+def admissao_documentos_gerar():
+    """Renderiza a Relação de Documentos para Admissão. Se colab_id for
+    fornecido, personaliza com o nome do colaborador; senão fica genérica."""
+    colab_id = request.args.get('colab_id', type=int)
+    colab = None
+    if colab_id:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT id, nome, funcao FROM colaboradores WHERE id = %s", (colab_id,))
+        colab = cursor.fetchone()
+        conn.close()
+    return render_template('doc_lista_admissao.html', colab=colab)

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-br" style="color-scheme: light;">
+<head>
+    <meta charset="UTF-8">
+    <title>Documentos para Admissão{% if colab %} — {{ colab.nome }}{% endif %}</title>
+    <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            background: #525659;
+            color: #1e293b;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .action-bar {
+            background: #1e293b; padding: 14px 32px;
+            display: flex; align-items: center; gap: 12px; justify-content: center;
+            position: sticky; top: 0; z-index: 10;
+        }
+        .btn-print {
+            background: #22c55e; color: white; border: none;
+            padding: 10px 28px; border-radius: 50px;
+            font-weight: 700; font-size: 14px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-print:hover { background: #16a34a; }
+        .btn-print:disabled { background: #94a3b8; cursor: wait; }
+        .btn-close-win {
+            background: transparent; color: #94a3b8;
+            border: 1px solid #334155; padding: 10px 22px;
+            border-radius: 50px; font-weight: 600; font-size: 14px; cursor: pointer;
+        }
+        .btn-close-win:hover { color: white; border-color: #64748b; }
+
+        /* ── Página A4 portrait ── */
+        .page {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 30px auto;
+            padding: 22mm 22mm 18mm 22mm;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            font-size: 11pt;
+            line-height: 1.5;
+        }
+
+        .topo {
+            text-align: center;
+            margin-bottom: 8mm;
+        }
+        .topo img {
+            max-height: 70px;
+            margin-bottom: 4mm;
+        }
+
+        .titulo {
+            text-align: center;
+            font-size: 14pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #0f172a;
+            border-bottom: 2px solid #1e293b;
+            padding-bottom: 3mm;
+            margin-bottom: 8mm;
+        }
+
+        .destinatario {
+            background: #f8fafc;
+            border-left: 4px solid #2c3e50;
+            padding: 4mm 6mm;
+            margin-bottom: 8mm;
+            border-radius: 0 4px 4px 0;
+        }
+        .destinatario .label {
+            font-size: 8.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+            margin-bottom: 1mm;
+        }
+        .destinatario .nome {
+            font-size: 13pt;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .destinatario .funcao {
+            font-size: 10pt;
+            color: #475569;
+            margin-top: 1mm;
+        }
+
+        .secao {
+            margin-bottom: 7mm;
+        }
+        .secao-titulo {
+            font-size: 11.5pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #fff;
+            background: #2c3e50;
+            padding: 2mm 5mm;
+            border-radius: 3px;
+            margin-bottom: 4mm;
+        }
+        .secao-titulo.exames { background: #16a34a; }
+
+        .lista {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            column-count: 1;
+        }
+        .lista li {
+            padding: 2.5mm 0 2.5mm 9mm;
+            border-bottom: 1px solid #e2e8f0;
+            position: relative;
+            font-size: 10.5pt;
+        }
+        .lista li:last-child { border-bottom: none; }
+        .lista li::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 3.4mm;
+            width: 5mm; height: 5mm;
+            border: 1.5px solid #475569;
+            border-radius: 2px;
+            background: white;
+        }
+        .lista li small {
+            display: block;
+            font-size: 9pt;
+            color: #64748b;
+            margin-top: 0.5mm;
+        }
+
+        .obs {
+            margin-top: 6mm;
+            padding: 4mm 5mm;
+            background: #fef9c3;
+            border-left: 4px solid #eab308;
+            font-size: 9.5pt;
+            color: #713f12;
+            border-radius: 0 4px 4px 0;
+        }
+
+        .rodape {
+            margin-top: auto;
+            padding-top: 8mm;
+            text-align: center;
+            font-size: 8.5pt;
+            color: #475569;
+            line-height: 1.5;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        @page { size: A4 portrait; margin: 0; }
+        @media print {
+            html, body { margin: 0 !important; padding: 0 !important; height: auto !important; background: white !important; }
+            .action-bar { display: none !important; }
+            .page {
+                margin: 0 !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                min-height: 0 !important;
+                height: auto !important;
+                padding: 15mm 18mm 12mm 18mm !important;
+                page-break-after: avoid !important;
+            }
+            .secao-titulo, .obs, .destinatario {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="action-bar">
+    <button class="btn-print" id="btnImprimir" onclick="imprimirSeguro()">
+        🖨️ Imprimir / Salvar PDF
+    </button>
+    <button class="btn-close-win" onclick="window.close()">Fechar</button>
+</div>
+
+<div class="page">
+    <div class="topo">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="NutriSabor">
+    </div>
+
+    <div class="titulo">Documentos Necessários para Admissão</div>
+
+    {% if colab %}
+    <div class="destinatario">
+        <div class="label">Colaborador</div>
+        <div class="nome">{{ colab.nome }}</div>
+        {% if colab.funcao %}<div class="funcao">{{ colab.funcao }}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="secao">
+        <div class="secao-titulo">Xerox</div>
+        <ul class="lista">
+            <li>RG</li>
+            <li>CPF</li>
+            <li>Título de Eleitor</li>
+            <li>Comprovante de Residência <small>(de no máximo 30 dias)</small></li>
+            <li>1 Foto 3x4</li>
+            <li>Carteira de Trabalho <small>(frente com foto, verso, último registro, cartão do PIS)</small></li>
+            <li>Certidão de Casamento <small>(se casado)</small></li>
+            <li>Certidão de Nascimento <small>(se solteiro)</small></li>
+            <li>Certidão de Nascimento dos filhos até 21 anos</li>
+            <li>Comprovante Escolar dos filhos de 7 a 14 anos</li>
+            <li>Carteira de Vacinação dos filhos até 7 anos</li>
+            <li>Reservista ou certificado de dispensa do tiro de guerra</li>
+            <li>Carteira de Motorista <small>(para motoristas e ajudantes)</small></li>
+        </ul>
+    </div>
+
+    <div class="secao">
+        <div class="secao-titulo exames">Exames</div>
+        <ul class="lista">
+            <li>Exame de Saúde Ocupacional (ASO)</li>
+            <li>Exame Audiométrico</li>
+            <li>Exame de Raio X de Tórax</li>
+            <li>Exame de Sangue</li>
+        </ul>
+    </div>
+
+    <div class="obs">
+        <strong>Observação:</strong> Trazer todos os documentos em xerox (cópia simples).
+        Os exames devem ser realizados na clínica indicada pela empresa antes do início das atividades.
+    </div>
+
+    <div class="rodape">
+        NUTRI SABOR REFEIÇÕES LTDA — RUA CAMPOS SALES, 1125 — SALA 3 — 15.900-049 — TAQUARITINGA-SP
+    </div>
+</div>
+
+<script>
+async function imprimirSeguro() {
+    const btn = document.getElementById('btnImprimir');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Preparando...';
+    try {
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        const imgs = Array.from(document.images);
+        await Promise.all(imgs.map(img => {
+            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+            return new Promise(r => {
+                img.addEventListener('load', r, { once: true });
+                img.addEventListener('error', r, { once: true });
+            });
+        }));
+        await new Promise(r => setTimeout(r, 100));
+    } catch (e) {} finally {
+        btn.disabled = false;
+        btn.textContent = label;
+    }
+    window.print();
+}
+</script>
+</body>
+</html>

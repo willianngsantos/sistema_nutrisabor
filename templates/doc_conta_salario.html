@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-br" style="color-scheme: light;">
+<head>
+    <meta charset="UTF-8">
+    <title>Solicitação de Conta Salário — {{ colab.nome }}</title>
+    <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            background: #525659;
+            color: #1e293b;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Barra de ações (não imprime) ── */
+        .action-bar {
+            background: #1e293b;
+            padding: 14px 32px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+            position: sticky;
+            top: 0; z-index: 10;
+        }
+        .btn-print {
+            background: #22c55e; color: white; border: none;
+            padding: 10px 28px; border-radius: 50px;
+            font-weight: 700; font-size: 14px; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-print:hover { background: #16a34a; }
+        .btn-print:disabled { background: #94a3b8; cursor: wait; }
+        .btn-close-win {
+            background: transparent; color: #94a3b8;
+            border: 1px solid #334155; padding: 10px 22px;
+            border-radius: 50px; font-weight: 600; font-size: 14px; cursor: pointer;
+        }
+        .btn-close-win:hover { color: white; border-color: #64748b; }
+
+        /* ── Página A4 portrait ── */
+        .page {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 30px auto;
+            padding: 25mm 25mm 20mm 25mm;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+            display: flex;
+            flex-direction: column;
+            font-size: 11pt;
+            line-height: 1.55;
+            color: #1e293b;
+        }
+
+        .topo {
+            text-align: center;
+            margin-bottom: 16mm;
+        }
+        .topo img {
+            max-height: 70px;
+            margin-bottom: 4mm;
+        }
+
+        .data-cidade {
+            margin-bottom: 12mm;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .destinatario {
+            margin-bottom: 12mm;
+            font-weight: 500;
+        }
+        .destinatario p { margin-bottom: 2mm; }
+
+        .saudacao {
+            margin-bottom: 6mm;
+            font-weight: 500;
+        }
+
+        .corpo {
+            margin-bottom: 22mm;
+            text-align: justify;
+            text-indent: 0;
+        }
+        .corpo strong { font-weight: 700; }
+
+        .bloco-assinatura {
+            margin: 0 auto;
+            text-align: center;
+            max-width: 420px;
+        }
+        .nome-assinante {
+            font-weight: 600;
+            font-size: 11pt;
+            margin-bottom: 1mm;
+        }
+        .titulo-assinante {
+            font-size: 10.5pt;
+            margin-bottom: 1mm;
+        }
+        .crn-assinante {
+            font-weight: 600;
+            font-size: 10pt;
+            letter-spacing: 0.5px;
+            margin-bottom: 14mm;
+        }
+        .linha-assinatura {
+            border-top: 1px solid #1e293b;
+            margin-bottom: 4mm;
+        }
+        .empresa-bloco {
+            font-weight: 600;
+            font-size: 10pt;
+            letter-spacing: 0.3px;
+            line-height: 1.6;
+            text-transform: uppercase;
+        }
+
+        .rodape {
+            margin-top: auto;
+            padding-top: 10mm;
+            text-align: center;
+            font-size: 9pt;
+            color: #475569;
+            line-height: 1.5;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* ── Print ── */
+        @page { size: A4 portrait; margin: 0; }
+        @media print {
+            html, body { margin: 0 !important; padding: 0 !important; height: auto !important; background: white !important; }
+            .action-bar { display: none !important; }
+            .page {
+                margin: 0 !important;
+                box-shadow: none !important;
+                width: 100% !important;
+                min-height: 0 !important;
+                height: auto !important;
+                padding: 20mm 22mm 14mm 22mm !important;
+                page-break-after: avoid !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="action-bar">
+    <button class="btn-print" id="btnImprimir" onclick="imprimirSeguro()">
+        🖨️ Imprimir / Salvar PDF
+    </button>
+    <button class="btn-close-win" onclick="window.close()">Fechar</button>
+</div>
+
+<div class="page">
+    <div class="topo">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="NutriSabor">
+    </div>
+
+    <div class="data-cidade">{{ data_extenso }}</div>
+
+    <div class="destinatario">
+        <p>Ao Banco Santander</p>
+        <p>Agência - 033/00130 — Taquaritinga-SP</p>
+    </div>
+
+    <div class="saudacao">At. Gerência</div>
+
+    <div class="corpo">
+        <p>
+            Encaminhamos para abertura de conta para recebimento do salário
+            o(a) colaborador(a) <strong>{{ colab.nome | upper }}</strong>
+            portador(a) do RG nº <strong>{{ colab.rg }}</strong>,
+            e inscrito(a) no CPF nº <strong>{{ colab.cpf }}</strong>,
+            com residência fixa na <strong>{{ colab.endereco_logradouro | upper }},
+            {{ colab.endereco_numero }}{% if colab.endereco_complemento %} — {{ colab.endereco_complemento | upper }}{% endif %}
+            — BAIRRO {{ colab.endereco_bairro | upper }}
+            — {{ colab.endereco_cep }}, {{ colab.endereco_cidade | upper }}/{{ colab.endereco_uf | upper }}</strong>.
+        </p>
+    </div>
+
+    <div class="bloco-assinatura">
+        <div class="nome-assinante">{{ nutri.nome }}</div>
+        <div class="titulo-assinante">Nutricionista</div>
+        <div class="crn-assinante">CRN3 {{ nutri.crn3 }}</div>
+
+        <div class="linha-assinatura"></div>
+
+        <div class="empresa-bloco">
+            NUTRI SABOR REFEIÇÕES LTDA<br>
+            CNPJ 39.469.255/0001-33<br>
+            {{ nutri.nome | upper }}<br>
+            NUTRICIONISTA RESPONSÁVEL
+        </div>
+    </div>
+
+    <div class="rodape">
+        NUTRI SABOR REFEIÇÕES LTDA — RUA CAMPOS SALES, 1125 — SALA 3 — 15.900-049 — TAQUARITINGA-SP
+    </div>
+</div>
+
+<script>
+async function imprimirSeguro() {
+    const btn = document.getElementById('btnImprimir');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Preparando...';
+    try {
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        const imgs = Array.from(document.images);
+        await Promise.all(imgs.map(img => {
+            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+            return new Promise(r => {
+                img.addEventListener('load', r, { once: true });
+                img.addEventListener('error', r, { once: true });
+            });
+        }));
+        await new Promise(r => setTimeout(r, 100));
+    } catch (e) {} finally {
+        btn.disabled = false;
+        btn.textContent = label;
+    }
+    window.print();
+}
+</script>
+</body>
+</html>

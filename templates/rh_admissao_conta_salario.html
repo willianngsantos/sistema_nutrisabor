@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_rh_nav.html" import rh_nav with context %}
+{% block conteudo %}
+{{ rh_nav('admissao') }}
+
+<div class="row align-items-center mb-3 g-2">
+  <div class="col">
+    <h4 class="fw-bold mb-0">
+      <i class="bi bi-bank me-2 text-primary"></i>Solicitação de Conta Salário
+    </h4>
+    <p class="text-muted small mb-0">Gere a carta para o Banco Santander solicitando abertura de conta para recebimento do salário.</p>
+  </div>
+  <div class="col-auto">
+    <a href="{{ url_for('rh.admissao_hub') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+      <i class="bi bi-arrow-left me-1"></i>Voltar
+    </a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-4">
+    <form action="{{ url_for('rh.admissao_conta_salario_gerar') }}" method="GET" target="_blank">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label fw-bold small text-uppercase text-secondary">Colaborador *</label>
+          <select name="colab_id" class="form-select shadow-sm" required>
+            <option value="">— Selecione —</option>
+            {% for c in colaboradores %}
+            <option value="{{ c.id }}">{{ c.nome }}{% if c.funcao %} — {{ c.funcao }}{% endif %}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text small">
+            <i class="bi bi-info-circle"></i>
+            Aparecem apenas colaboradores ativos que <strong>ainda não têm agência/conta</strong> cadastradas.
+            Precisam ter RG, CPF e endereço completo.
+          </div>
+          {% if not colaboradores %}
+          <div class="alert alert-success small mt-2 mb-0 py-2">
+            <i class="bi bi-check-circle-fill me-1"></i>
+            Todos os colaboradores ativos já têm conta bancária cadastrada.
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-bold small text-uppercase text-secondary">Nutricionista Responsável *</label>
+          <select name="nutri_id" class="form-select shadow-sm" required>
+            <option value="">— Selecione —</option>
+            {% for n in nutricionistas %}
+            <option value="{{ n.id }}">{{ n.nome }} (CRN3 {{ n.crn3 }})</option>
+            {% endfor %}
+          </select>
+          {% if not nutricionistas %}
+          <div class="form-text small text-danger">
+            <i class="bi bi-exclamation-triangle"></i>
+            Nenhuma nutricionista ativa com CRN3 cadastrada. Cadastre como colaboradora com função "Nutricionista" e preencha o CRN3.
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="col-12">
+          <hr class="my-2">
+          <button type="submit" class="btn btn-primary fw-bold px-4 shadow-sm">
+            <i class="bi bi-printer me-1"></i> Gerar Documento (nova aba)
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

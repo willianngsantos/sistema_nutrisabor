@@ -8,6 +8,55 @@ from utils.audit import log_action, format_field_diff
 colaboradores_bp = Blueprint('colaboradores', __name__)
 
 STATUS_VALIDOS = {'ativo', 'afastado', 'ferias', 'inativo'}
+FUNCOES_VALIDAS = ['Auxiliar de Cozinha', 'Cozinheira(o)', 'Nutricionista']
+
+# Principais bancos do Brasil (códigos COMPE). Usado no dropdown de
+# Dados Bancários do colaborador. Lista ordenada por uso/popularidade
+# entre conta-salário no varejo brasileiro.
+BANCOS_BR = [
+    ('001', 'Banco do Brasil'),
+    ('033', 'Santander'),
+    ('104', 'Caixa Econômica Federal'),
+    ('237', 'Bradesco'),
+    ('341', 'Itaú Unibanco'),
+    ('260', 'Nubank'),
+    ('077', 'Banco Inter'),
+    ('336', 'C6 Bank'),
+    ('290', 'PagBank'),
+    ('380', 'PicPay'),
+    ('212', 'Banco Original'),
+    ('748', 'Sicredi'),
+    ('756', 'Sicoob'),
+    ('422', 'Banco Safra'),
+    ('070', 'BRB - Banco de Brasília'),
+    ('197', 'Stone'),
+    ('323', 'Mercado Pago'),
+    ('218', 'BS2'),
+    ('655', 'Banco Votorantim (BV)'),
+    ('745', 'Citibank'),
+]
+# Lista de strings já formatadas como "<código> - <nome>" para validação
+BANCOS_VALIDOS = {f"{cod} - {nome}" for cod, nome in BANCOS_BR}
+
+
+def _coletar_dados_pessoais():
+    """Lê do request.form os campos pessoais, de endereço e bancários
+    do colaborador. Retorna dict com chaves esperadas pelos INSERTs/UPDATEs."""
+    return {
+        'rg':                   (request.form.get('rg') or '').strip() or None,
+        'cpf':                  (request.form.get('cpf') or '').strip() or None,
+        'endereco_cep':         (request.form.get('endereco_cep') or '').strip() or None,
+        'endereco_logradouro':  (request.form.get('endereco_logradouro') or '').strip() or None,
+        'endereco_numero':      (request.form.get('endereco_numero') or '').strip() or None,
+        'endereco_complemento': (request.form.get('endereco_complemento') or '').strip() or None,
+        'endereco_bairro':      (request.form.get('endereco_bairro') or '').strip() or None,
+        'endereco_cidade':      (request.form.get('endereco_cidade') or '').strip() or None,
+        'endereco_uf':          (request.form.get('endereco_uf') or '').strip().upper() or None,
+        'crn3':                 (request.form.get('crn3') or '').strip() or None,
+        'agencia':              (request.form.get('agencia') or '').strip() or None,
+        'conta':                (request.form.get('conta') or '').strip() or None,
+        'banco':                (request.form.get('banco') or '').strip() or None,
+    }
 
 
 # ──────────────────────────────────────────────
@@ -49,6 +98,11 @@ def listar():
             col.salario_bruto, col.vale_transporte,
             col.vale_refeicao, col.diversos,
             col.data_admissao,
+            col.rg, col.cpf,
+            col.endereco_cep, col.endereco_logradouro, col.endereco_numero,
+            col.endereco_complemento, col.endereco_bairro,
+            col.endereco_cidade, col.endereco_uf, col.crn3,
+            col.agencia, col.conta, col.banco,
             GROUP_CONCAT(c.nome_empresa ORDER BY c.nome_empresa SEPARATOR '||') AS unidades_nomes,
             GROUP_CONCAT(c.id            ORDER BY c.id           SEPARATOR ',')  AS unidades_ids,
             col.recebe_vt
@@ -76,7 +130,43 @@ def listar():
     clientes = cursor.fetchall()
 
     conn.close()
-    return render_template("colaboradores.html", colaboradores=colaboradores, clientes=clientes)
+    return render_template("colaboradores.html", colaboradores=colaboradores, clientes=clientes,
+                           funcoes_validas=FUNCOES_VALIDAS, bancos=BANCOS_BR)
+
+
+# ──────────────────────────────────────────────
+# FICHA INDIVIDUAL (somente leitura)
+# ──────────────────────────────────────────────
+
+@colaboradores_bp.route("/colaboradores/<int:id_colab>/ficha")
+@login_required
+@admin_or_gerencial
+def ficha(id_colab):
+    """Página de leitura com todos os dados cadastrais do colaborador.
+    Acessível por admin/gerencial. Nutricionista não tem acesso pois
+    nem deve ver a página de Colaboradores em si (Task #15)."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT col.*,
+               GROUP_CONCAT(c.nome_empresa ORDER BY c.nome_empresa SEPARATOR '||') AS unidades_nomes
+        FROM colaboradores col
+        LEFT JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
+        LEFT JOIN clientes c ON cu.id_cliente = c.id
+        WHERE col.id = %s
+        GROUP BY col.id
+    """, (id_colab,))
+    colab = cursor.fetchone()
+    conn.close()
+
+    if not colab:
+        flash("Colaborador não encontrado.", "danger")
+        return redirect(url_for('colaboradores.listar'))
+
+    colab['unidades_lista'] = colab['unidades_nomes'].split('||') if colab.get('unidades_nomes') else []
+    colab['data_admissao_fmt'] = colab['data_admissao'].strftime('%d/%m/%Y') if colab.get('data_admissao') else ''
+
+    return render_template("colaborador_ficha.html", c=colab)
 
 
 # ──────────────────────────────────────────────
@@ -97,18 +187,33 @@ def add_colaborador():
     data_admissao = request.form.get("data_admissao") or None
     ids_unidades  = request.form.getlist("unidades")
     recebe_vt     = 1 if request.form.get("recebe_vt") else 0
+    pessoais      = _coletar_dados_pessoais()
 
     if status not in STATUS_VALIDOS:
         status = 'ativo'
+    # Função: aceita só valores da lista oficial (preserva NULL se vazio)
+    if funcao and funcao not in FUNCOES_VALIDAS:
+        funcao = None
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("""
             INSERT INTO colaboradores
-                (nome, funcao, status, salario_bruto, vale_transporte, vale_refeicao, diversos, data_admissao, recebe_vt)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt))
+                (nome, funcao, status, salario_bruto, vale_transporte, vale_refeicao,
+                 diversos, data_admissao, recebe_vt,
+                 rg, cpf, endereco_cep, endereco_logradouro, endereco_numero,
+                 endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, crn3,
+                 agencia, conta, banco)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s)
+        """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt,
+              pessoais['rg'], pessoais['cpf'], pessoais['endereco_cep'],
+              pessoais['endereco_logradouro'], pessoais['endereco_numero'],
+              pessoais['endereco_complemento'], pessoais['endereco_bairro'],
+              pessoais['endereco_cidade'], pessoais['endereco_uf'], pessoais['crn3'],
+              pessoais['agencia'], pessoais['conta'], pessoais['banco']))
         id_novo = cursor.lastrowid
         _salvar_unidades(cursor, id_novo, ids_unidades)
         conn.commit()
@@ -143,16 +248,22 @@ def editar_colaborador():
     data_admissao = request.form.get("data_admissao") or None
     ids_unidades  = request.form.getlist("unidades")
     recebe_vt     = 1 if request.form.get("recebe_vt") else 0
+    pessoais      = _coletar_dados_pessoais()
 
     if status not in STATUS_VALIDOS:
         status = 'ativo'
+    if funcao and funcao not in FUNCOES_VALIDAS:
+        funcao = None
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute("""
             SELECT nome, funcao, status, salario_bruto, vale_transporte,
-                   vale_refeicao, diversos, data_admissao, recebe_vt
+                   vale_refeicao, diversos, data_admissao, recebe_vt,
+                   rg, cpf, endereco_cep, endereco_logradouro, endereco_numero,
+                   endereco_complemento, endereco_bairro, endereco_cidade,
+                   endereco_uf, crn3, agencia, conta, banco
             FROM colaboradores WHERE id=%s
         """, (id_colab,))
         antes = cursor.fetchone() or {}
@@ -168,14 +279,25 @@ def editar_colaborador():
             'salario_bruto': salario, 'vale_transporte': vt,
             'vale_refeicao': vr, 'diversos': diversos,
             'data_admissao': data_admissao, 'recebe_vt': recebe_vt,
+            **pessoais,
         }
         cursor.execute("""
             UPDATE colaboradores
             SET nome=%s, funcao=%s, status=%s,
                 salario_bruto=%s, vale_transporte=%s, vale_refeicao=%s, diversos=%s,
-                data_admissao=%s, recebe_vt=%s
+                data_admissao=%s, recebe_vt=%s,
+                rg=%s, cpf=%s, endereco_cep=%s, endereco_logradouro=%s,
+                endereco_numero=%s, endereco_complemento=%s, endereco_bairro=%s,
+                endereco_cidade=%s, endereco_uf=%s, crn3=%s,
+                agencia=%s, conta=%s, banco=%s
             WHERE id=%s
-        """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt, id_colab))
+        """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt,
+              pessoais['rg'], pessoais['cpf'], pessoais['endereco_cep'],
+              pessoais['endereco_logradouro'], pessoais['endereco_numero'],
+              pessoais['endereco_complemento'], pessoais['endereco_bairro'],
+              pessoais['endereco_cidade'], pessoais['endereco_uf'], pessoais['crn3'],
+              pessoais['agencia'], pessoais['conta'], pessoais['banco'],
+              id_colab))
         _salvar_unidades(cursor, id_colab, ids_unidades)
         conn.commit()
         log_action('update', entity_type='colaborador', entity_id=int(id_colab),

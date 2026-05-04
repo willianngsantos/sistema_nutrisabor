@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% from "_rh_nav.html" import rh_nav with context %}
+{% block conteudo %}
+{{ rh_nav('colaboradores') }}
+
+<style>
+    .ficha-card {
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    .ficha-header {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        color: white;
+        padding: 24px 28px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+    }
+    .ficha-avatar {
+        width: 64px; height: 64px;
+        background: rgba(255,255,255,.18);
+        border: 2px solid rgba(255,255,255,.35);
+        border-radius: 18px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.6rem; font-weight: 800;
+        flex-shrink: 0;
+    }
+    .ficha-section {
+        padding: 22px 28px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .ficha-section:last-child { border-bottom: none; }
+    .ficha-section h6 {
+        font-size: .72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 1px;
+        color: #64748b; margin-bottom: 14px;
+    }
+    .info-row {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 8px 18px;
+        padding: 6px 0;
+    }
+    .info-row + .info-row { border-top: 1px dashed #f1f5f9; }
+    .info-label {
+        font-size: .78rem; font-weight: 600;
+        color: #64748b; text-transform: uppercase; letter-spacing: .3px;
+        align-self: center;
+    }
+    .info-value {
+        font-size: .92rem;
+        color: #1e293b; font-weight: 500;
+        word-break: break-word;
+    }
+    .info-empty { color: #cbd5e1; font-style: italic; font-weight: 400; }
+    .badge-status {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 5px 12px; border-radius: 20px;
+        font-size: .75rem; font-weight: 700;
+    }
+    .bs-ativo    { background: #dcfce7; color: #166534; }
+    .bs-ferias   { background: #dbeafe; color: #1e40af; }
+    .bs-afastado { background: #fef3c7; color: #92400e; }
+    .bs-inativo  { background: #f1f5f9; color: #64748b; }
+    @media (max-width: 720px) {
+        .info-row { grid-template-columns: 1fr; gap: 2px; }
+        .info-label { font-size: .68rem; }
+    }
+</style>
+
+<div class="row align-items-center mb-3 g-2">
+    <div class="col">
+        <h4 class="fw-bold mb-0">
+            <i class="bi bi-person-vcard me-2 text-primary"></i>Ficha do Colaborador
+        </h4>
+        <p class="text-muted small mb-0">Dados cadastrais completos em modo leitura.</p>
+    </div>
+    <div class="col-auto d-flex gap-2">
+        <a href="{{ url_for('colaboradores.listar') }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+            <i class="bi bi-arrow-left me-1"></i>Voltar
+        </a>
+        {% if current_user.tipo == 'admin' %}
+        <a href="{{ url_for('colaboradores.listar') }}#editar-{{ c.id }}"
+           class="btn btn-sm btn-primary rounded-pill px-3"
+           title="Voltar para a lista e clicar em editar">
+            <i class="bi bi-pencil me-1"></i>Editar
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="ficha-card">
+
+    <!-- Cabeçalho -->
+    <div class="ficha-header">
+        <div class="ficha-avatar">{{ c.nome[0]|upper }}</div>
+        <div class="flex-grow-1">
+            <h5 class="fw-bold mb-1">{{ c.nome }}</h5>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                {% if c.funcao %}
+                <span class="badge bg-light text-dark" style="font-size:.78rem;">
+                    <i class="bi bi-briefcase-fill text-primary me-1"></i>{{ c.funcao }}
+                </span>
+                {% endif %}
+                {% if c.status == 'ativo' %}
+                    <span class="badge-status bs-ativo"><i class="bi bi-check-circle-fill"></i>Ativo</span>
+                {% elif c.status == 'ferias' %}
+                    <span class="badge-status bs-ferias"><i class="bi bi-umbrella-fill"></i>Férias</span>
+                {% elif c.status == 'afastado' %}
+                    <span class="badge-status bs-afastado"><i class="bi bi-bandaid-fill"></i>Afastado</span>
+                {% else %}
+                    <span class="badge-status bs-inativo"><i class="bi bi-x-circle"></i>Inativo</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Identificação -->
+    <div class="ficha-section">
+        <h6><i class="bi bi-person me-1"></i>Identificação</h6>
+        <div class="info-row">
+            <div class="info-label">Função / Cargo</div>
+            <div class="info-value">{{ c.funcao or '<span class="info-empty">Não informado</span>'|safe }}</div>
+        </div>
+        {% if c.crn3 %}
+        <div class="info-row">
+            <div class="info-label">CRN3</div>
+            <div class="info-value">{{ c.crn3 }}</div>
+        </div>
+        {% endif %}
+        <div class="info-row">
+            <div class="info-label">Data de Admissão</div>
+            <div class="info-value">{{ c.data_admissao_fmt or '<span class="info-empty">Não informada</span>'|safe }}</div>
+        </div>
+    </div>
+
+    <!-- Documentos -->
+    <div class="ficha-section">
+        <h6><i class="bi bi-card-list me-1"></i>Documentos Pessoais</h6>
+        <div class="info-row">
+            <div class="info-label">RG</div>
+            <div class="info-value">{{ c.rg or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">CPF</div>
+            <div class="info-value">{{ c.cpf or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
+    </div>
+
+    <!-- Endereço -->
+    <div class="ficha-section">
+        <h6><i class="bi bi-geo-alt me-1"></i>Endereço Residencial</h6>
+        {% set tem_end = c.endereco_logradouro or c.endereco_cidade or c.endereco_cep %}
+        {% if tem_end %}
+        <div class="info-row">
+            <div class="info-label">CEP</div>
+            <div class="info-value">{{ c.endereco_cep or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Logradouro / Número</div>
+            <div class="info-value">
+                {% if c.endereco_logradouro %}{{ c.endereco_logradouro }}{% endif %}
+                {% if c.endereco_numero %}, {{ c.endereco_numero }}{% endif %}
+                {% if c.endereco_complemento %} — {{ c.endereco_complemento }}{% endif %}
+                {% if not c.endereco_logradouro %}<span class="info-empty">—</span>{% endif %}
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Bairro</div>
+            <div class="info-value">{{ c.endereco_bairro or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Cidade / UF</div>
+            <div class="info-value">
+                {{ c.endereco_cidade or '' }}
+                {% if c.endereco_cidade and c.endereco_uf %}/{% endif %}
+                {{ c.endereco_uf or '' }}
+                {% if not c.endereco_cidade and not c.endereco_uf %}<span class="info-empty">—</span>{% endif %}
+            </div>
+        </div>
+        {% else %}
+        <p class="text-muted small fst-italic mb-0">Endereço não cadastrado.</p>
+        {% endif %}
+    </div>
+
+    <!-- Dados Bancários -->
+    <div class="ficha-section">
+        <h6><i class="bi bi-bank me-1"></i>Dados Bancários</h6>
+        {% if c.agencia or c.conta or c.banco %}
+        <div class="info-row">
+            <div class="info-label">Banco</div>
+            <div class="info-value">{{ c.banco or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Agência</div>
+            <div class="info-value">{{ c.agencia or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Conta</div>
+            <div class="info-value">{{ c.conta or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
+        {% else %}
+        <p class="text-muted small fst-italic mb-0">
+            Conta não cadastrada — colaborador aparece em <strong>Admissão → Solicitação de Conta Salário</strong>.
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Remuneração -->
+    <div class="ficha-section">
+        <h6><i class="bi bi-wallet2 me-1"></i>Remuneração & Benefícios</h6>
+        <div class="info-row">
+            <div class="info-label">Salário Bruto</div>
+            <div class="info-value">{{ c.salario_bruto | real }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Vale Transporte</div>
+            <div class="info-value">
+                {% if c.recebe_vt %}{{ c.vale_transporte | real }}{% else %}<span class="info-empty">Não recebe</span>{% endif %}
+            </div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Vale Refeição</div>
+            <div class="info-value">{{ c.vale_refeicao | real }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">Diversos</div>
+            <div class="info-value">{{ c.diversos | real }}</div>
+        </div>
+    </div>
+
+    <!-- Unidades -->
+    <div class="ficha-section">
+        <h6><i class="bi bi-building me-1"></i>Unidades de Trabalho</h6>
+        {% if c.unidades_lista %}
+            <div class="d-flex flex-wrap gap-2">
+                {% for un in c.unidades_lista %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    <i class="bi bi-building me-1"></i>{{ un }}
+                </span>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted small fst-italic mb-0">Sem unidades vinculadas.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

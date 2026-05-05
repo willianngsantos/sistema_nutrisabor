@@ -169,14 +169,25 @@
     .aviso      { font-size: 8pt; color: #7a6000; background: #fffbe6; border: 1px solid #f0d060; border-radius: 5px; padding: 5px 10px; }
 
     /* ── Print ───────────────────────────────── */
-    @page { margin: 10mm; }
+    /* Forca A4 paisagem com margem reduzida — o usuario nao precisa
+       mais selecionar orientacao manualmente no dialogo. */
+    @page { size: A4 landscape; margin: 8mm; }
 
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body   { background: #fff !important; padding: 0 !important; }
       .print-bar { display: none !important; }
-      .sheet { box-shadow: none !important; padding: 0 !important; max-width: 100% !important;
-               margin: 0 !important; page-break-after: always; }
+      /* zoom: 0.93 reduz cada folha em ~7% para que 31 dias +
+         cabecalho + rodape de cada colaborador caibam em uma unica
+         folha A4 paisagem (mesmo padrao da folha individual). */
+      .sheet {
+        box-shadow: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        page-break-after: always;
+        zoom: 0.93;
+      }
       .sheet:last-of-type { page-break-after: auto; }
       tbody td.td-hora { color: #555 !important; }
     }
@@ -187,7 +198,7 @@
 <div class="print-bar">
   <button class="btn-print" id="btnImprimir" onclick="imprimirSeguro()">🖨️ Imprimir / Salvar PDF</button>
   <button class="btn-fechar" onclick="window.close()">Fechar</button>
-  <div class="aviso">⚠️ No diálogo: selecione <strong>Orientação Paisagem</strong> e habilite <strong>"Imprimir fundos"</strong> para melhor resultado.</div>
+  <div class="aviso">💡 Habilite <strong>"Imprimir fundos"</strong> (Print backgrounds) no diálogo para o melhor resultado visual. Orientação e tamanho ja estao configurados.</div>
 </div>
 
 <script>

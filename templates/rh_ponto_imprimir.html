@@ -168,13 +168,25 @@
     .aviso      { font-size: 8pt; color: #7a6000; background: #fffbe6; border: 1px solid #f0d060; border-radius: 5px; padding: 5px 10px; }
 
     /* ── Print ───────────────────────────────── */
-    @page { margin: 10mm; }
+    /* Forca A4 paisagem com margem reduzida — o usuario nao precisa
+       mais selecionar orientacao manualmente no dialogo. */
+    @page { size: A4 landscape; margin: 8mm; }
 
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body   { background: #fff !important; padding: 0 !important; }
       .print-bar { display: none !important; }
-      .sheet { box-shadow: none !important; padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
+      /* zoom: 0.93 reduz o conteudo em ~7% para garantir que 31 dias +
+         cabecalho + rodape cabem em uma unica folha A4 paisagem. Sem
+         isso, o usuario tinha que reduzir manualmente para 93% no
+         dialogo de impressao. */
+      .sheet {
+        box-shadow: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        zoom: 0.93;
+      }
       /* Garante que texto cinza dos campos fique visível */
       tbody td.td-hora { color: #555 !important; }
     }
@@ -185,7 +197,7 @@
 <div class="print-bar">
   <button class="btn-print" id="btnImprimir" onclick="imprimirSeguro()">🖨️ Imprimir / Salvar PDF</button>
   <button class="btn-fechar" onclick="window.close()">Fechar</button>
-  <div class="aviso">⚠️ No diálogo de impressão: selecione <strong>Orientação Paisagem</strong> e habilite <strong>"Imprimir fundos"</strong> (Print backgrounds) para melhor resultado.</div>
+  <div class="aviso">💡 Habilite <strong>"Imprimir fundos"</strong> (Print backgrounds) no diálogo para o melhor resultado visual. Orientação e tamanho ja estao configurados.</div>
 </div>
 
 <script>

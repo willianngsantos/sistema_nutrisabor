@@ -1,18 +1,22 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="color-scheme: light;">
 <head>
 <meta charset="UTF-8">
 <title>Proposta {{ proposta.numero }} – {{ proposta.nome_empresa }}</title>
 
+<!-- Pre-carrega a logo: garante cache antes do dialogo de impressao,
+     evitando re-render tardio que deixa o preview branco no Safari -->
+<link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<!-- Removido Google Fonts CDN: causava re-render tardio durante o dialogo
+     de impressao do Safari. Stack de fontes do sistema ja esta disponivel. -->
 
 <style>
 /* ── Reset & base ─────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
     background: #525659;
     -webkit-font-smoothing: antialiased;
     font-size: 14px;
@@ -236,7 +240,7 @@ body {
 
     <div class="ms-auto d-flex gap-2">
         {% if modo == 'preview' %}
-        <button onclick="window.print()"
+        <button id="btnImprimir" onclick="imprimirSeguro()"
                 class="btn btn-sm btn-success rounded-pill px-4">
             <i class="bi bi-printer me-1"></i>Imprimir / Salvar PDF
         </button>
@@ -421,6 +425,34 @@ body {
 </div><!-- /page -->
 
 <script>
+// Aguarda fontes e imagens antes de abrir o dialogo de impressao,
+// evitando o bug do preview em branco no Safari.
+async function imprimirSeguro() {
+    const btn = document.getElementById('btnImprimir');
+    if (!btn) { window.print(); return; }
+    const labelOriginal = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Preparando...';
+    try {
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        const imgs = Array.from(document.images);
+        await Promise.all(imgs.map(img => {
+            if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+            return new Promise(resolve => {
+                img.addEventListener('load', resolve, { once: true });
+                img.addEventListener('error', resolve, { once: true });
+            });
+        }));
+        await new Promise(r => setTimeout(r, 100));
+    } catch (e) {
+        // Se algo falhar, segue mesmo assim
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = labelOriginal;
+    }
+    window.print();
+}
+
 function fecharOuVoltar() {
     if (window.history.length > 1) window.history.back();
     else window.close();

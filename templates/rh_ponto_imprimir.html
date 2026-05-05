@@ -1,13 +1,16 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-br" style="color-scheme: light;">
 <head>
   <meta charset="UTF-8">
   <title>Folha de Ponto — {{ colab_sel['nome'] }} — {{ MESES_PT[mes-1] }}/{{ ano }}</title>
+  <!-- Pre-carrega a logo: garante cache antes do dialogo de impressao,
+       evitando re-render tardio que deixa o preview branco no Safari -->
+  <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
       font-size: 9pt;
       color: #000;
       background: #e8e8e8;
@@ -180,10 +183,41 @@
 <body>
 
 <div class="print-bar">
-  <button class="btn-print" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+  <button class="btn-print" id="btnImprimir" onclick="imprimirSeguro()">🖨️ Imprimir / Salvar PDF</button>
   <button class="btn-fechar" onclick="window.close()">Fechar</button>
   <div class="aviso">⚠️ No diálogo de impressão: selecione <strong>Orientação Paisagem</strong> e habilite <strong>"Imprimir fundos"</strong> (Print backgrounds) para melhor resultado.</div>
 </div>
+
+<script>
+  // Aguarda fontes e imagens antes de abrir o dialogo de impressao.
+  // Evita o bug do "preview em branco" causado por recursos que
+  // chegavam tardiamente e disparavam re-render durante o snapshot
+  // de impressao do Safari.
+  async function imprimirSeguro() {
+    const btn = document.getElementById('btnImprimir');
+    const labelOriginal = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Preparando...';
+    try {
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      const imgs = Array.from(document.images);
+      await Promise.all(imgs.map(img => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise(resolve => {
+          img.addEventListener('load', resolve, { once: true });
+          img.addEventListener('error', resolve, { once: true });
+        });
+      }));
+      await new Promise(r => setTimeout(r, 100));
+    } catch (e) {
+      // Se algo falhar, segue mesmo assim
+    } finally {
+      btn.disabled = false;
+      btn.textContent = labelOriginal;
+    }
+    window.print();
+  }
+</script>
 
 <div class="sheet">
 

@@ -202,7 +202,7 @@
             <h3 class="fw-bold text-dark mb-1"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Relatórios Financeiros</h3>
             <p class="text-muted small mb-0">Analise o desempenho de vendas e faturamento.</p>
         </div>
-        <button class="btn btn-outline-secondary btn-sm shadow-sm bg-white" onclick="window.print()">
+        <button id="btnImprimir" class="btn btn-outline-secondary btn-sm shadow-sm bg-white" onclick="imprimirSeguro()">
             <i class="bi bi-printer me-1"></i> Imprimir
         </button>
     </div>
@@ -337,5 +337,36 @@
     </div>
     {% endif %}
 
-</div> 
+</div>
+
+<script>
+    // Aguarda fontes e imagens antes de abrir o dialogo de impressao,
+    // evitando o bug do preview em branco no Safari quando o usuario
+    // abre a pagina e clica em imprimir antes da fonte Inter terminar.
+    async function imprimirSeguro() {
+        const btn = document.getElementById('btnImprimir');
+        if (!btn) { window.print(); return; }
+        const labelOriginal = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Preparando...';
+        try {
+            if (document.fonts && document.fonts.ready) await document.fonts.ready;
+            const imgs = Array.from(document.images);
+            await Promise.all(imgs.map(img => {
+                if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+                return new Promise(resolve => {
+                    img.addEventListener('load', resolve, { once: true });
+                    img.addEventListener('error', resolve, { once: true });
+                });
+            }));
+            await new Promise(r => setTimeout(r, 100));
+        } catch (e) {
+            // Se algo falhar, segue mesmo assim
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = labelOriginal;
+        }
+        window.print();
+    }
+</script>
 {% endblock %}

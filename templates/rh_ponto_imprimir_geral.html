@@ -60,11 +60,14 @@
       table-layout: fixed;
       border: 1.5px solid #000;
     }
-    col.c-data { width: 52px; }
-    col.c-dia  { width: 58px; }
-    col.c-sit  { width: 48px; }
-    col.c-hora { width: 52px; }    /* 4 × IGUAL */
-    col.c-obs  { }
+    /* Larguras em % distribuem proporcionalmente em qualquer A4 paisagem.
+       Mesma proporcao da folha individual: dados/dia/sit/hora aumentados,
+       obs reduzida (era ~55%, agora 35%). */
+    col.c-data { width: 9%; }    /* 10/05/2026 cabe inteiro */
+    col.c-dia  { width: 9%; }    /* "Domingo" cabe folgado */
+    col.c-sit  { width: 7%; }    /* codigo N/F/A/Fer/Fer/Fg */
+    col.c-hora { width: 10%; }   /* 4 × 10% = 40% — "Saida Almoco" cabe sem sobrepor */
+    col.c-obs  { width: 35%; }   /* rubrica + observacao curta */
 
     thead th {
       background: #333;

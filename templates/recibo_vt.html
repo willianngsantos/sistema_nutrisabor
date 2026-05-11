@@ -310,37 +310,39 @@
             height: 1.5px;
         }
         body.mono .receipt-title { color: #000; }
-        body.mono .receipt-ref   { color: #444; }
+        body.mono .receipt-ref   { color: #000; }
         body.mono .receipt-periodo {
             background: #000 !important;
             color: #fff !important;
         }
-        body.mono .section-label { color: #444; }
+        /* Labels principais: preto puro + bold para garantir legibilidade
+           em impressoras laser P&B com toner gasto. */
+        body.mono .section-label { color: #000; font-weight: 700; }
         body.mono .beneficiario-box {
             background: #f0f0f0 !important;
             border-left: 4px solid #000 !important;
         }
         body.mono .beneficiario-nome { color: #000; }
-        body.mono .beneficiario-meta { color: #444; }
+        body.mono .beneficiario-meta { color: #222; }
 
-        body.mono .valores-table td        { color: #000; border-bottom-color: #ccc; }
-        body.mono .valores-table td.val-label { color: #444; }
+        body.mono .valores-table td        { color: #000; border-bottom-color: #999; }
+        body.mono .valores-table td.val-label { color: #000; }
         body.mono .total-row td            { border-top-color: #000 !important; }
         body.mono .total-row td.val-amount { color: #000 !important; }
 
-        body.mono .declaracao { color: #000; border-top-color: #888; }
+        body.mono .declaracao { color: #000; border-top-color: #555; }
         body.mono .declaracao strong { color: #000; }
 
         body.mono .assinatura-linha { border-top-color: #000; }
-        body.mono .assinatura-label { color: #444; }
-        body.mono .assinatura-nome  { color: #666; }
+        body.mono .assinatura-label { color: #000; font-weight: 700; }
+        body.mono .assinatura-nome  { color: #222; }
 
-        body.mono .via-footer       { border-top-color: #888; }
-        body.mono .via-footer-empresa { color: #666; }
+        body.mono .via-footer       { border-top-color: #555; }
+        body.mono .via-footer-empresa { color: #333; }
         body.mono .via-label {
             background: #f0f0f0 !important;
             color: #000;
-            border-color: #888;
+            border-color: #555;
         }
 
         /* Icones coloridos (Bootstrap text-success / text-secondary) viram pretos */

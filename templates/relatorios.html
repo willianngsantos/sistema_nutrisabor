@@ -78,6 +78,60 @@
     
     .report-row:hover { background-color: #f8fafc; }
 
+    /* --- TOGGLE Modo P&B (so na tela) ----------------------- */
+    .toggle-mono {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #f8f9fa;
+        color: #2c3e50;
+        border: 1px solid #dee2e6;
+        padding: 4px 12px;
+        border-radius: 50px;
+        font-size: .85rem;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+    }
+    .toggle-mono input { margin: 0; cursor: pointer; }
+    .toggle-mono.active {
+        background: #2c3e50;
+        color: #fff;
+        border-color: #2c3e50;
+    }
+
+    /* --- Modo P&B aplicado em TELA (preview do que sai impresso) ---
+       Forca tudo para preto/cinza, incluindo bordas coloridas dos KPIs
+       que escapavam ao @media print original. ------------------------- */
+    body.mono .text-primary,
+    body.mono .text-success,
+    body.mono .text-warning,
+    body.mono .text-danger { color: #000 !important; }
+
+    body.mono .border-success,
+    body.mono .border-warning,
+    body.mono .border-primary { border-color: #000 !important; }
+
+    body.mono .badge.bg-success-subtle,
+    body.mono .badge.bg-warning-subtle,
+    body.mono .badge.bg-primary-subtle {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        border-color: #555 !important;
+    }
+
+    body.mono .kpi-card { border-color: #000 !important; }
+    body.mono .kpi-value { color: #000 !important; }
+    body.mono .kpi-label { color: #000 !important; font-weight: 700; }
+    body.mono .kpi-icon  { color: #555 !important; }
+
+    body.mono .report-table thead th {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        border-bottom-color: #000 !important;
+    }
+    body.mono .report-table tbody td { color: #000; }
+
     /* --- ESTILOS EXCLUSIVOS DE IMPRESSÃO --- */
     @media print {
         @page { size: A4; margin: 0; }
@@ -202,9 +256,16 @@
             <h3 class="fw-bold text-dark mb-1"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Relatórios Financeiros</h3>
             <p class="text-muted small mb-0">Analise o desempenho de vendas e faturamento.</p>
         </div>
-        <button id="btnImprimir" class="btn btn-outline-secondary btn-sm shadow-sm bg-white" onclick="imprimirSeguro()">
-            <i class="bi bi-printer me-1"></i> Imprimir
-        </button>
+        <div class="d-flex gap-2 align-items-center">
+            <label class="toggle-mono" id="lblToggleMono" title="Otimiza para impressoras preto-e-branco">
+                <input type="checkbox" id="chkMono" onchange="toggleMono(this.checked)">
+                <i class="bi bi-circle-half"></i>
+                <span>Modo P&amp;B</span>
+            </label>
+            <button id="btnImprimir" class="btn btn-outline-secondary btn-sm shadow-sm bg-white" onclick="imprimirSeguro()">
+                <i class="bi bi-printer me-1"></i> Imprimir
+            </button>
+        </div>
     </div>
 
     <div class="filter-bar">
@@ -340,6 +401,28 @@
 </div>
 
 <script>
+    // Toggle do modo P&B. Persiste no localStorage (chave 'relatorio_mono')
+    // para nao precisar reativar a cada vez que abre os relatorios.
+    function toggleMono(on) {
+        document.body.classList.toggle('mono', on);
+        const lbl = document.getElementById('lblToggleMono');
+        if (lbl) lbl.classList.toggle('active', on);
+        try { localStorage.setItem('relatorio_mono', on ? '1' : '0'); } catch (e) {}
+    }
+    // Restaura preferencia ao carregar
+    (function() {
+        try {
+            const saved = localStorage.getItem('relatorio_mono') === '1';
+            if (saved) {
+                const chk = document.getElementById('chkMono');
+                if (chk) {
+                    chk.checked = true;
+                    toggleMono(true);
+                }
+            }
+        } catch (e) {}
+    })();
+
     // Aguarda fontes e imagens antes de abrir o dialogo de impressao,
     // evitando o bug do preview em branco no Safari quando o usuario
     // abre a pagina e clica em imprimir antes da fonte Inter terminar.

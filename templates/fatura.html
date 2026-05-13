@@ -45,6 +45,82 @@
         .total-value-big { font-size: 2.2rem; font-weight: 800; color: #e67e22; line-height: 1; }
         .page-footer { text-align: center; font-size: 0.7rem; color: #adb5bd; padding: 10px 0 10mm 0; }
         .stamp-paid { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%) rotate(-15deg); font-size: 6rem; font-weight: 900; color: #27ae60; border: 8px solid #27ae60; padding: 10px 50px; border-radius: 15px; opacity: 0.15; text-transform: uppercase; pointer-events: none; z-index: 0; }
+        /* ── Modo Monocromático (P&B) ─────────────────────────────
+           Mesmo pattern dos templates de cardapio e recibo VT: troca
+           verde/laranja por preto e cinza-escuro, com bordas espessas
+           e font-weight bold em labels para garantir legibilidade em
+           impressoras laser P&B com toner gasto. ─────────────────── */
+        body.mono .top-bar {
+            background: #000 !important;
+            background-image: none !important;
+        }
+        body.mono .stamp-paid {
+            color: #000 !important;
+            border-color: #000 !important;
+            opacity: 0.12;
+        }
+        body.mono .company-sub { color: #333; }
+        body.mono .invoice-label {
+            color: #000 !important;
+            font-weight: 700;
+        }
+        body.mono .invoice-label.text-warning,
+        body.mono .invoice-label.text-success { color: #000 !important; }
+        body.mono .invoice-value { color: #000; }
+
+        body.mono .client-box {
+            background: #f0f0f0 !important;
+            border-left: 4px solid #000 !important;
+        }
+        body.mono .client-box .text-muted { color: #333 !important; }
+
+        body.mono .table-custom th {
+            color: #000 !important;
+            border-bottom-color: #000 !important;
+            font-weight: 700;
+        }
+        body.mono .table-custom td { color: #000; border-bottom-color: #aaa; }
+
+        body.mono .bottom-section { border-top-color: #555; }
+        body.mono .payment-info h6 { color: #000; }
+        body.mono .payment-info p  { color: #000; }
+        body.mono .payment-info .text-muted { color: #333 !important; }
+        body.mono .pix-tag {
+            background: #000 !important;
+            color: #fff !important;
+        }
+
+        body.mono .total-label { color: #000; font-weight: 600; }
+        body.mono .total-value-big { color: #000 !important; }
+
+        body.mono .page-footer { color: #444 !important; }
+
+        /* Status "Pago em ..." e icones verdes → preto */
+        body.mono .text-success { color: #000 !important; }
+        body.mono .text-warning { color: #000 !important; }
+
+        /* Toggle visual na barra (so na tela) */
+        .toggle-mono {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f8f9fa;
+            color: #2c3e50;
+            border: 1px solid #dee2e6;
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: .85rem;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle-mono input { margin: 0; cursor: pointer; }
+        .toggle-mono.active {
+            background: #2c3e50;
+            color: #fff;
+            border-color: #2c3e50;
+        }
+
         @page { size: A4; margin: 0; }
         @media print {
             html, body { margin: 0 !important; padding: 0 !important; height: auto !important; background: white; }
@@ -106,8 +182,14 @@
 
             <span class="text-muted border-start ps-3 small">Visualização de {{ nome_documento | title }}</span>
 
+            <label class="toggle-mono ms-2" id="lblToggleMono" title="Otimiza para impressoras preto-e-branco">
+                <input type="checkbox" id="chkMono" onchange="toggleMono(this.checked)">
+                <i class="bi bi-circle-half"></i>
+                <span>Modo P&amp;B</span>
+            </label>
+
             <!-- Imprimir / Salvar como PDF via dialogo do navegador -->
-            <button id="btnImprimir" onclick="imprimirSeguro()" class="btn btn-sm btn-dark rounded-pill px-4 ms-2"
+            <button id="btnImprimir" onclick="imprimirSeguro()" class="btn btn-sm btn-dark rounded-pill px-4"
                     title="Imprimir ou salvar como PDF">
                 <i class="bi bi-printer me-1"></i> Imprimir / Salvar PDF
             </button>
@@ -240,6 +322,29 @@
         </div>
     </div>
     <script>
+        // Toggle do modo P&B. Persiste preferencia no localStorage
+        // (chave 'fatura_mono') para que o usuario nao precise
+        // reativar a cada vez que abre uma fatura/resumo.
+        function toggleMono(on) {
+            document.body.classList.toggle('mono', on);
+            const lbl = document.getElementById('lblToggleMono');
+            if (lbl) lbl.classList.toggle('active', on);
+            try { localStorage.setItem('fatura_mono', on ? '1' : '0'); } catch (e) {}
+        }
+        // Restaura preferencia ao carregar
+        (function() {
+            try {
+                const saved = localStorage.getItem('fatura_mono') === '1';
+                if (saved) {
+                    const chk = document.getElementById('chkMono');
+                    if (chk) {
+                        chk.checked = true;
+                        toggleMono(true);
+                    }
+                }
+            } catch (e) {}
+        })();
+
         // Aguarda fontes e imagens antes de abrir o dialogo de impressao,
         // evitando o bug do preview em branco no Safari (recursos chegando
         // tardiamente disparavam re-render durante o snapshot de impressao).

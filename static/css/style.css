@@ -229,3 +229,16 @@ h1, h2, h3, h4, h5, h6 {
     /* 9. Total display no formulário de pedido menor */
     .total-display h1 { font-size: 1.5rem; }
 }
+/* =========================================
+   TABELA COM DROPDOWN — fix overflow
+   =========================================
+   O .table-responsive padrao do Bootstrap aplica overflow-x: auto,
+   o que pelo CSS spec forca overflow-y: auto/hidden tambem — isso
+   clipa qualquer dropdown que abra para fora do container (ex.:
+   botao "Status" na ultima linha da tabela). Use .table-overflow-fix
+   no lugar do .table-responsive em tabelas com dropdowns. Mantem
+   scroll horizontal apenas em telas muito estreitas. */
+.table-overflow-fix { overflow: visible; }
+@media (max-width: 575.98px) {
+    .table-overflow-fix { overflow-x: auto; }
+}

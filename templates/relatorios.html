@@ -142,11 +142,12 @@
             color: black !important;
             margin: 0 !important;
             padding: 0 !important;
-            font-size: 10pt !important; 
+            /* fonte base reduzida: tudo escala a partir daqui */
+            font-size: 8.5pt !important;
         }
 
         .print-wrapper {
-            padding: 15mm 15mm !important;
+            padding: 10mm 12mm !important;
             width: 100% !important;
         }
 
@@ -163,23 +164,26 @@
 
         .print-only-header {
             display: flex !important;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             border-bottom: 1px solid #000;
-            padding-bottom: 10px;
+            padding-bottom: 6px;
             width: 100%;
             justify-content: space-between;
             align-items: center;
         }
+        .print-only-header img { height: 32px !important; }
+        .print-only-header h3 { font-size: 1rem !important; }
+        .print-only-header small { font-size: .6rem !important; }
 
         .kpi-row {
             display: flex !important;
             flex-direction: row !important;
             justify-content: space-between !important;
             width: 100% !important;
-            margin-bottom: 20px !important;
-            gap: 10px !important;
+            margin-bottom: 12px !important;
+            gap: 8px !important;
         }
-        
+
         .kpi-col {
             flex: 1 !important;
             width: 32% !important;
@@ -190,46 +194,65 @@
         .kpi-card {
             border: 1px solid #64748b !important;
             box-shadow: none !important;
-            background-color: #fff !important; 
-            padding: 12px 8px !important;
+            background-color: #fff !important;
+            padding: 6px 8px !important;
             text-align: center;
-            border-radius: 8px !important;
+            border-radius: 6px !important;
         }
-        
+
         .kpi-value {
-            font-size: 1.5rem !important; 
+            font-size: 1.05rem !important;
+            font-weight: 700 !important;
             color: #000 !important;
-            margin-top: 5px !important;
+            margin-top: 2px !important;
+            white-space: nowrap !important; /* nao quebrar "R$ 98.991,60" */
         }
-        
-        .kpi-label { 
-            color: #000 !important; 
-            font-size: 0.65rem !important;
+
+        .kpi-label {
+            color: #000 !important;
+            font-size: .58rem !important;
+            letter-spacing: .5px !important;
         }
 
         .card { border: none !important; box-shadow: none !important; width: 100% !important; }
-        .table-responsive { overflow: visible !important; }
-        
+        .table-responsive,
+        .table-overflow-fix { overflow: visible !important; }
+
         .report-table {
             width: 100% !important;
             border-collapse: collapse !important;
-            margin-top: 10px;
+            margin-top: 6px;
+            table-layout: fixed !important;
         }
-        
+
+        /* Larguras fixas para evitar que o navegador esprema o TOTAL */
+        .report-table th:nth-child(1), .report-table td:nth-child(1) { width: 12%; }  /* Status */
+        .report-table th:nth-child(2), .report-table td:nth-child(2) { width: 13%; }  /* Fatura */
+        .report-table th:nth-child(3), .report-table td:nth-child(3) { width: 44%; }  /* Cliente */
+        .report-table th:nth-child(4), .report-table td:nth-child(4) { width: 15%; }  /* Competencia */
+        .report-table th:nth-child(5), .report-table td:nth-child(5) { width: 16%; }  /* Total */
+
         .report-table th {
             background-color: #f1f5f9 !important;
             color: black !important;
             border: 1px solid #000 !important;
             font-weight: bold;
-            font-size: 9pt !important; 
-            padding: 8px !important;
+            font-size: 7.5pt !important;
+            padding: 4px 6px !important;
         }
-        
+
         .report-table td {
             border: 1px solid #000 !important;
-            padding: 8px !important; 
-            font-size: 9pt !important;
+            padding: 4px 6px !important;
+            font-size: 8pt !important;
+            line-height: 1.25 !important;
         }
+
+        /* Status, Fatura, Competencia, Total nao quebram em multiplas linhas */
+        .report-table td:nth-child(1),
+        .report-table td:nth-child(2),
+        .report-table td:nth-child(4),
+        .report-table td:nth-child(5) { white-space: nowrap !important; }
         
         a { text-decoration: none !important; color: black !important; }
     }

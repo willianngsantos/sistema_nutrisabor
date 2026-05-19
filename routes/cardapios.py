@@ -90,15 +90,15 @@ def montar_cardapio(id_cardapio):
     cursor = conn.cursor(dictionary=True)
     
     cursor.execute("""
-        SELECT ca.*, c.nome_empresa 
-        FROM cardapios ca JOIN clientes c ON ca.id_cliente = c.id 
+        SELECT ca.*, c.nome_empresa, c.usa_sobremesa
+        FROM cardapios ca JOIN clientes c ON ca.id_cliente = c.id
         WHERE ca.id = %s
     """, (id_cardapio,))
     cardapio = cursor.fetchone()
-    
+
     cursor.execute("SELECT * FROM itens_cardapio WHERE id_cardapio = %s ORDER BY data_dia", (id_cardapio,))
     itens = cursor.fetchall()
-    
+
     conn.close()
     return render_template("form_cardapio.html", cardapio=cardapio, itens=itens)
 
@@ -150,7 +150,7 @@ def imprimir_cardapio(id_cardapio):
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-        SELECT ca.*, c.nome_empresa, c.logo_path
+        SELECT ca.*, c.nome_empresa, c.logo_path, c.usa_sobremesa
         FROM cardapios ca JOIN clientes c ON ca.id_cliente = c.id
         WHERE ca.id = %s
     """, (id_cardapio,))

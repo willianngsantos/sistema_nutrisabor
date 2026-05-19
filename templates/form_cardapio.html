@@ -130,18 +130,22 @@
                     </div>
                 </div>
 
-                <div class="col-12 col-md-6">
+                {# Bebida ocupa toda a largura quando o cliente nao usa
+                   sobremesa, para nao deixar espaco vazio no grid. #}
+                <div class="col-12 {% if cardapio.get('usa_sobremesa', 1) %}col-md-6{% endif %}">
                     <div class="form-floating-custom">
                         <label><i class="bi bi-cup-straw me-1"></i> Bebida</label>
                         <input type="text" name="bebida_{{ item['id'] }}" value="{{ item['bebida'] if item['bebida'] else 'Suco de Fruta' }}">
                     </div>
                 </div>
+                {% if cardapio.get('usa_sobremesa', 1) %}
                 <div class="col-12 col-md-6">
                     <div class="form-floating-custom">
                         <label><i class="bi bi-cake me-1"></i> Sobremesa</label>
                         <input type="text" name="sobremesa_{{ item['id'] }}" value="{{ item['sobremesa'] if item['sobremesa'] else 'Fruta' }}">
                     </div>
                 </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

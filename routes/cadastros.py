@@ -139,7 +139,8 @@ def clientes():
     cursor = conn.cursor(dictionary=True)
 
     cursor.execute("""
-        SELECT c.id, c.nome_empresa, c.cnpj, c.email, c.celular, g.nome AS nome_grupo, c.id_grupo, c.apelido, c.atende_local, c.logo_path
+        SELECT c.id, c.nome_empresa, c.cnpj, c.email, c.celular, g.nome AS nome_grupo,
+               c.id_grupo, c.apelido, c.atende_local, c.logo_path, c.usa_sobremesa
         FROM clientes c
         LEFT JOIN grupos_clientes g ON c.id_grupo = g.id
         ORDER BY c.nome_empresa
@@ -261,6 +262,31 @@ def toggle_unidade(id_cliente):
         log_action('update', entity_type='cliente', entity_id=int(id_cliente),
                    descricao=f"Cliente '{cliente['nome_empresa']}' {acao}")
         flash(f"{cliente['nome_empresa']} foi {acao}.", "info")
+    conn.close()
+    return redirect(url_for('cadastros.clientes'))
+
+
+@cadastros_bp.route("/toggle_sobremesa/<int:id_cliente>", methods=["POST"])
+@login_required
+@admin_only
+def toggle_sobremesa(id_cliente):
+    """Liga/desliga o campo Sobremesa para um cliente. Quando desligado,
+    a linha Sobremesa some do formulário de edição do cardápio e do PDF
+    impresso. Aplicado por cliente — útil para clientes que pediram
+    apenas refeição sem doce (ex: Nardelli em maio/2026)."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome_empresa, usa_sobremesa FROM clientes WHERE id = %s", (id_cliente,))
+    cliente = cursor.fetchone()
+    if cliente:
+        novo = 0 if cliente['usa_sobremesa'] else 1
+        cursor2 = conn.cursor(dictionary=True)
+        cursor2.execute("UPDATE clientes SET usa_sobremesa = %s WHERE id = %s", (novo, id_cliente))
+        conn.commit()
+        acao = "habilitada" if novo else "desabilitada"
+        log_action('update', entity_type='cliente', entity_id=int(id_cliente),
+                   descricao=f"Sobremesa {acao} para o cliente '{cliente['nome_empresa']}'")
+        flash(f"Sobremesa {acao} para {cliente['nome_empresa']}.", "info")
     conn.close()
     return redirect(url_for('cadastros.clientes'))
 

@@ -218,6 +218,25 @@
                                 <i class="bi bi-building{% if cli['atende_local'] %}-check{% endif %}"></i>
                             </button>
                         </form>
+                        {# Toggle Sobremesa: so faz sentido para clientes que
+                           recebem cardapio (atende_local = 1). Quando ligado,
+                           o campo Sobremesa aparece no form de edicao do
+                           cardapio e na impressao. #}
+                        {% if cli['atende_local'] %}
+                        <form method="POST" action="{{ url_for('cadastros.toggle_sobremesa', id_cliente=cli['id']) }}"
+                              style="display:inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit"
+                                    class="btn btn-sm border me-1 position-relative {% if cli['usa_sobremesa'] %}btn-warning text-white{% else %}btn-light text-muted{% endif %}"
+                                    title="{{ 'Desativar sobremesa no cardapio' if cli['usa_sobremesa'] else 'Ativar sobremesa no cardapio' }}">
+                                <i class="bi bi-cake"></i>
+                                {% if not cli['usa_sobremesa'] %}
+                                <span class="position-absolute top-50 start-50 translate-middle"
+                                      style="font-size:1.1rem;line-height:1;color:#dc3545;font-weight:900;pointer-events:none;">/</span>
+                                {% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
                         <button class="btn btn-sm btn-light text-primary border me-1" 
                                 data-bs-toggle="modal" 
                                 data-bs-target="#modalEditarCliente"

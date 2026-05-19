@@ -572,6 +572,7 @@
                         </td>
                         {% endfor %}
                     </tr>
+                    {% if cardapio.get('usa_sobremesa', 1) %}
                     <tr>
                         <td class="row-header">Sobremesa</td>
                         {% for item in itens %}
@@ -580,6 +581,7 @@
                         </td>
                         {% endfor %}
                     </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>

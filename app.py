@@ -205,13 +205,18 @@ def home():
         page = total_pages
     offset = (page - 1) * per_page
 
+    # Subquery escalar para o total: so executa para os pedidos da pagina
+    # (LIMIT), aproveita o indice em itens_pedido.id_pedido. Mesma formula
+    # usada em vendas.py (ver_fatura) — quantidade * preco_praticado.
     sql_pedidos = f"""
         SELECT p.id, p.codigo_fatura, c.nome_empresa, p.status,
                DATE_FORMAT(p.data_emissao, '%d/%m/%Y') as data_emissao,
                DATE_FORMAT(p.data_fim, '%d/%m/%Y') as data_competencia,
                DATE_FORMAT(p.data_pagamento, '%d/%m/%Y') as data_pagamento_fmt,
                DATE_FORMAT(p.data_pagamento, '%Y-%m-%d') as data_pagamento_iso,
-               p.numero_nf
+               p.numero_nf,
+               (SELECT COALESCE(SUM(i.quantidade * i.preco_praticado), 0)
+                FROM itens_pedido i WHERE i.id_pedido = p.id) AS total
         FROM pedidos p
         JOIN clientes c ON p.id_cliente = c.id
         WHERE 1=1 {where_sql}

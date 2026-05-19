@@ -140,6 +140,9 @@
                             <th>Cliente / Fatura</th>
                             <th class="d-none d-md-table-cell">Competência</th>
                             <th class="d-none d-md-table-cell">Pago em</th>
+                            {% if current_user.tipo == 'admin' %}
+                            <th class="d-none d-md-table-cell text-end">Total</th>
+                            {% endif %}
                             <th class="text-end pe-4">Ações</th>
                         </tr>
                     </thead>
@@ -160,7 +163,12 @@
                                 <small class="text-muted">Fatura #{{ ped.codigo_fatura }}
                                     {% if ped.numero_nf %} | <span class="text-success fw-bold"><i class="bi bi-receipt"></i> NF: {{ ped.numero_nf }}</span>{% endif %}
                                 </small>
-                                <div class="d-md-none text-muted mt-1" style="font-size:.72rem;"><i class="bi bi-calendar-event me-1"></i>{{ ped.data_competencia if ped.data_competencia else '-' }}</div>
+                                <div class="d-md-none text-muted mt-1" style="font-size:.72rem;">
+                                    <i class="bi bi-calendar-event me-1"></i>{{ ped.data_competencia if ped.data_competencia else '-' }}
+                                    {% if current_user.tipo == 'admin' %}
+                                    <span class="ms-2 fw-bold text-dark"><i class="bi bi-cash-coin me-1"></i>{{ ped.total | real }}</span>
+                                    {% endif %}
+                                </div>
                             </td>
                             <td class="small text-muted fw-bold d-none d-md-table-cell"><i class="bi bi-calendar-event me-1"></i> {{ ped.data_competencia if ped.data_competencia else '-' }}</td>
 
@@ -183,6 +191,12 @@
                                     <span class="text-muted">—</span>
                                 {% endif %}
                             </td>
+
+                            {% if current_user.tipo == 'admin' %}
+                            <td class="d-none d-md-table-cell text-end fw-bold text-dark font-monospace">
+                                {{ ped.total | real }}
+                            </td>
+                            {% endif %}
 
                             <td class="text-end pe-4">
                                 <div class="btn-group shadow-sm d-none d-md-inline-flex">
@@ -294,7 +308,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5" class="text-center py-5">
+                            <td colspan="{{ 6 if current_user.tipo == 'admin' else 5 }}" class="text-center py-5">
                                 <div class="text-muted mb-3"><i class="bi bi-folder-x fs-1 opacity-25"></i></div>
                                 <h6 class="text-secondary fw-normal">Nenhuma fatura encontrada para este período.</h6>
                             </td>

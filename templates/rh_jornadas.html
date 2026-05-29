@@ -97,7 +97,7 @@
                     <th class="ps-3" style="width:90px;">Dia</th>
                     <th>Entrada</th>
                     <th>Saída</th>
-                    <th style="width:110px;">Intervalo</th>
+                    <th style="width:140px;">Intervalo</th>
                     <th class="text-end pe-3" style="width:90px;">Carga</th>
                   </tr>
                 </thead>
@@ -164,7 +164,13 @@ function calcDiaMin(dia) {
   if (!ent || !sai) return 0;
   const [eh, em] = ent.split(':').map(Number);
   const [sh, sm] = sai.split(':').map(Number);
-  const total = (sh * 60 + sm) - (eh * 60 + em) - iv;
+  const inicio = eh * 60 + em;
+  let fim = sh * 60 + sm;
+  // Jornada noturna: se a saida e menor que a entrada, passou da
+  // meia-noite (vira o dia). Usamos < estrito para que 00:00→00:00
+  // fique como 0 em vez de virar 24h.
+  if (fim < inicio) fim += 24 * 60;
+  const total = fim - inicio - iv;
   return total > 0 ? total : 0;
 }
 

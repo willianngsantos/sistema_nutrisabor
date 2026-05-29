@@ -49,11 +49,20 @@ def _fmt_hhmm(t):
 
 
 def _carga_min(entrada_hhmm, saida_hhmm, intervalo_min):
-    """Minutos úteis entre entrada e saída descontando intervalo."""
+    """Minutos úteis entre entrada e saída descontando intervalo.
+    Suporta jornadas noturnas: se a saída for menor ou igual à
+    entrada, assumimos que a jornada virou o dia (ex: 16:00 → 01:48
+    do dia seguinte = 9h36min, não 0)."""
     try:
         eh, em = [int(x) for x in entrada_hhmm.split(':')]
         sh, sm = [int(x) for x in saida_hhmm.split(':')]
-        return max(0, (sh * 60 + sm) - (eh * 60 + em) - (intervalo_min or 0))
+        inicio = eh * 60 + em
+        fim = sh * 60 + sm
+        # Estritamente menor: entrada == saida (ex: 00:00→00:00) fica
+        # como 0 em vez de virar 24h por engano.
+        if fim < inicio:
+            fim += 24 * 60
+        return max(0, fim - inicio - (intervalo_min or 0))
     except (ValueError, AttributeError):
         return 0
 

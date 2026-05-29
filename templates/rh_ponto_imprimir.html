@@ -248,6 +248,29 @@
     <div class="header-right">
       <div class="nome-colab">{{ colab_sel['nome'] }}</div>
       <div class="funcao-colab">{{ colab_sel['funcao'] or '' }}</div>
+      {% if colab_sel['ctps'] or colab_sel['cbo'] %}
+      <div class="funcao-colab" style="margin-top:1px;">
+        {% if colab_sel['ctps'] %}<strong>CTPS:</strong> {{ colab_sel['ctps'] }}{% endif %}
+        {% if colab_sel['ctps'] and colab_sel['cbo'] %} · {% endif %}
+        {% if colab_sel['cbo'] %}<strong>CBO:</strong> {{ colab_sel['cbo'] }}{% endif %}
+      </div>
+      {% endif %}
+      {% if colab_sel['jornada_grupos'] %}
+      {# Exibe so os horarios (sem nome da jornada). Quando ha mais de
+         um grupo, lista cada um em sua linha; quando ha so um, fica
+         em linha unica para economizar espaco vertical. #}
+      <div class="funcao-colab" style="margin-top:2px;">
+        <strong>Jornada:</strong>
+        {% if colab_sel['jornada_grupos']|length == 1 %}
+          {% set g = colab_sel['jornada_grupos'][0] %}
+          {{ g.label }} {{ g.entrada }}–{{ g.saida }}{% if g.intervalo %} ({{ g.intervalo }}min){% endif %}
+        {% else %}
+          {% for g in colab_sel['jornada_grupos'] %}
+            <div style="margin-left:6px;">{{ g.label }} {{ g.entrada }}–{{ g.saida }}{% if g.intervalo %} ({{ g.intervalo }}min){% endif %}</div>
+          {% endfor %}
+        {% endif %}
+      </div>
+      {% endif %}
       <div class="mes-colab">{{ MESES_PT[mes-1] | upper }} / {{ ano }}</div>
     </div>
   </div>

@@ -99,6 +99,35 @@ def _agrupa_dias(dias_ordenados):
     return grupos
 
 
+def _carregar_jornada_grupos(cursor, id_jornada):
+    """Carrega os dias de uma jornada e retorna a lista de grupos
+    agrupados por horarios consecutivos (mesma estrutura usada na
+    tela de Jornadas). Usado no cabecalho da Folha de Ponto para
+    exibir os horarios sem precisar abrir a tela de Jornadas.
+
+    Retorna [] se id_jornada e None ou se nao houver dias cadastrados."""
+    if not id_jornada:
+        return []
+    cursor.execute("""
+        SELECT dia_semana, hora_entrada, hora_saida, intervalo_min
+        FROM rh_jornada_dias
+        WHERE id_jornada = %s
+        ORDER BY FIELD(dia_semana, 'seg','ter','qua','qui','sex','sab','dom')
+    """, (id_jornada,))
+    rows = cursor.fetchall()
+    dias = []
+    for r in rows:
+        ent = _fmt_hhmm(r['hora_entrada'])
+        sai = _fmt_hhmm(r['hora_saida'])
+        iv = r['intervalo_min'] or 0
+        dias.append({
+            'dia_semana': r['dia_semana'],
+            'entrada': ent, 'saida': sai, 'intervalo': iv,
+            'carga_min': _carga_min(ent, sai, iv),
+        })
+    return _agrupa_dias(dias)
+
+
 # ─── HELPERS ──────────────────────────────────────────────────────
 def _upload_path():
     path = os.path.join(current_app.root_path, 'static', 'uploads', 'rh_docs')
@@ -849,8 +878,13 @@ def imprimir_ponto():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, nome, funcao FROM colaboradores WHERE id = %s", (colab_id,))
+    cursor.execute(
+        "SELECT id, nome, funcao, cbo, ctps, id_jornada FROM colaboradores WHERE id = %s",
+        (colab_id,)
+    )
     colab_sel = cursor.fetchone()
+    if colab_sel:
+        colab_sel['jornada_grupos'] = _carregar_jornada_grupos(cursor, colab_sel.get('id_jornada'))
     conn.close()
 
     _, dias_mes = monthrange(ano, mes)
@@ -882,8 +916,16 @@ def imprimir_ponto_geral():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, nome, funcao FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
+    cursor.execute(
+        "SELECT id, nome, funcao, cbo, ctps, id_jornada "
+        "FROM colaboradores WHERE status != 'inativo' ORDER BY nome"
+    )
     colaboradores = cursor.fetchall()
+    # Enriquece cada colaborador com os grupos de jornada agrupados
+    # (ex: [{label: 'Seg-Sex', entrada: '07:00', saida: '17:00', intervalo: 60}, ...]).
+    # A funcao retorna [] quando id_jornada e None ou inexistente.
+    for c in colaboradores:
+        c['jornada_grupos'] = _carregar_jornada_grupos(cursor, c.get('id_jornada'))
     conn.close()
 
     _, dias_mes = monthrange(ano, mes)

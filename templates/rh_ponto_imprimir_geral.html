@@ -255,6 +255,20 @@
     <span class="nome">{{ colab['nome'] }}{% if colab['funcao'] %} — <span style="font-weight:400;">{{ colab['funcao'] }}</span>{% endif %}</span>
     <span class="periodo">{{ MESES_PT[mes-1] }}/{{ ano }}</span>
   </div>
+  {% if colab['ctps'] or colab['cbo'] or colab['jornada_grupos'] %}
+  {# Sub-cabeçalho compacto com CTPS, CBO e horarios da jornada. Sem
+     nome de jornada (so periodos), como pedido pelo Willian. #}
+  <div style="border-bottom:1px solid #ccc; padding:2px 8px; font-size:6.5pt; color:#222; background:#f4f4f4; display:flex; flex-wrap:wrap; gap:8px;">
+    {% if colab['ctps'] %}<span><strong>CTPS:</strong> {{ colab['ctps'] }}</span>{% endif %}
+    {% if colab['cbo'] %}<span><strong>CBO:</strong> {{ colab['cbo'] }}</span>{% endif %}
+    {% if colab['jornada_grupos'] %}
+    <span>
+      <strong>Jornada:</strong>
+      {% for g in colab['jornada_grupos'] %}{{ g.label }} {{ g.entrada }}–{{ g.saida }}{% if g.intervalo %} ({{ g.intervalo }}min){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}
+    </span>
+    {% endif %}
+  </div>
+  {% endif %}
 
   <table>
     <colgroup>

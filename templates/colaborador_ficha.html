@@ -147,7 +147,42 @@
             <div class="info-label">CPF</div>
             <div class="info-value">{{ c.cpf or '<span class="info-empty">—</span>'|safe }}</div>
         </div>
+        <div class="info-row">
+            <div class="info-label">CTPS</div>
+            <div class="info-value">{{ c.ctps or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
+        <div class="info-row">
+            <div class="info-label">CBO</div>
+            <div class="info-value">{{ c.cbo or '<span class="info-empty">—</span>'|safe }}</div>
+        </div>
     </div>
+
+    {# Jornada vinculada — exibe nome + grupos de horario agrupados.
+       jornada_grupos e jornada_nome sao montados pela rota /ficha. #}
+    {% if c.jornada_nome or c.jornada_grupos %}
+    <div class="ficha-section">
+        <h6><i class="bi bi-clock-history me-1"></i>Jornada de Trabalho</h6>
+        {% if c.jornada_nome %}
+        <div class="info-row">
+            <div class="info-label">Jornada</div>
+            <div class="info-value fw-bold">{{ c.jornada_nome }}</div>
+        </div>
+        {% endif %}
+        {% if c.jornada_grupos %}
+        <div class="info-row">
+            <div class="info-label">Horários</div>
+            <div class="info-value">
+                {% for g in c.jornada_grupos %}
+                <div>
+                    <strong>{{ g.label }}:</strong>
+                    {{ g.entrada }} às {{ g.saida }}{% if g.intervalo %} <span class="text-muted">(intervalo {{ g.intervalo }}min)</span>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 
     <!-- Endereço -->
     <div class="ficha-section">

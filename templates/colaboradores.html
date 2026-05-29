@@ -309,6 +309,9 @@
                                 data-agencia="{{ c.agencia or '' }}"
                                 data-conta="{{ c.conta or '' }}"
                                 data-banco="{{ c.banco or '' }}"
+                                data-ctps="{{ c.ctps or '' }}"
+                                data-cbo="{{ c.cbo or '' }}"
+                                data-id_jornada="{{ c.id_jornada or '' }}"
                                 title="Editar">
                             <i class="bi bi-pencil-fill"></i>
                         </button>
@@ -490,6 +493,35 @@
                                         <label class="form-label fw-semibold small text-secondary mb-1">CPF</label>
                                         <input type="text" name="cpf" class="form-control border-0 bg-light" placeholder="000.000.000-00" oninput="mascaraCPF(this)">
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">CTPS</label>
+                                        <input type="text" name="ctps" class="form-control border-0 bg-light" placeholder="N° / Série (ex: 1234567 / 0011)">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">CBO</label>
+                                        <input type="text" name="cbo" class="form-control border-0 bg-light" placeholder="Ex: 5132-25">
+                                        <div class="form-text small text-muted">Classificação Brasileira de Ocupações.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Jornada de Trabalho (opcional) -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-clock-history me-1"></i>Jornada de Trabalho
+                                </p>
+                                <label class="form-label fw-semibold small text-secondary mb-1">Jornada vinculada</label>
+                                <select name="id_jornada" class="form-select border-0 bg-light">
+                                    <option value="">Nenhuma</option>
+                                    {% for j in jornadas %}
+                                    <option value="{{ j.id }}">{{ j.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text small text-muted">
+                                    Aparece no cabeçalho da Folha de Ponto deste colaborador.
+                                    Gerencie em <a href="{{ url_for('rh.jornadas') }}" target="_blank">RH → Jornadas</a>.
                                 </div>
                             </div>
                         </div>
@@ -747,6 +779,35 @@
                                         <label class="form-label fw-semibold small text-secondary mb-1">CPF</label>
                                         <input type="text" name="cpf" id="edit_cpf" class="form-control border-0 bg-light" oninput="mascaraCPF(this)">
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">CTPS</label>
+                                        <input type="text" name="ctps" id="edit_ctps" class="form-control border-0 bg-light" placeholder="N° / Série">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold small text-secondary mb-1">CBO</label>
+                                        <input type="text" name="cbo" id="edit_cbo" class="form-control border-0 bg-light" placeholder="Ex: 5132-25">
+                                        <div class="form-text small text-muted">Classificação Brasileira de Ocupações.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Jornada de Trabalho (opcional) -->
+                        <div class="col-12">
+                            <div class="card border-0 shadow-sm rounded-3 p-3 bg-white">
+                                <p class="text-uppercase fw-bold small text-secondary mb-3" style="letter-spacing:.5px;">
+                                    <i class="bi bi-clock-history me-1"></i>Jornada de Trabalho
+                                </p>
+                                <label class="form-label fw-semibold small text-secondary mb-1">Jornada vinculada</label>
+                                <select name="id_jornada" id="edit_id_jornada" class="form-select border-0 bg-light">
+                                    <option value="">Nenhuma</option>
+                                    {% for j in jornadas %}
+                                    <option value="{{ j.id }}">{{ j.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text small text-muted">
+                                    Aparece no cabeçalho da Folha de Ponto deste colaborador.
+                                    Gerencie em <a href="{{ url_for('rh.jornadas') }}" target="_blank">RH → Jornadas</a>.
                                 </div>
                             </div>
                         </div>
@@ -948,6 +1009,9 @@
         document.getElementById('edit_agencia').value     = btn.getAttribute('data-agencia') || '';
         document.getElementById('edit_conta').value       = btn.getAttribute('data-conta') || '';
         document.getElementById('edit_banco').value       = btn.getAttribute('data-banco') || '';
+        document.getElementById('edit_ctps').value        = btn.getAttribute('data-ctps') || '';
+        document.getElementById('edit_cbo').value         = btn.getAttribute('data-cbo') || '';
+        document.getElementById('edit_id_jornada').value  = btn.getAttribute('data-id_jornada') || '';
 
         // Mostra/esconde campo CRN3 conforme função
         atualizarVisibilidadeCRN3('edit');

@@ -41,7 +41,9 @@ BANCOS_VALIDOS = {f"{cod} - {nome}" for cod, nome in BANCOS_BR}
 
 def _coletar_dados_pessoais():
     """Lê do request.form os campos pessoais, de endereço e bancários
-    do colaborador. Retorna dict com chaves esperadas pelos INSERTs/UPDATEs."""
+    do colaborador. Retorna dict com chaves esperadas pelos INSERTs/UPDATEs.
+    Inclui CBO, CTPS e id_jornada (todos opcionais)."""
+    id_jornada_raw = (request.form.get('id_jornada') or '').strip()
     return {
         'rg':                   (request.form.get('rg') or '').strip() or None,
         'cpf':                  (request.form.get('cpf') or '').strip() or None,
@@ -56,6 +58,9 @@ def _coletar_dados_pessoais():
         'agencia':              (request.form.get('agencia') or '').strip() or None,
         'conta':                (request.form.get('conta') or '').strip() or None,
         'banco':                (request.form.get('banco') or '').strip() or None,
+        'cbo':                  (request.form.get('cbo') or '').strip() or None,
+        'ctps':                 (request.form.get('ctps') or '').strip() or None,
+        'id_jornada':           int(id_jornada_raw) if id_jornada_raw.isdigit() else None,
     }
 
 
@@ -103,6 +108,7 @@ def listar():
             col.endereco_complemento, col.endereco_bairro,
             col.endereco_cidade, col.endereco_uf, col.crn3,
             col.agencia, col.conta, col.banco,
+            col.cbo, col.ctps, col.id_jornada,
             GROUP_CONCAT(c.nome_empresa ORDER BY c.nome_empresa SEPARATOR '||') AS unidades_nomes,
             GROUP_CONCAT(c.id            ORDER BY c.id           SEPARATOR ',')  AS unidades_ids,
             col.recebe_vt
@@ -129,9 +135,14 @@ def listar():
     """)
     clientes = cursor.fetchall()
 
+    # Lista de jornadas para o dropdown de vínculo no cadastro
+    cursor.execute("SELECT id, nome FROM rh_jornadas ORDER BY nome")
+    jornadas = cursor.fetchall()
+
     conn.close()
     return render_template("colaboradores.html", colaboradores=colaboradores, clientes=clientes,
-                           funcoes_validas=FUNCOES_VALIDAS, bancos=BANCOS_BR)
+                           funcoes_validas=FUNCOES_VALIDAS, bancos=BANCOS_BR,
+                           jornadas=jornadas)
 
 
 # ──────────────────────────────────────────────
@@ -149,14 +160,26 @@ def ficha(id_colab):
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT col.*,
-               GROUP_CONCAT(c.nome_empresa ORDER BY c.nome_empresa SEPARATOR '||') AS unidades_nomes
+               GROUP_CONCAT(c.nome_empresa ORDER BY c.nome_empresa SEPARATOR '||') AS unidades_nomes,
+               j.nome AS jornada_nome
         FROM colaboradores col
         LEFT JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
         LEFT JOIN clientes c ON cu.id_cliente = c.id
+        LEFT JOIN rh_jornadas j ON j.id = col.id_jornada
         WHERE col.id = %s
         GROUP BY col.id
     """, (id_colab,))
     colab = cursor.fetchone()
+
+    # Carrega os grupos de horario da jornada (mesma helper usada
+    # na Folha de Ponto) para exibir no card "Jornada de Trabalho"
+    # da ficha. Import local para evitar ciclo de imports.
+    if colab and colab.get('id_jornada'):
+        from routes.rh import _carregar_jornada_grupos
+        colab['jornada_grupos'] = _carregar_jornada_grupos(cursor, colab['id_jornada'])
+    else:
+        colab['jornada_grupos'] = [] if colab else None
+
     conn.close()
 
     if not colab:
@@ -204,16 +227,19 @@ def add_colaborador():
                  diversos, data_admissao, recebe_vt,
                  rg, cpf, endereco_cep, endereco_logradouro, endereco_numero,
                  endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, crn3,
-                 agencia, conta, banco)
+                 agencia, conta, banco,
+                 cbo, ctps, id_jornada)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s,
                     %s, %s, %s)
         """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt,
               pessoais['rg'], pessoais['cpf'], pessoais['endereco_cep'],
               pessoais['endereco_logradouro'], pessoais['endereco_numero'],
               pessoais['endereco_complemento'], pessoais['endereco_bairro'],
               pessoais['endereco_cidade'], pessoais['endereco_uf'], pessoais['crn3'],
-              pessoais['agencia'], pessoais['conta'], pessoais['banco']))
+              pessoais['agencia'], pessoais['conta'], pessoais['banco'],
+              pessoais['cbo'], pessoais['ctps'], pessoais['id_jornada']))
         id_novo = cursor.lastrowid
         _salvar_unidades(cursor, id_novo, ids_unidades)
         conn.commit()
@@ -263,7 +289,8 @@ def editar_colaborador():
                    vale_refeicao, diversos, data_admissao, recebe_vt,
                    rg, cpf, endereco_cep, endereco_logradouro, endereco_numero,
                    endereco_complemento, endereco_bairro, endereco_cidade,
-                   endereco_uf, crn3, agencia, conta, banco
+                   endereco_uf, crn3, agencia, conta, banco,
+                   cbo, ctps, id_jornada
             FROM colaboradores WHERE id=%s
         """, (id_colab,))
         antes = cursor.fetchone() or {}
@@ -289,7 +316,8 @@ def editar_colaborador():
                 rg=%s, cpf=%s, endereco_cep=%s, endereco_logradouro=%s,
                 endereco_numero=%s, endereco_complemento=%s, endereco_bairro=%s,
                 endereco_cidade=%s, endereco_uf=%s, crn3=%s,
-                agencia=%s, conta=%s, banco=%s
+                agencia=%s, conta=%s, banco=%s,
+                cbo=%s, ctps=%s, id_jornada=%s
             WHERE id=%s
         """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt,
               pessoais['rg'], pessoais['cpf'], pessoais['endereco_cep'],
@@ -297,6 +325,7 @@ def editar_colaborador():
               pessoais['endereco_complemento'], pessoais['endereco_bairro'],
               pessoais['endereco_cidade'], pessoais['endereco_uf'], pessoais['crn3'],
               pessoais['agencia'], pessoais['conta'], pessoais['banco'],
+              pessoais['cbo'], pessoais['ctps'], pessoais['id_jornada'],
               id_colab))
         _salvar_unidades(cursor, id_colab, ids_unidades)
         conn.commit()

@@ -172,13 +172,16 @@ def ficha(id_colab):
     colab = cursor.fetchone()
 
     # Carrega os grupos de horario da jornada (mesma helper usada
-    # na Folha de Ponto) para exibir no card "Jornada de Trabalho"
-    # da ficha. Import local para evitar ciclo de imports.
+    # na Folha de Ponto) + total semanal formatado para exibir no
+    # card "Jornada de Trabalho" da ficha. Import local para evitar
+    # ciclo de imports.
     if colab and colab.get('id_jornada'):
-        from routes.rh import _carregar_jornada_grupos
+        from routes.rh import _carregar_jornada_grupos, _jornada_total_semanal_fmt
         colab['jornada_grupos'] = _carregar_jornada_grupos(cursor, colab['id_jornada'])
-    else:
-        colab['jornada_grupos'] = [] if colab else None
+        colab['jornada_total_fmt'] = _jornada_total_semanal_fmt(colab['jornada_grupos'])
+    elif colab:
+        colab['jornada_grupos'] = []
+        colab['jornada_total_fmt'] = ''
 
     conn.close()
 

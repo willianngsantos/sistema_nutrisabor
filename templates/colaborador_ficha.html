@@ -181,6 +181,12 @@
             </div>
         </div>
         {% endif %}
+        {% if c.jornada_total_fmt %}
+        <div class="info-row">
+            <div class="info-label">Total semanal</div>
+            <div class="info-value fw-bold text-primary">{{ c.jornada_total_fmt }}</div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 

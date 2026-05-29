@@ -137,6 +137,19 @@ def _carregar_jornada_grupos(cursor, id_jornada):
     return _agrupa_dias(dias)
 
 
+def _jornada_total_semanal_fmt(grupos):
+    """Soma a carga semanal de uma lista de grupos de jornada e retorna
+    a duracao formatada (ex: '44h 30min'). Cada grupo tem 'carga_min'
+    (um dia) e '_dias' (dias cobertos por aquele horario), entao o
+    total e soma de carga_min * len(_dias).
+
+    Retorna '' se grupos vazio. Usado no cabecalho da Folha de Ponto."""
+    if not grupos:
+        return ''
+    total = sum(g['carga_min'] * len(g.get('_dias', [g.get('dia_semana')])) for g in grupos)
+    return _fmt_duracao(total) if total > 0 else ''
+
+
 # ─── HELPERS ──────────────────────────────────────────────────────
 def _upload_path():
     path = os.path.join(current_app.root_path, 'static', 'uploads', 'rh_docs')
@@ -908,6 +921,7 @@ def imprimir_ponto():
     colab_sel = cursor.fetchone()
     if colab_sel:
         colab_sel['jornada_grupos'] = _carregar_jornada_grupos(cursor, colab_sel.get('id_jornada'))
+        colab_sel['jornada_total_fmt'] = _jornada_total_semanal_fmt(colab_sel['jornada_grupos'])
     conn.close()
 
     _, dias_mes = monthrange(ano, mes)
@@ -955,10 +969,12 @@ def imprimir_ponto_geral():
     )
     colaboradores = cursor.fetchall()
     # Enriquece cada colaborador com os grupos de jornada agrupados
-    # (ex: [{label: 'Seg-Sex', entrada: '07:00', saida: '17:00', intervalo: 60}, ...]).
-    # A funcao retorna [] quando id_jornada e None ou inexistente.
+    # (ex: [{label: 'Seg-Sex', entrada: '07:00', saida: '17:00', intervalo: 60}, ...])
+    # mais o total semanal formatado. As funcoes retornam vazio quando
+    # id_jornada e None ou inexistente.
     for c in colaboradores:
         c['jornada_grupos'] = _carregar_jornada_grupos(cursor, c.get('id_jornada'))
+        c['jornada_total_fmt'] = _jornada_total_semanal_fmt(c['jornada_grupos'])
     conn.close()
 
     _, dias_mes = monthrange(ano, mes)

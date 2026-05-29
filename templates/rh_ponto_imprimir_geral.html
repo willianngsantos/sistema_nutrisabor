@@ -266,6 +266,9 @@
             <div style="margin-left:6px;">{{ g.label }} {{ g.entrada }}–{{ g.saida }}{% if g.intervalo %} ({{ g.intervalo }}min){% endif %}</div>
           {% endfor %}
         {% endif %}
+        {% if colab['jornada_total_fmt'] %}
+        <span style="border:1px solid #000; padding:0 5px; margin-left:4px; font-weight:700; color:#000;">{{ colab['jornada_total_fmt'] }}/sem</span>
+        {% endif %}
       </div>
       {% endif %}
       <div class="mes-colab">{{ MESES_PT[mes-1] | upper }} / {{ ano }}</div>

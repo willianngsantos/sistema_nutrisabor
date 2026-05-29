@@ -258,7 +258,8 @@
       {% if colab_sel['jornada_grupos'] %}
       {# Exibe so os horarios (sem nome da jornada). Quando ha mais de
          um grupo, lista cada um em sua linha; quando ha so um, fica
-         em linha unica para economizar espaco vertical. #}
+         em linha unica para economizar espaco vertical. O total
+         semanal aparece em destaque ao lado de "Jornada:". #}
       <div class="funcao-colab" style="margin-top:2px;">
         <strong>Jornada:</strong>
         {% if colab_sel['jornada_grupos']|length == 1 %}
@@ -268,6 +269,9 @@
           {% for g in colab_sel['jornada_grupos'] %}
             <div style="margin-left:6px;">{{ g.label }} {{ g.entrada }}–{{ g.saida }}{% if g.intervalo %} ({{ g.intervalo }}min){% endif %}</div>
           {% endfor %}
+        {% endif %}
+        {% if colab_sel['jornada_total_fmt'] %}
+        <span style="border:1px solid #000; padding:0 5px; margin-left:4px; font-weight:700; color:#000;">{{ colab_sel['jornada_total_fmt'] }}/sem</span>
         {% endif %}
       </div>
       {% endif %}

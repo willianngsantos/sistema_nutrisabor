@@ -807,10 +807,23 @@ def ponto():
         mes, ano = hoje.month, hoje.year
 
     colab_id = request.args.get('colab_id', '')
+    # Filtro de status para a Folha Geral. O dropdown na tela escolhe
+    # entre "ativos" (default — exclui ferias/afastados/inativos) e
+    # "nao_inativos" (todos exceto inativos). Aceitamos o param mas
+    # tratamos qualquer valor invalido como o default seguro "ativos".
+    status_filtro = (request.args.get('status_filtro') or 'ativos').strip()
+    if status_filtro not in ('ativos', 'nao_inativos'):
+        status_filtro = 'ativos'
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    # Dropdown de colaborador (individual): mostra todos exceto inativos
     cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
     colaboradores = cursor.fetchall()
+    # Contagem para o card "Folha Geral" reflete o filtro selecionado
+    where_geral = "status = 'ativo'" if status_filtro == 'ativos' else "status != 'inativo'"
+    cursor.execute(f"SELECT COUNT(*) AS qt FROM colaboradores WHERE {where_geral}")
+    total_geral = cursor.fetchone()['qt']
     colab_sel = None
     if colab_id:
         cursor.execute("SELECT id, nome, funcao FROM colaboradores WHERE id = %s", (colab_id,))
@@ -819,7 +832,8 @@ def ponto():
 
     return render_template('rh_ponto.html',
         colaboradores=colaboradores, colab_sel=colab_sel, colab_id=colab_id,
-        mes=mes, ano=ano, MESES_PT=MESES_PT)
+        mes=mes, ano=ano, MESES_PT=MESES_PT,
+        status_filtro=status_filtro, total_geral=total_geral)
 
 
 @rh_bp.route("/rh/ponto/registrar", methods=["POST"])
@@ -923,11 +937,21 @@ def imprimir_ponto_geral():
     except ValueError:
         mes, ano = hoje.month, hoje.year
 
+    # Filtro de status: por padrao "ativos" para excluir colaboradores
+    # em ferias/afastados/inativos. Aceita tambem "nao_inativos" para
+    # incluir todos exceto inativos (comportamento antigo).
+    status_filtro = (request.args.get('status_filtro') or 'ativos').strip()
+    if status_filtro == 'nao_inativos':
+        where_status = "status != 'inativo'"
+    else:
+        # "ativos" (default) e qualquer outro valor desconhecido
+        where_status = "status = 'ativo'"
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
-        "SELECT id, nome, funcao, cbo, ctps, id_jornada "
-        "FROM colaboradores WHERE status != 'inativo' ORDER BY nome"
+        f"SELECT id, nome, funcao, cbo, ctps, id_jornada "
+        f"FROM colaboradores WHERE {where_status} ORDER BY nome"
     )
     colaboradores = cursor.fetchall()
     # Enriquece cada colaborador com os grupos de jornada agrupados

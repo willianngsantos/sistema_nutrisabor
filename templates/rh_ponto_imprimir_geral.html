@@ -170,9 +170,11 @@
     .aviso      { font-size: 8pt; color: #7a6000; background: #fffbe6; border: 1px solid #f0d060; border-radius: 5px; padding: 5px 10px; }
 
     /* ── Print ───────────────────────────────── */
-    /* Forca A4 paisagem com margem reduzida — o usuario nao precisa
-       mais selecionar orientacao manualmente no dialogo. */
-    @page { size: A4 landscape; margin: 8mm; }
+    /* @page com margin: 0 elimina o espaco onde o navegador desenharia
+       cabecalho (titulo da pagina) e rodape (URL + numero de paginas).
+       O padding interno do .sheet em @media print cuida da folga
+       visual nas bordas. */
+    @page { size: A4 landscape; margin: 0; }
 
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -183,7 +185,9 @@
          folha A4 paisagem (mesmo padrao da folha individual). */
       .sheet {
         box-shadow: none !important;
-        padding: 0 !important;
+        /* padding interno substitui a margem do @page — mesma folga
+           visual, mas sem espaco para o navegador desenhar header/footer */
+        padding: 8mm !important;
         max-width: 100% !important;
         margin: 0 !important;
         page-break-after: always;

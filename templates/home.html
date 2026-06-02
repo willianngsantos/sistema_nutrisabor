@@ -54,8 +54,8 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-header bg-white border-0 pt-2 pb-0 d-flex align-items-center">
         <i class="bi bi-bar-chart-line-fill text-success me-2"></i>
-        <h6 class="fw-bold mb-0">Faturamento recebido · últimos 12 meses</h6>
-        <small class="text-muted ms-2 d-none d-md-inline">(clique em um mês para ver os lançamentos)</small>
+        <h6 class="fw-bold mb-0">Faturamento por fechamento · últimos 12 meses</h6>
+        <small class="text-muted ms-2 d-none d-md-inline">(competência/quinzena · clique em um mês para ver os lançamentos)</small>
     </div>
     <div class="card-body py-2">
         <div style="position:relative; height:230px;">
@@ -484,7 +484,7 @@
         data: {
             labels: labels,
             datasets: [{
-                label: 'Recebido',
+                label: 'Faturado',
                 data: valores,
                 backgroundColor: 'rgba(25, 135, 84, 0.75)',
                 hoverBackgroundColor: 'rgba(25, 135, 84, 1)',

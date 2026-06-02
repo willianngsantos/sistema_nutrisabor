@@ -193,15 +193,16 @@ def home():
     """)
     fat_ano_atual = cursor.fetchone()['total'] or 0
 
-    # 3b. GRÁFICO — faturamento PAGO nos últimos 12 meses (por data_pagamento).
-    # Buscamos as somas por mês e preenchemos os meses sem recebimento com 0,
-    # para o gráfico ter sempre 12 colunas em ordem cronológica.
+    # 3b. GRÁFICO — faturamento por COMPETÊNCIA (fechamento) nos últimos 12 meses.
+    # Agrupa pela data_fim (a mesma base do código quinzenal e do filtro da lista
+    # abaixo), somando TODAS as faturas do mês — independente de estarem pagas.
+    # Reflete "o que foi fechado/faturado no mês". Meses sem faturas viram 0.
     cursor.execute("""
-        SELECT DATE_FORMAT(p.data_pagamento, '%Y-%m') AS ym,
+        SELECT DATE_FORMAT(p.data_fim, '%Y-%m') AS ym,
                SUM(i.quantidade * i.preco_praticado) AS total
         FROM itens_pedido i JOIN pedidos p ON i.id_pedido = p.id
-        WHERE p.status = 'Pago' AND p.data_pagamento IS NOT NULL
-          AND p.data_pagamento >= DATE_FORMAT(CURRENT_DATE() - INTERVAL 11 MONTH, '%Y-%m-01')
+        WHERE p.data_fim IS NOT NULL
+          AND p.data_fim >= DATE_FORMAT(CURRENT_DATE() - INTERVAL 11 MONTH, '%Y-%m-01')
         GROUP BY ym
     """)
     _mapa_fat = {r['ym']: float(r['total'] or 0) for r in cursor.fetchall()}

@@ -306,15 +306,21 @@
     </div>
 
     <div class="filter-bar">
-        <form method="POST" class="row g-3 align-items-end">
+        <div class="mb-2 d-flex flex-wrap gap-1 align-items-center no-print">
+            <span class="small text-muted me-1"><i class="bi bi-lightning-charge me-1"></i>Atalhos:</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-0" onclick="atalhoPeriodo('mes')">Mês atual</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-0" onclick="atalhoPeriodo('3meses')">Últimos 3 meses</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-0" onclick="atalhoPeriodo('ano')">Este ano</button>
+        </div>
+        <form method="POST" class="row g-3 align-items-end" id="formRelatorio">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="col-6 col-md-3">
                 <label class="form-label text-secondary small fw-bold text-uppercase">Data Início</label>
-                <input type="date" name="data_inicio" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" value="{{ f_inicio }}">
+                <input type="date" name="data_inicio" id="data_inicio" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" value="{{ f_inicio }}">
             </div>
             <div class="col-6 col-md-3">
                 <label class="form-label text-secondary small fw-bold text-uppercase">Data Fim</label>
-                <input type="date" name="data_fim" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" value="{{ f_fim }}">
+                <input type="date" name="data_fim" id="data_fim" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" value="{{ f_fim }}">
             </div>
             <div class="col-12 col-md-3">
                 <label class="form-label text-secondary small fw-bold text-uppercase">Cliente</label>
@@ -449,6 +455,21 @@
         </div>
     </div>
 
+    <!-- Mini-gráfico por cliente (só tela) -->
+    {% if por_cliente %}
+    <div class="card border-0 shadow-sm mb-4 no-print">
+        <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center">
+            <i class="bi bi-bar-chart-fill text-primary me-2"></i>
+            <h6 class="fw-bold mb-0">Faturamento por cliente <span class="text-muted fw-normal small">(maiores do período)</span></h6>
+        </div>
+        <div class="card-body">
+            <div style="position:relative; height:{{ [por_cliente[:12]|length * 34, 120]|max }}px;">
+                <canvas id="graficoClientes"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <h6 class="fw-bold text-secondary text-uppercase small mb-2"><i class="bi bi-list-ul me-1"></i>Detalhamento das faturas</h6>
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
@@ -517,6 +538,27 @@
 </div>
 
 <script>
+    // Atalhos de período: preenchem as datas e submetem o filtro.
+    function _isoData(d) {
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function atalhoPeriodo(tipo) {
+        var hoje = new Date(), ini, fim;
+        if (tipo === 'mes') {
+            ini = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+        } else if (tipo === '3meses') {
+            ini = new Date(hoje.getFullYear(), hoje.getMonth() - 2, 1);
+            fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+        } else { // ano
+            ini = new Date(hoje.getFullYear(), 0, 1);
+            fim = new Date(hoje.getFullYear(), 11, 31);
+        }
+        document.getElementById('data_inicio').value = _isoData(ini);
+        document.getElementById('data_fim').value = _isoData(fim);
+        document.getElementById('formRelatorio').submit();
+    }
+
     // Toggle do modo P&B. Persiste no localStorage (chave 'relatorio_mono')
     // para nao precisar reativar a cada vez que abre os relatorios.
     function toggleMono(on) {
@@ -568,4 +610,41 @@
         window.print();
     }
 </script>
+
+{% if por_cliente %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var el = document.getElementById('graficoClientes');
+    if (!el || typeof Chart === 'undefined') return;
+    var labels = [{% for cl in por_cliente[:12] %}{{ cl['nome_empresa'] | tojson }},{% endfor %}];
+    var totais = [{% for cl in por_cliente[:12] %}{{ cl['total'] | float }},{% endfor %}];
+    var fmt = function (v) {
+        return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    };
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{ label: 'Total', data: totais, backgroundColor: 'rgba(13,110,253,.75)', borderRadius: 5, maxBarThickness: 26 }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function (c) { return fmt(c.parsed.x); } } }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: { callback: function (v) { return v >= 1000 ? 'R$ ' + (v / 1000).toLocaleString('pt-BR') + 'k' : 'R$ ' + v; } }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

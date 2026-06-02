@@ -212,10 +212,11 @@ def home():
     while _mm <= 0:
         _mm += 12
         _yy -= 1
-    grafico_labels, grafico_valores = [], []
+    grafico_labels, grafico_valores, grafico_ym = [], [], []
     for _ in range(12):
         grafico_labels.append(f"{_meses_abbr[_mm - 1]}/{str(_yy)[2:]}")
         grafico_valores.append(round(_mapa_fat.get(f"{_yy:04d}-{_mm:02d}", 0.0), 2))
+        grafico_ym.append({'mes': _mm, 'ano': _yy})  # para o clique filtrar o mês
         _mm += 1
         if _mm > 12:
             _mm = 1
@@ -324,7 +325,8 @@ def home():
                            anos_disponiveis=anos_disponiveis,
                            page=page, total_pages=total_pages,
                            total_count=total_count, per_page=per_page,
-                           grafico_labels=grafico_labels, grafico_valores=grafico_valores)
+                           grafico_labels=grafico_labels, grafico_valores=grafico_valores,
+                           grafico_ym=grafico_ym)
                            
 
 # Blueprints

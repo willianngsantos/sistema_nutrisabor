@@ -12,6 +12,21 @@
     
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
 
+    <!-- Autocomplete reutilizável (campos que escolhem item de uma tabela) -->
+    <style>
+        .ac-wrap { position: relative; }
+        .ac-panel {
+            position: absolute; z-index: 1085; left: 0; right: 0; top: 100%;
+            background: #fff; border: 1px solid #dee2e6; border-radius: .5rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,.12); margin-top: 2px;
+            max-height: 240px; overflow-y: auto; display: none;
+        }
+        .ac-panel.show { display: block; }
+        .ac-item { padding: .5rem .75rem; cursor: pointer; font-size: .95rem; }
+        .ac-item:hover, .ac-item.active { background: #e9f5ee; }
+        .ac-empty { padding: .5rem .75rem; color: #adb5bd; font-size: .9rem; }
+    </style>
+
     <style>
         :root {
             --brand-dark: #2c3e50;
@@ -323,6 +338,86 @@
                     btn.title = 'Mostrar valores';
                 }
             }
+        });
+
+        // ── Autocomplete reutilizável ──
+        // Aplica em qualquer <select class="js-autocomplete">: mantém o <select>
+        // original (oculto) como fonte do valor submetido (id) e oferece um campo
+        // de busca com filtro por texto, ignorando acentos. Funciona em desktop
+        // e mobile. Para usar, basta adicionar a classe js-autocomplete ao select.
+        document.addEventListener('DOMContentLoaded', function () {
+            var norm = function (s) {
+                return (s || '').toString().toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            };
+            document.querySelectorAll('select.js-autocomplete').forEach(function (sel) {
+                if (sel.dataset.acReady) return;
+                sel.dataset.acReady = '1';
+
+                var options = Array.from(sel.options).map(function (o) {
+                    return { value: o.value, label: o.textContent.trim(), placeholder: o.value === '' };
+                });
+                var required = sel.required;
+                sel.required = false;            // evita erro de validação em select oculto
+                sel.style.display = 'none';
+                sel.tabIndex = -1;
+
+                var wrap = document.createElement('div');
+                wrap.className = 'ac-wrap';
+                sel.parentNode.insertBefore(wrap, sel);
+                wrap.appendChild(sel);
+
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = ('form-control ' + sel.className)
+                    .replace('js-autocomplete', '').replace('form-select', '').trim();
+                input.setAttribute('autocomplete', 'off');
+                var ph = options.find(function (o) { return o.placeholder; });
+                input.placeholder = (ph && ph.label) || 'Buscar...';
+                wrap.appendChild(input);
+
+                var panel = document.createElement('div');
+                panel.className = 'ac-panel';
+                wrap.appendChild(panel);
+
+                var atual = options.find(function (o) { return o.value === sel.value && !o.placeholder; });
+                if (atual) input.value = atual.label;
+
+                var setVal = function (opt) {
+                    sel.value = opt ? opt.value : '';
+                    input.value = opt ? opt.label : '';
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                };
+                var render = function (filtro) {
+                    var f = norm(filtro);
+                    var lista = options.filter(function (o) {
+                        return !o.placeholder && norm(o.label).indexOf(f) !== -1;
+                    });
+                    panel.innerHTML = '';
+                    if (!lista.length) { panel.innerHTML = '<div class="ac-empty">Nenhum resultado</div>'; return; }
+                    lista.forEach(function (o) {
+                        var div = document.createElement('div');
+                        div.className = 'ac-item';
+                        div.textContent = o.label;
+                        div.addEventListener('mousedown', function (e) { e.preventDefault(); setVal(o); panel.classList.remove('show'); });
+                        panel.appendChild(div);
+                    });
+                };
+                input.addEventListener('focus', function () { render(''); panel.classList.add('show'); });
+                input.addEventListener('input', function () { sel.value = ''; render(input.value); panel.classList.add('show'); });
+                document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) panel.classList.remove('show'); });
+
+                if (required && sel.form) {
+                    sel.form.addEventListener('submit', function (e) {
+                        if (!sel.value) {
+                            e.preventDefault();
+                            input.focus();
+                            input.classList.add('is-invalid');
+                            setTimeout(function () { input.classList.remove('is-invalid'); }, 2500);
+                        }
+                    });
+                }
+            });
         });
     </script>
 </body>

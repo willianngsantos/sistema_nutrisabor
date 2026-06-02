@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
 {% block conteudo %}
-<div class="row mb-4">
+<div class="row mb-2">
     <div class="col-md-12">
-        <h2 class="fw-bold text-dark">Painel Executivo</h2>
-        <p class="text-muted">Bem-vindo, {{ usuario.nome }}. Gerencie os fechamentos da NutriSabor.</p>
+        <h4 class="fw-bold text-dark mb-0">Painel Executivo</h4>
+        <p class="text-muted small mb-0">Bem-vindo, {{ usuario.nome }}. Gerencie os fechamentos da NutriSabor.</p>
     </div>
 </div>
 
-<div class="row g-2 g-md-3 mb-4">
+<div class="row g-2 g-md-3 mb-3">
     <div class="col-4 col-md-4">
         <div class="card border-0 shadow-sm p-2 p-md-3 position-relative overflow-hidden">
             <div class="d-flex align-items-center">
@@ -51,13 +51,16 @@
 </div>
 
 <!-- GRÁFICO: faturamento recebido nos últimos 12 meses -->
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white border-0 pt-3 pb-0 d-flex align-items-center">
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white border-0 pt-2 pb-0 d-flex align-items-center">
         <i class="bi bi-bar-chart-line-fill text-success me-2"></i>
         <h6 class="fw-bold mb-0">Faturamento recebido · últimos 12 meses</h6>
+        <small class="text-muted ms-2 d-none d-md-inline">(clique em um mês para ver os lançamentos)</small>
     </div>
-    <div class="card-body">
-        <canvas id="graficoFaturamento" height="90"></canvas>
+    <div class="card-body py-2">
+        <div style="position:relative; height:230px;">
+            <canvas id="graficoFaturamento"></canvas>
+        </div>
     </div>
 </div>
 
@@ -465,9 +468,15 @@
 
     var labels  = {{ grafico_labels | tojson }};
     var valores = {{ grafico_valores | tojson }};
+    var ym      = {{ grafico_ym | tojson }};
 
     var fmtBRL = function (v) {
         return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    };
+
+    var irParaMes = function (i) {
+        if (!ym[i]) return;
+        window.location.href = '/home?mes=' + ym[i].mes + '&ano=' + ym[i].ano;
     };
 
     new Chart(el, {
@@ -478,13 +487,20 @@
                 label: 'Recebido',
                 data: valores,
                 backgroundColor: 'rgba(25, 135, 84, 0.75)',
+                hoverBackgroundColor: 'rgba(25, 135, 84, 1)',
                 borderRadius: 6,
                 maxBarThickness: 48
             }]
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
+            maintainAspectRatio: false,
+            onClick: function (evt, elements) {
+                if (elements && elements.length) irParaMes(elements[0].index);
+            },
+            onHover: function (evt, elements) {
+                evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: { callbacks: { label: function (c) { return fmtBRL(c.parsed.y); } } }

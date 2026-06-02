@@ -44,7 +44,17 @@
             <span class="text-muted small"> → </span>
             <span class="small fw-semibold">{{ f['fim_fmt'] }}</span>
             {% if f['status'] == 'agendado' and f['dias_ate_inicio'] is not none and f['dias_ate_inicio'] > 0 %}
-            <div style="font-size:.7rem;" class="text-muted">em {{ f['dias_ate_inicio'] }} dia(s)</div>
+            <div class="mt-1">
+              <span class="badge rounded-pill bg-warning-subtle text-warning-emphasis border border-warning-subtle" style="font-size:.65rem;">
+                <i class="bi bi-hourglass-top me-1"></i>começa em {{ f['dias_ate_inicio'] }} dia(s)
+              </span>
+            </div>
+            {% elif f['status'] == 'em_andamento' and f['dias_ate_fim'] is not none and f['dias_ate_fim'] >= 0 %}
+            <div class="mt-1">
+              <span class="badge rounded-pill bg-info-subtle text-info-emphasis border border-info-subtle" style="font-size:.65rem;">
+                <i class="bi bi-hourglass-bottom me-1"></i>retorna em {{ f['dias_ate_fim'] + 1 }} dia(s)
+              </span>
+            </div>
             {% endif %}
           </td>
           <td class="d-none d-md-table-cell">
@@ -120,7 +130,7 @@
         <div class="modal-body bg-light p-4">
           <div class="mb-3">
             <label class="form-label small fw-bold text-uppercase text-secondary">Colaborador</label>
-            <select name="id_colaborador" class="form-select border-0 shadow-sm" required>
+            <select name="id_colaborador" class="form-select border-0 shadow-sm js-autocomplete" required>
               <option value="">Selecione...</option>
               {% for c in colaboradores %}
               <option value="{{ c['id'] }}">{{ c['nome'] }}</option>

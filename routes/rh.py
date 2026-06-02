@@ -853,7 +853,8 @@ def ferias():
     conn.commit()
     cursor.execute("""
         SELECT f.*, col.nome AS nome_colaborador, col.funcao,
-               DATEDIFF(f.data_inicio, CURDATE()) AS dias_ate_inicio
+               DATEDIFF(f.data_inicio, CURDATE()) AS dias_ate_inicio,
+               DATEDIFF(f.data_fim, CURDATE()) AS dias_ate_fim
         FROM rh_ferias f
         JOIN colaboradores col ON f.id_colaborador = col.id
         ORDER BY FIELD(f.status,'em_andamento','agendado','concluido','cancelado'), f.data_inicio DESC
@@ -874,6 +875,14 @@ def add_ferias():
     data_inicio = request.form.get('data_inicio')
     data_fim = request.form.get('data_fim')
     id_colaborador = request.form.get('id_colaborador')
+
+    if not id_colaborador or not data_inicio or not data_fim:
+        flash("Selecione o colaborador e o período.", "warning")
+        return redirect(url_for('rh.ferias'))
+    if data_fim < data_inicio:
+        flash("A data de fim não pode ser anterior ao início.", "danger")
+        return redirect(url_for('rh.ferias'))
+
     try:
         dias = (datetime.strptime(data_fim, '%Y-%m-%d') - datetime.strptime(data_inicio, '%Y-%m-%d')).days + 1
     except Exception:
@@ -881,6 +890,19 @@ def add_ferias():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
+    # Impede férias sobrepostas para o mesmo colaborador (cobre o caso de
+    # lançar o mesmo período duas vezes). Considera apenas registros não
+    # cancelados. Sobreposição: início_existente <= fim_novo E fim_existente >= início_novo.
+    cursor.execute("""
+        SELECT COUNT(*) AS n FROM rh_ferias
+        WHERE id_colaborador = %s AND status <> 'cancelado'
+          AND data_inicio <= %s AND data_fim >= %s
+    """, (id_colaborador, data_fim, data_inicio))
+    if cursor.fetchone()['n'] > 0:
+        flash("Já existe um período de férias cadastrado que se sobrepõe a essas datas para este colaborador.", "danger")
+        return redirect(url_for('rh.ferias'))
+
     cursor.execute("""
         INSERT INTO rh_ferias (id_colaborador, data_inicio, data_fim, dias, observacoes)
         VALUES (%s, %s, %s, %s, %s)

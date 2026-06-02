@@ -1,11 +1,13 @@
 import os
-from flask import Flask, render_template, redirect, url_for, request, session
+from flask import Flask, render_template, redirect, url_for, request, session, flash, abort
 from datetime import datetime, timedelta
 from flask_login import LoginManager, login_required, current_user
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
-from database import get_db_connection
+from database import get_db_connection, close_db_connection
 from models import User
+from extensions import limiter
 from routes.auth import auth_bp
 from routes.cadastros import cadastros_bp
 from routes.vendas import vendas_bp
@@ -19,10 +21,51 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ['SECRET_KEY']
 
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30) # Expira em 30 minutos
+# Atrás do nginx: confia em 1 nível de proxy para X-Forwarded-For/Proto.
+# Faz request.remote_addr refletir o IP real do cliente (usado pelo rate
+# limiter e pelo audit log) e o url scheme respeitar https.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
+# Sessão: idle timeout de 30 min. Como marcamos session.permanent = True no
+# login, este lifetime passa a valer e é renovado a cada requisição
+# (SESSION_REFRESH_EACH_REQUEST=True por padrão) — expira após 30 min de
+# INATIVIDADE.
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Só envia o cookie por HTTPS em produção (controlado por env para não
+# quebrar o desenvolvimento local em http://localhost).
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', '0') == '1'
 
 # --- CSRF PROTECTION ---
 csrf = CSRFProtect(app)
+
+# --- RATE LIMITING ---
+limiter.init_app(app)
+
+# --- TEARDOWN: devolve a conexão de banco ao pool ao fim de cada requisição ---
+app.teardown_appcontext(close_db_connection)
+
+
+# --- PROTEÇÃO DE UPLOADS SENSÍVEIS ---
+# Documentos de RH contêm PII (CPF, RG, dados bancários). Eles ficam em
+# static/uploads/rh_docs por conveniência de armazenamento, mas /static é
+# público. Bloqueamos o acesso direto e forçamos o uso da rota autenticada
+# rh.baixar_documento. (Em produção, idealmente também negar no nginx.)
+@app.before_request
+def _bloquear_rh_docs_publico():
+    if request.path.startswith('/static/uploads/rh_docs/'):
+        abort(404)
+
+
+# --- RATE LIMIT EXCEDIDO (429) ---
+# Em vez de mostrar a página de erro crua do Flask-Limiter, devolvemos o
+# usuário à tela de origem com uma mensagem amigável.
+@app.errorhandler(429)
+def _rate_limit_excedido(e):
+    flash("Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente.", "warning")
+    destino = request.referrer or url_for('auth.login')
+    return redirect(destino), 429
 
 
 # --- AUDIT LOG (page views) ---
@@ -85,7 +128,6 @@ def load_user(user_id):
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, nome, email, tipo FROM usuarios WHERE id = %s", (user_id,))
     data = cursor.fetchone()
-    conn.close()
     if data:
         # Agora ele passa o 'tipo' para o modelo!
         return User(id=data['id'], nome=data['nome'], email=data['email'], tipo=data.get('tipo', 'vendedor'))
@@ -235,7 +277,6 @@ def home():
     cursor.execute("SELECT id, nome_empresa FROM clientes ORDER BY nome_empresa")
     lista_clientes = cursor.fetchall()
 
-    conn.close()
     
     return render_template('home.html', usuario=current_user,
                            fat_mes_atual=fat_mes_atual,
@@ -266,4 +307,9 @@ from routes.admin import admin_bp
 app.register_blueprint(admin_bp)
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    # debug controlado por env: NUNCA deixar o debugger Werkzeug (que permite
+    # execução de código arbitrário) ligado em produção. Em produção a app
+    # roda via gunicorn (este bloco nem executa); localmente, defina
+    # FLASK_DEBUG=1 no .env para ligar o reloader/debugger.
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(host='0.0.0.0', port=5001, debug=debug)

@@ -39,7 +39,6 @@ def index():
     cursor.execute("SELECT id, nome_empresa FROM clientes WHERE atende_local = 1 ORDER BY nome_empresa")
     clientes = cursor.fetchall()
 
-    conn.close()
     return render_template("cardapios.html",
                            cardapios_ativos=cardapios_ativos,
                            cardapios_passados=cardapios_passados,
@@ -75,7 +74,6 @@ def novo_cardapio():
             """, (id_cardapio, nome_dia, data_dia.strftime('%Y-%m-%d')))
             
         conn.commit()
-        conn.close()
         
         flash("Estrutura do cardápio gerada! Agora preencha os pratos.", "success")
         return redirect(url_for('cardapios.montar_cardapio', id_cardapio=id_cardapio))
@@ -99,7 +97,6 @@ def montar_cardapio(id_cardapio):
     cursor.execute("SELECT * FROM itens_cardapio WHERE id_cardapio = %s ORDER BY data_dia", (id_cardapio,))
     itens = cursor.fetchall()
 
-    conn.close()
     return render_template("form_cardapio.html", cardapio=cardapio, itens=itens)
 
 @cardapios_bp.route("/cardapios/salvar_itens/<int:id_cardapio>", methods=["POST"])
@@ -139,7 +136,6 @@ def salvar_itens(id_cardapio):
         """, (base, p1, p2, guarnicao, salada, sobremesa, bebida, feriado, dia_id))
         
     conn.commit()
-    conn.close()
     flash("Cardápio salvo com sucesso!", "success")
     return redirect(url_for('cardapios.index'))
 
@@ -162,7 +158,6 @@ def imprimir_cardapio(id_cardapio):
     cursor.execute("SELECT razao_social FROM empresa WHERE id = 1")
     empresa = cursor.fetchone()
 
-    conn.close()
     return render_template("imprimir_cardapio.html", cardapio=cardapio, itens=itens, empresa=empresa)
 
 
@@ -178,7 +173,6 @@ def excluir_cardapio(id_cardapio):
     cursor.execute("DELETE FROM itens_cardapio WHERE id_cardapio = %s", (id_cardapio,))
     cursor.execute("DELETE FROM cardapios WHERE id = %s", (id_cardapio,))
     conn.commit()
-    conn.close()
 
     flash("Cardápio excluído com sucesso.", "success")
     return redirect(url_for('cardapios.index'))

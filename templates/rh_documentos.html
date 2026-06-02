@@ -63,7 +63,7 @@
               <td class="text-end pe-4">
                 <div class="d-flex gap-1 justify-content-end">
                   {% if d['arquivo_path'] %}
-                  <a href="/static/{{ d['arquivo_path'] }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar/Baixar">
+                  <a href="{{ url_for('rh.baixar_documento', id_doc=d['id']) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Visualizar/Baixar">
                     <i class="bi bi-download"></i>
                   </a>
                   {% endif %}

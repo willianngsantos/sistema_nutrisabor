@@ -9,6 +9,7 @@ from database import get_db_connection
 from models import User
 from email_utils import email_codigo
 from utils.audit import log_action, format_field_diff
+from extensions import limiter
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -40,6 +41,7 @@ def _criar_token(cursor, conn, email: str, tipo: str) -> str:
 # ─────────────────────────────────────────────────────────
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 50 per hour", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
@@ -55,7 +57,6 @@ def login():
             (email,)
         )
         usuario_db = cursor.fetchone()
-        conn.close()
 
         # Usuário sem senha cadastrada ainda → redireciona para Primeiro Acesso
         if usuario_db and not usuario_db['senha_hash']:
@@ -69,7 +70,9 @@ def login():
                 email=usuario_db['email'],
                 tipo=usuario_db.get('tipo', 'vendedor')
             )
-            session.permanent = False
+            # permanent=True para que PERMANENT_SESSION_LIFETIME (30 min) seja
+            # aplicado como timeout de inatividade (renovado a cada request).
+            session.permanent = True
             login_user(usuario_objeto, remember=False)
             log_action('login', entity_type='usuario', entity_id=usuario_db['id'],
                        descricao=f"Login bem-sucedido ({email})")
@@ -98,6 +101,7 @@ def logout():
 # ─────────────────────────────────────────────────────────
 
 @auth_bp.route('/primeiro_acesso', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 20 per hour", methods=["POST"])
 def primeiro_acesso():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
@@ -115,16 +119,13 @@ def primeiro_acesso():
 
         if not usuario:
             flash('E-mail não encontrado. Contate o administrador.', 'danger')
-            conn.close()
             return redirect(url_for('auth.primeiro_acesso'))
 
         if usuario['senha_hash']:
             flash('Este e-mail já possui uma senha definida. Use "Esqueci minha senha" se precisar redefinir.', 'warning')
-            conn.close()
             return redirect(url_for('auth.login'))
 
         codigo = _criar_token(cursor, conn, email, 'primeiro_acesso')
-        conn.close()
 
         enviado = email_codigo(email, codigo, 'primeiro_acesso')
         if enviado:
@@ -145,6 +146,7 @@ def primeiro_acesso():
 # ─────────────────────────────────────────────────────────
 
 @auth_bp.route('/esqueci_senha', methods=['GET', 'POST'])
+@limiter.limit("5 per minute; 20 per hour", methods=["POST"])
 def esqueci_senha():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
@@ -160,10 +162,7 @@ def esqueci_senha():
         # Segurança: não revela se o e-mail existe ou não
         if usuario:
             codigo = _criar_token(cursor, conn, email, 'reset_senha')
-            conn.close()
             email_codigo(email, codigo, 'reset_senha')
-        else:
-            conn.close()
 
         flash('Se o e-mail estiver cadastrado, você receberá o código em instantes.', 'info')
         session['verificacao_email'] = email
@@ -178,6 +177,7 @@ def esqueci_senha():
 # ─────────────────────────────────────────────────────────
 
 @auth_bp.route('/validar_codigo', methods=['GET', 'POST'])
+@limiter.limit("10 per minute; 30 per hour", methods=["POST"])
 def validar_codigo():
     if current_user.is_authenticated:
         return redirect(url_for('home'))
@@ -212,7 +212,6 @@ def validar_codigo():
         token_row = cursor.fetchone()
 
         if not token_row:
-            conn.close()
             flash('Código inválido ou expirado. Solicite um novo.', 'danger')
             return render_template('validar_codigo.html', email=email, tipo=tipo)
 
@@ -227,7 +226,6 @@ def validar_codigo():
             (senha_hash, email)
         )
         conn.commit()
-        conn.close()
 
         session.pop('verificacao_email', None)
         session.pop('verificacao_tipo', None)
@@ -253,7 +251,6 @@ def listar_usuarios():
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, nome, email, tipo, senha_hash FROM usuarios")
     lista_usuarios = cursor.fetchall()
-    conn.close()
     return render_template("usuarios.html", usuarios=lista_usuarios)
 
 
@@ -291,8 +288,6 @@ def add_usuario():
         flash(f"Usuário {nome} criado com sucesso! Oriente-o a usar 'Primeiro Acesso' na tela de login.", "success")
     except Exception:
         flash("Erro ao criar usuário. E-mail já pode estar em uso.", "danger")
-    finally:
-        conn.close()
     return redirect(url_for('auth.listar_usuarios'))
 
 
@@ -333,8 +328,6 @@ def editar_usuario():
     except Exception as e:
         conn.rollback()
         flash(f"Erro ao atualizar usuário: {e}", "danger")
-    finally:
-        conn.close()
     return redirect(url_for('auth.listar_usuarios'))
 
 
@@ -360,8 +353,6 @@ def excluir_usuario(id_user):
         flash("Usuário removido com sucesso!", "success")
     except Exception:
         flash("Erro ao remover usuário.", "danger")
-    finally:
-        conn.close()
     return redirect(url_for('auth.listar_usuarios'))
 
 
@@ -416,6 +407,5 @@ def configuracao_empresa():
 
     cursor.execute("SELECT * FROM empresa WHERE id = 1")
     empresa = cursor.fetchone()
-    conn.close()
 
     return render_template("config_empresa.html", empresa=empresa)

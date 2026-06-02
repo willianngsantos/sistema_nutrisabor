@@ -139,7 +139,6 @@ def listar():
     cursor.execute("SELECT id, nome FROM rh_jornadas ORDER BY nome")
     jornadas = cursor.fetchall()
 
-    conn.close()
     return render_template("colaboradores.html", colaboradores=colaboradores, clientes=clientes,
                            funcoes_validas=FUNCOES_VALIDAS, bancos=BANCOS_BR,
                            jornadas=jornadas)
@@ -183,7 +182,6 @@ def ficha(id_colab):
         colab['jornada_grupos'] = []
         colab['jornada_total_fmt'] = ''
 
-    conn.close()
 
     if not colab:
         flash("Colaborador não encontrado.", "danger")
@@ -252,8 +250,6 @@ def add_colaborador():
     except Exception as e:
         conn.rollback()
         flash(f"Erro ao cadastrar colaborador: {e}", "danger")
-    finally:
-        conn.close()
 
     return redirect(url_for('colaboradores.listar'))
 
@@ -338,8 +334,6 @@ def editar_colaborador():
     except Exception as e:
         conn.rollback()
         flash(f"Erro ao atualizar colaborador: {e}", "danger")
-    finally:
-        conn.close()
 
     return redirect(url_for('colaboradores.listar'))
 
@@ -371,7 +365,6 @@ def mudar_status(id_colab, novo_status):
                    descricao=f"Colaborador '{colab['nome']}': status {status_antigo}→{novo_status}")
         flash(f"{colab['nome']} → {labels.get(novo_status, novo_status)}.", "info")
 
-    conn.close()
     return redirect(url_for('colaboradores.listar'))
 
 
@@ -416,19 +409,16 @@ def recibo_vt(id_colab):
     colab = cursor.fetchone()
 
     if not colab:
-        conn.close()
         flash("Colaborador não encontrado.", "danger")
         return redirect(url_for('colaboradores.listar'))
 
     if not colab.get('recebe_vt'):
-        conn.close()
         flash(f"{colab['nome']} não está configurado para receber Vale Transporte.", "warning")
         return redirect(url_for('colaboradores.listar'))
 
     cursor2 = conn.cursor(dictionary=True)
     cursor2.execute("SELECT * FROM empresa WHERE id = 1")
     empresa = cursor2.fetchone()
-    conn.close()
 
     periodo = f"{MESES_PT[mes - 1]}/{ano}"
 
@@ -527,7 +517,6 @@ def recibos_vt_lote():
     cursor2 = conn.cursor(dictionary=True)
     cursor2.execute("SELECT * FROM empresa WHERE id = 1")
     empresa = cursor2.fetchone()
-    conn.close()
 
     periodo = f"{MESES_PT[mes - 1]}/{ano}"
     total_recibos = len(colaboradores_raw)
@@ -568,7 +557,5 @@ def excluir_colaborador(id_colab):
     except Exception as e:
         conn.rollback()
         flash(f"Erro ao remover colaborador: {e}", "danger")
-    finally:
-        conn.close()
 
     return redirect(url_for('colaboradores.listar'))

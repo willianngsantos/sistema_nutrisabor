@@ -106,7 +106,6 @@ def log_action(action_type, entity_type=None, entity_id=None, descricao=None):
             ip, user_agent,
         ))
         conn.commit()
-        conn.close()
     except Exception:
         # Audit log nunca deve derrubar a operação chamadora.
         # Em produção seria bom mandar para um logger estruturado;

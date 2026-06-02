@@ -37,7 +37,6 @@ def _gerar_numero():
         ORDER BY id DESC LIMIT 1
     """, (f"PROP-{ano}-%",))
     row = cur.fetchone()
-    conn.close()
     if row:
         try:
             seq = int(row['numero'].split('-')[-1]) + 1
@@ -53,7 +52,6 @@ def _get_empresa():
     cur  = conn.cursor(dictionary=True)
     cur.execute("SELECT * FROM empresa LIMIT 1")
     emp = cur.fetchone()
-    conn.close()
     return emp or {}
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -109,7 +107,6 @@ def listar():
     """, (filtro_ano,))
     contadores = {r['status']: r['total'] for r in cur.fetchall()}
 
-    conn.close()
     return render_template('propostas.html',
                            propostas=propostas, clientes=clientes,
                            anos=anos, contadores=contadores,
@@ -146,7 +143,6 @@ def nova():
 
         if not id_cliente or not data_proposta:
             flash("Cliente e data são obrigatórios.", "warning")
-            conn.close()
             return render_template('proposta_form.html', clientes=clientes,
                                    unidades=UNIDADES, proposta=None)
 
@@ -179,13 +175,11 @@ def nova():
         cur.execute("SELECT nome_empresa FROM clientes WHERE id=%s", (id_cliente,))
         cli = cur.fetchone()
         conn.commit()
-        conn.close()
         log_action('create', entity_type='proposta', entity_id=id_proposta,
                    descricao=f"Criou proposta {numero} para '{cli['nome_empresa'] if cli else id_cliente}' com {len(descricoes)} item(s)")
         flash(f"Proposta {numero} criada com sucesso!", "success")
         return redirect(url_for('propostas.listar'))
 
-    conn.close()
     return render_template('proposta_form.html', clientes=clientes,
                            unidades=UNIDADES, proposta=None,
                            hoje=date.today().isoformat())
@@ -205,7 +199,6 @@ def editar(id_proposta):
     proposta = cur.fetchone()
     if not proposta:
         flash("Proposta não encontrada.", "warning")
-        conn.close()
         return redirect(url_for('propostas.listar'))
 
     cur.execute("SELECT id, nome_empresa FROM clientes ORDER BY nome_empresa")
@@ -252,7 +245,6 @@ def editar(id_proposta):
             """, (id_proposta, desc, qtd, und, vunit))
 
         conn.commit()
-        conn.close()
         log_action('update', entity_type='proposta', entity_id=int(id_proposta),
                    descricao=f"Editou proposta {proposta.get('numero')} (status {proposta.get('status')}→{status}, "
                              f"{len(descricoes)} item(s))")
@@ -263,7 +255,6 @@ def editar(id_proposta):
         SELECT * FROM proposta_itens WHERE id_proposta = %s ORDER BY id
     """, (id_proposta,))
     itens = cur.fetchall()
-    conn.close()
 
     return render_template('proposta_form.html', clientes=clientes,
                            unidades=UNIDADES, proposta=proposta,
@@ -288,7 +279,6 @@ def atualizar_status(id_proposta):
     p = cur.fetchone() or {}
     cur.execute("UPDATE propostas SET status=%s WHERE id=%s", (novo_status, id_proposta))
     conn.commit()
-    conn.close()
     log_action('update', entity_type='proposta', entity_id=int(id_proposta),
                descricao=f"Proposta {p.get('numero') or id_proposta}: status {p.get('status') or '—'}→{novo_status}")
     return jsonify({'ok': True, 'status': novo_status})
@@ -311,7 +301,6 @@ def deletar(id_proposta):
         log_action('delete', entity_type='proposta', entity_id=int(id_proposta),
                    descricao=f"Excluiu proposta {row['numero']} (status {row.get('status') or '—'})")
         flash(f"Proposta {row['numero']} excluída.", "success")
-    conn.close()
     return redirect(url_for('propostas.listar'))
 
 
@@ -333,7 +322,6 @@ def ver(id_proposta):
     proposta = cur.fetchone()
     if not proposta:
         flash("Proposta não encontrada.", "warning")
-        conn.close()
         return redirect(url_for('propostas.listar'))
 
     cur.execute("""
@@ -341,7 +329,6 @@ def ver(id_proposta):
         FROM proposta_itens WHERE id_proposta = %s ORDER BY id
     """, (id_proposta,))
     itens = cur.fetchall()
-    conn.close()
 
     total = sum(float(i['subtotal'] or 0) for i in itens)
     empresa = _get_empresa()

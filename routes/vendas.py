@@ -34,7 +34,6 @@ def negociar(id_cliente):
     """
     cursor.execute(query, (id_cliente,))
     produtos = cursor.fetchall()
-    conn.close()
     return render_template("negociar.html", cliente=cliente, produtos=produtos)
 
 @vendas_bp.route("/salvar_precos/<int:id_cliente>", methods=["POST"])
@@ -59,7 +58,6 @@ def salvar_precos(id_cliente):
                     cursor.execute("INSERT INTO tabela_precos (id_cliente, id_produto, preco_venda) VALUES (%s, %s, %s)", (id_cliente, id_produto, valor))
                 qtd_alterados += 1
     conn.commit()
-    conn.close()
     log_action('update', entity_type='tabela_precos_cliente', entity_id=int(id_cliente),
                descricao=f"Atualizou tabela de preços do cliente '{nome_cli}': {qtd_alterados} produto(s)")
     flash("Tabela de preços atualizada!", "success")
@@ -82,7 +80,6 @@ def selecionar_cliente_pedido():
     """)
     recentes = cursor.fetchall()
 
-    conn.close()
     return render_template("selecionar_cliente.html", clientes=clientes, recentes=recentes)
 
 @vendas_bp.route("/abrir_pedido", methods=["POST"])
@@ -105,7 +102,6 @@ def fazer_pedido(id_cliente=None, id_pedido=None):
         cursor.execute("SELECT id, id_cliente, status, DATE_FORMAT(data_inicio, '%Y-%m-%d') as data_inicio, DATE_FORMAT(data_fim, '%Y-%m-%d') as data_fim FROM pedidos WHERE id=%s", (id_pedido,))
         pedido_atual = cursor.fetchone()
         if pedido_atual and pedido_atual['status'] != 'Pendente':
-            conn.close()
             return redirect(url_for('home'))
         id_cliente = pedido_atual['id_cliente']
         
@@ -133,7 +129,6 @@ def fazer_pedido(id_cliente=None, id_pedido=None):
     
     cursor.execute(query, (id_cliente, cliente['id_grupo']))
     produtos = cursor.fetchall()
-    conn.close()
     
     hoje = datetime.today().strftime('%Y-%m-%d')
     return render_template("formulario_pedido.html", 
@@ -173,7 +168,6 @@ def salvar_pedido():
 
     if total_pedido <= 0:
         flash("❌ Erro: Fatura com valor zero.", "danger")
-        conn.close()
         return redirect(url_for('vendas.fazer_pedido', id_cliente=id_cliente))
 
     is_update = bool(id_pedido)
@@ -194,7 +188,6 @@ def salvar_pedido():
     nome_cli = cli['nome_empresa'] if cli else f'#{id_cliente}'
 
     conn.commit()
-    conn.close()
 
     log_action('update' if is_update else 'create', entity_type='fatura', entity_id=int(p_id),
                descricao=f"{'Editou' if is_update else 'Criou'} fatura #{codigo_fatura} cliente '{nome_cli}': "
@@ -220,17 +213,14 @@ def editar_data_pagamento(id_pedido):
     cursor.execute("SELECT id, status, codigo_fatura, DATE_FORMAT(data_pagamento,'%d/%m/%Y') AS pagamento_atual FROM pedidos WHERE id = %s", (id_pedido,))
     pedido = cursor.fetchone()
     if not pedido:
-        conn.close()
         flash("Fatura não encontrada.", "danger")
         return redirect(url_for('home'))
     if pedido['status'] != 'Pago':
-        conn.close()
         flash("Só é possível ajustar a data de pagamento em faturas marcadas como Pago.", "warning")
         return redirect(url_for('home'))
 
     cursor.execute("UPDATE pedidos SET data_pagamento = %s WHERE id = %s", (nova_data, id_pedido))
     conn.commit()
-    conn.close()
 
     log_action('update', entity_type='fatura', entity_id=int(id_pedido),
                descricao=f"Ajustou data de pagamento da fatura #{pedido['codigo_fatura']}: "
@@ -252,11 +242,9 @@ def mudar_status(id_pedido, novo_status):
     cursor.execute("SELECT status, codigo_fatura FROM pedidos WHERE id = %s", (id_pedido,))
     atual = cursor.fetchone()
     if not atual:
-        conn.close()
         flash("Fatura não encontrada.", "danger")
         return redirect(url_for('home'))
     if atual['status'] == 'Pago' and novo_status != 'Pago' and current_user.tipo != 'admin':
-        conn.close()
         flash("Somente administradores podem estornar uma fatura já paga.", "warning")
         return redirect(url_for('home'))
 
@@ -273,7 +261,6 @@ def mudar_status(id_pedido, novo_status):
             (novo_status, id_pedido)
         )
     conn.commit()
-    conn.close()
 
     log_action('update', entity_type='fatura', entity_id=int(id_pedido),
                descricao=f"Fatura #{atual['codigo_fatura']}: status {atual['status']}→{novo_status}")
@@ -282,6 +269,7 @@ def mudar_status(id_pedido, novo_status):
 
 @vendas_bp.route("/excluir_pedido/<int:id_pedido>", methods=["POST"])
 @login_required
+@admin_only
 def excluir_pedido(id_pedido):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -299,8 +287,6 @@ def excluir_pedido(id_pedido):
     except Exception as e:
         conn.rollback()
         flash(f"Erro ao excluir pedido: {e}", "danger")
-    finally:
-        conn.close()
     return redirect(url_for('home'))
 
 @vendas_bp.route("/salvar_nf/<int:id_pedido>", methods=["POST"])
@@ -316,7 +302,6 @@ def salvar_nf(id_pedido):
     nf_antiga = ped.get('numero_nf') or 'NULL'
     cursor.execute("UPDATE pedidos SET numero_nf = %s WHERE id = %s", (numero_nf if numero_nf else None, id_pedido))
     conn.commit()
-    conn.close()
 
     log_action('update', entity_type='fatura', entity_id=int(id_pedido),
                descricao=f"Fatura #{codigo}: NF {nf_antiga}→{numero_nf or 'NULL'}")
@@ -346,7 +331,6 @@ def ver_fatura(id_pedido):
     pedido = cursor.fetchone()
 
     if not pedido:
-        conn.close()
         flash("Fatura não encontrada.", "danger")
         return redirect(url_for('home'))
 
@@ -367,7 +351,6 @@ def ver_fatura(id_pedido):
 
     cursor.execute("SELECT * FROM empresa WHERE id = 1")
     empresa = cursor.fetchone()
-    conn.close()
 
     total_geral = sum(item['subtotal'] for item in itens)
     total_formatado = f"R$ {total_geral:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -429,7 +412,6 @@ def relatorios():
             total_recebido = sum(r['total'] for r in resultados if r['status'] == 'Pago')
             total_a_receber = sum(r['total'] for r in resultados if r['status'] in ['Aprovado', 'Pendente'])
             
-    conn.close()
     
     return render_template("relatorios.html", resultados=resultados, 
                            total_periodo=total_periodo, 

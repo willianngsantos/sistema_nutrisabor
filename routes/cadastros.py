@@ -7,7 +7,9 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 
-ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
+# SVG removido propositalmente: arquivos SVG podem conter <script> e, servidos
+# do mesmo domínio, viram vetor de XSS armazenado. Aceitamos só imagens raster.
+ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 def allowed_logo(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_LOGO_EXTENSIONS
@@ -44,7 +46,6 @@ def grupos():
     # CORRIGIDO PARA PLURAL AQUI
     cursor.execute("SELECT id, nome, chave_pix, pix_nome, pix_banco FROM grupos_clientes ORDER BY nome")
     lista_grupos = cursor.fetchall()
-    conn.close()
     return render_template("grupos.html", grupos=lista_grupos)
 
 @cadastros_bp.route("/add_grupo", methods=["POST"])
@@ -67,7 +68,6 @@ def add_grupo():
           pix_banco if pix_banco else None))
     novo_id = cursor.lastrowid
     conn.commit()
-    conn.close()
 
     log_action('create', entity_type='grupo', entity_id=novo_id,
                descricao=f"Criou grupo '{nome}'")
@@ -100,7 +100,6 @@ def editar_grupo():
         WHERE id=%s
     """, (depois['nome'], depois['chave_pix'], depois['pix_nome'], depois['pix_banco'], id_grupo))
     conn.commit()
-    conn.close()
 
     log_action('update', entity_type='grupo', entity_id=int(id_grupo),
                descricao=f"Editou grupo '{nome}' — {format_field_diff(antes, depois)}")
@@ -124,8 +123,6 @@ def excluir_grupo(id_grupo):
         flash("Grupo excluído com sucesso!", "success")
     except Exception:
         flash("Erro: Este grupo possui clientes vinculados e não pode ser excluído.", "danger")
-    finally:
-        conn.close()
     return redirect(url_for('cadastros.grupos'))
 
 
@@ -150,7 +147,6 @@ def clientes():
     cursor.execute("SELECT id, nome FROM grupos_clientes ORDER BY nome")
     lista_grupos = cursor.fetchall()
 
-    conn.close()
     return render_template("clientes.html", clientes=lista_clientes, grupos=lista_grupos)
 
 @cadastros_bp.route("/add_cliente", methods=["POST"])
@@ -175,7 +171,6 @@ def add_cliente():
     """, (nome, cnpj, email, celular, id_grupo, apelido if apelido else None, logo_path))
     novo_id = cursor.lastrowid
     conn.commit()
-    conn.close()
 
     log_action('create', entity_type='cliente', entity_id=novo_id,
                descricao=f"Criou cliente '{nome}' (CNPJ {cnpj})")
@@ -238,7 +233,6 @@ def editar_cliente():
         WHERE id=%s
     """, (nome, cnpj, email, celular, id_grupo, apelido if apelido else None, logo_path, id_cliente))
     conn.commit()
-    conn.close()
 
     log_action('update', entity_type='cliente', entity_id=int(id_cliente),
                descricao=f"Editou cliente '{nome}' — {format_field_diff(antes, depois)}")
@@ -262,7 +256,6 @@ def toggle_unidade(id_cliente):
         log_action('update', entity_type='cliente', entity_id=int(id_cliente),
                    descricao=f"Cliente '{cliente['nome_empresa']}' {acao}")
         flash(f"{cliente['nome_empresa']} foi {acao}.", "info")
-    conn.close()
     return redirect(url_for('cadastros.clientes'))
 
 
@@ -287,7 +280,6 @@ def toggle_sobremesa(id_cliente):
         log_action('update', entity_type='cliente', entity_id=int(id_cliente),
                    descricao=f"Sobremesa {acao} para o cliente '{cliente['nome_empresa']}'")
         flash(f"Sobremesa {acao} para {cliente['nome_empresa']}.", "info")
-    conn.close()
     return redirect(url_for('cadastros.clientes'))
 
 
@@ -310,8 +302,6 @@ def excluir_cliente(id_cliente):
     except Exception:
         conn.rollback()
         flash("Erro: Este cliente possui faturas no histórico e não pode ser excluído.", "danger")
-    finally:
-        conn.close()
     return redirect(url_for('cadastros.clientes'))
 
 
@@ -325,7 +315,6 @@ def produtos():
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, nome, unidade, custo_base FROM produtos ORDER BY nome")
     lista_produtos = cursor.fetchall()
-    conn.close()
     return render_template("produtos.html", produtos=lista_produtos)
 
 @cadastros_bp.route("/add_produto", methods=["POST"])
@@ -349,7 +338,6 @@ def add_produto():
     cursor.execute("INSERT INTO produtos (nome, unidade, custo_base) VALUES (%s, %s, %s)", (nome, unidade, custo))
     novo_id = cursor.lastrowid
     conn.commit()
-    conn.close()
 
     log_action('create', entity_type='produto', entity_id=novo_id,
                descricao=f"Criou produto '{nome}' ({unidade}) custo R${custo:.2f}")
@@ -382,7 +370,6 @@ def editar_produto():
     depois = {'nome': nome, 'unidade': unidade, 'custo_base': custo}
     cursor.execute("UPDATE produtos SET nome=%s, unidade=%s, custo_base=%s WHERE id=%s", (nome, unidade, custo, id_produto))
     conn.commit()
-    conn.close()
 
     log_action('update', entity_type='produto', entity_id=int(id_produto),
                descricao=f"Editou produto '{nome}' — {format_field_diff(antes, depois)}")
@@ -406,8 +393,6 @@ def excluir_produto(id_prod):
         flash("Produto removido!", "success")
     except Exception:
         flash("Erro: Produto vinculado a pedidos.", "danger")
-    finally:
-        conn.close()
     return redirect(url_for('cadastros.produtos'))
 
 # ==========================================
@@ -433,7 +418,6 @@ def negociar_grupo(id_grupo):
     cursor.execute(query, (id_grupo,))
     produtos = cursor.fetchall()
     
-    conn.close()
     return render_template("negociar_grupo.html", grupo=grupo, produtos=produtos)
 
 @cadastros_bp.route("/salvar_precos_grupo/<int:id_grupo>", methods=["POST"])
@@ -469,7 +453,6 @@ def salvar_precos_grupo(id_grupo):
                 pass
 
     conn.commit()
-    conn.close()
 
     log_action('update', entity_type='tabela_precos_grupo', entity_id=int(id_grupo),
                descricao=f"Atualizou tabela de preços do grupo '{nome_grupo}': {qtd_salvos} produto(s) com preço")

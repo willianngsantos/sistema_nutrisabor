@@ -96,7 +96,6 @@ def log_atividade():
     """)
     usuarios_log = cursor.fetchall()
 
-    conn.close()
 
     return render_template('admin_log.html',
                            registros=registros,

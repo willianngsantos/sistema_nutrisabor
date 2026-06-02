@@ -3,7 +3,7 @@ from datetime import date, datetime
 from calendar import monthrange
 from werkzeug.utils import secure_filename
 from flask import (Blueprint, render_template, request, redirect,
-                   url_for, flash, current_app)
+                   url_for, flash, current_app, send_from_directory, abort)
 from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only, rh_access
@@ -238,7 +238,6 @@ def hub():
     except Exception:
         docs_vencendo = docs_vencidos = 0
 
-    conn.close()
     return render_template('rh_hub.html',
         total_ativos=total_ativos,
         total_ferias=total_ferias,
@@ -284,7 +283,6 @@ def exames():
 
     cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
     colaboradores = cursor.fetchall()
-    conn.close()
 
     return render_template('rh_exames.html',
         exames=lista_exames, colaboradores=colaboradores,
@@ -317,7 +315,6 @@ def add_exame():
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (cid, tipo, data_real, data_venc, resultado, clinica, obs))
         conn.commit()
-        conn.close()
         log_action('create', entity_type='rh_exame',
                    descricao=f"Criou exame '{tipo}' ({resultado}) para {len(ids)} colaborador(es)")
         flash(f"Exame registrado para {len(ids)} colaborador(es)!", "success")
@@ -331,7 +328,6 @@ def add_exame():
         cursor.execute("SELECT nome FROM colaboradores WHERE id=%s", (id_colab,))
         colab = cursor.fetchone()
         conn.commit()
-        conn.close()
         log_action('create', entity_type='rh_exame', entity_id=novo_id,
                    descricao=f"Criou exame '{tipo}' ({resultado}) para colaborador '{colab['nome'] if colab else id_colab}'")
         flash("Exame registrado com sucesso!", "success")
@@ -368,7 +364,6 @@ def editar_exame():
     """, (depois['tipo'], depois['data_realizado'], depois['data_vencimento'],
           depois['resultado'], depois['clinica'], depois['observacoes'], id_exame))
     conn.commit()
-    conn.close()
     log_action('update', entity_type='rh_exame', entity_id=int(id_exame),
                descricao=f"Editou exame #{id_exame} — {format_field_diff(antes, depois)}")
     flash("Exame atualizado!", "success")
@@ -389,7 +384,6 @@ def excluir_exame(id_exame):
     info = cursor.fetchone() or {}
     cursor.execute("DELETE FROM rh_exames WHERE id = %s", (id_exame,))
     conn.commit()
-    conn.close()
     log_action('delete', entity_type='rh_exame', entity_id=int(id_exame),
                descricao=f"Excluiu exame '{info.get('tipo') or '—'}' de '{info.get('colaborador') or '—'}'")
     flash("Exame removido.", "success")
@@ -414,7 +408,6 @@ def reajuste():
     historico = cursor.fetchall()
     for r in historico:
         r['data_fmt'] = _fmt_date(r.get('data_reajuste'))
-    conn.close()
     return render_template('rh_reajuste.html', colaboradores=colaboradores, historico=historico)
 
 
@@ -457,7 +450,6 @@ def aplicar_reajuste():
     id_reajuste = cursor2.lastrowid
 
     conn.commit()
-    conn.close()
     label = f"{valor}%" if tipo == 'percentual' else f"R$ {valor:.2f}".replace('.', ',')
     log_action('create', entity_type='rh_reajuste', entity_id=id_reajuste,
                descricao=f"Aplicou reajuste {tipo} de {label} em {qtd} colaborador(es). Motivo: {motivo or '—'}")
@@ -482,7 +474,6 @@ def documentos():
     for d in docs:
         d['validade_fmt'] = _fmt_date(d.get('validade'))
         d['criado_fmt']   = _fmt_date(d.get('criado_em'))
-    conn.close()
     return render_template('rh_documentos.html', documentos=docs, categorias=CATEGORIAS_DOC)
 
 
@@ -515,7 +506,6 @@ def upload_documento():
     ))
     novo_id = cursor.lastrowid
     conn.commit()
-    conn.close()
     log_action('create', entity_type='rh_documento', entity_id=novo_id,
                descricao=f"Cadastrou documento '{nome_doc}' (cat: {categoria}, arq: {arquivo_path or 'nenhum'})")
     flash("Documento cadastrado com sucesso!", "success")
@@ -537,11 +527,32 @@ def excluir_documento(id_doc):
             os.remove(full)
     cursor.execute("DELETE FROM rh_documentos WHERE id = %s", (id_doc,))
     conn.commit()
-    conn.close()
     log_action('delete', entity_type='rh_documento', entity_id=int(id_doc),
                descricao=f"Excluiu documento '{nome_antigo}'")
     flash("Documento removido.", "success")
     return redirect(url_for('rh.documentos'))
+
+
+@rh_bp.route("/rh/documentos/<int:id_doc>/arquivo")
+@login_required
+@rh_access
+def baixar_documento(id_doc):
+    """Serve o arquivo de um documento de RH de forma AUTENTICADA.
+
+    Os arquivos ficam fisicamente em static/uploads/rh_docs, mas NÃO devem ser
+    acessíveis por /static (que é público). Esta rota exige login + perfil de
+    RH e usa o id do documento (não o nome do arquivo) como referência —
+    consultamos o caminho no banco e servimos o basename via
+    send_from_directory, que impede path traversal."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT arquivo_path FROM rh_documentos WHERE id = %s", (id_doc,))
+    doc = cursor.fetchone()
+    if not doc or not doc.get('arquivo_path'):
+        abort(404)
+    diretorio = os.path.join(current_app.root_path, 'static', 'uploads', 'rh_docs')
+    nome_arquivo = os.path.basename(doc['arquivo_path'])
+    return send_from_directory(diretorio, nome_arquivo)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -564,7 +575,6 @@ def jornadas():
                  FIELD(d.dia_semana, 'seg','ter','qua','qui','sex','sab','dom')
     """)
     rows = cursor.fetchall()
-    conn.close()
 
     # Agrupa linhas em estrutura por jornada
     jmap = {}
@@ -638,7 +648,6 @@ def salvar_jornada():
         cursor.execute("SELECT nome FROM rh_jornadas WHERE id=%s", (id_jornada,))
         existente = cursor.fetchone()
         if not existente:
-            conn.close()
             flash("Jornada não encontrada.", "danger")
             return redirect(url_for('rh.jornadas'))
         nome_antigo = existente['nome']
@@ -650,7 +659,6 @@ def salvar_jornada():
                 VALUES (%s, %s, %s, %s, %s)
             """, (id_jornada, d, ent, sai, iv))
         conn.commit()
-        conn.close()
         descr = f"Editou jornada '{nome}' ({len(dias)} dia(s), total semanal {_fmt_duracao(total)})"
         if nome_antigo != nome:
             descr += f" — nome: '{nome_antigo}'→'{nome}'"
@@ -672,7 +680,6 @@ def salvar_jornada():
                 VALUES (%s, %s, %s, %s, %s)
             """, (novo_id, d, ent, sai, iv))
         conn.commit()
-        conn.close()
         log_action('create', entity_type='rh_jornada', entity_id=novo_id,
                    descricao=f"Criou jornada '{nome}' ({len(dias)} dia(s), total semanal {_fmt_duracao(total)})")
         flash("Jornada cadastrada!", "success")
@@ -691,7 +698,6 @@ def excluir_jornada(id_jornada):
     nome_antigo = j.get('nome') or f'#{id_jornada}'
     cursor.execute("DELETE FROM rh_jornadas WHERE id = %s", (id_jornada,))
     conn.commit()
-    conn.close()
     log_action('delete', entity_type='rh_jornada', entity_id=int(id_jornada),
                descricao=f"Excluiu jornada '{nome_antigo}'")
     flash("Jornada removida.", "success")
@@ -720,7 +726,6 @@ def ferias():
         f['fim_fmt']    = _fmt_date(f.get('data_fim'))
     cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
     colaboradores = cursor.fetchall()
-    conn.close()
     return render_template('rh_ferias.html', ferias=lista, colaboradores=colaboradores)
 
 
@@ -750,7 +755,6 @@ def add_ferias():
     cursor.execute("SELECT nome FROM colaboradores WHERE id=%s", (id_colaborador,))
     colab = cursor.fetchone()
     conn.commit()
-    conn.close()
     log_action('create', entity_type='rh_ferias', entity_id=novo_id,
                descricao=f"Agendou férias para '{colab['nome'] if colab else id_colaborador}' ({data_inicio} a {data_fim}, {dias} dias)")
     flash("Férias agendadas com sucesso!", "success")
@@ -774,7 +778,6 @@ def status_ferias(id_ferias, novo_status):
     info = cursor.fetchone() or {}
     cursor.execute("UPDATE rh_ferias SET status=%s WHERE id=%s", (novo_status, id_ferias))
     conn.commit()
-    conn.close()
     log_action('update', entity_type='rh_ferias', entity_id=int(id_ferias),
                descricao=f"Férias de '{info.get('nome') or '—'}': status {info.get('status') or '—'}→{novo_status}")
     flash("Status atualizado.", "success")
@@ -795,7 +798,6 @@ def excluir_ferias(id_ferias):
     info = cursor.fetchone() or {}
     cursor.execute("DELETE FROM rh_ferias WHERE id=%s", (id_ferias,))
     conn.commit()
-    conn.close()
     log_action('delete', entity_type='rh_ferias', entity_id=int(id_ferias),
                descricao=f"Excluiu férias de '{info.get('nome') or '—'}' "
                          f"({info.get('data_inicio')} a {info.get('data_fim')})")
@@ -841,7 +843,6 @@ def ponto():
     if colab_id:
         cursor.execute("SELECT id, nome, funcao FROM colaboradores WHERE id = %s", (colab_id,))
         colab_sel = cursor.fetchone()
-    conn.close()
 
     return render_template('rh_ponto.html',
         colaboradores=colaboradores, colab_sel=colab_sel, colab_id=colab_id,
@@ -886,7 +887,6 @@ def registrar_ponto():
     cursor.execute("SELECT nome FROM colaboradores WHERE id=%s", (id_colaborador,))
     colab = cursor.fetchone()
     conn.commit()
-    conn.close()
     log_action('update', entity_type='rh_ponto', entity_id=int(id_colaborador) if id_colaborador else None,
                descricao=f"Registrou ponto de '{colab['nome'] if colab else id_colaborador}' em {mes}/{ano}: {qtd_dias} dia(s)")
     flash("Ponto salvo com sucesso!", "success")
@@ -922,7 +922,6 @@ def imprimir_ponto():
     if colab_sel:
         colab_sel['jornada_grupos'] = _carregar_jornada_grupos(cursor, colab_sel.get('id_jornada'))
         colab_sel['jornada_total_fmt'] = _jornada_total_semanal_fmt(colab_sel['jornada_grupos'])
-    conn.close()
 
     _, dias_mes = monthrange(ano, mes)
     dias = []
@@ -975,7 +974,6 @@ def imprimir_ponto_geral():
     for c in colaboradores:
         c['jornada_grupos'] = _carregar_jornada_grupos(cursor, c.get('id_jornada'))
         c['jornada_total_fmt'] = _jornada_total_semanal_fmt(c['jornada_grupos'])
-    conn.close()
 
     _, dias_mes = monthrange(ano, mes)
     dias = []
@@ -1059,7 +1057,6 @@ def admissao_conta_salario_seletor():
         ORDER BY nome
     """)
     nutricionistas = cursor.fetchall()
-    conn.close()
     return render_template('rh_admissao_conta_salario.html',
                            colaboradores=colaboradores,
                            nutricionistas=nutricionistas)
@@ -1081,7 +1078,6 @@ def admissao_conta_salario_gerar():
     cursor = conn.cursor(dictionary=True)
     colab = _buscar_colaborador_completo(cursor, colab_id)
     nutri = _buscar_colaborador_completo(cursor, nutri_id)
-    conn.close()
 
     erros = _validar_dados_conta_salario(colab, nutri)
     if erros:
@@ -1113,7 +1109,6 @@ def admissao_documentos_seletor():
         ORDER BY nome
     """)
     colaboradores = cursor.fetchall()
-    conn.close()
     return render_template('rh_admissao_documentos.html',
                            colaboradores=colaboradores)
 
@@ -1131,5 +1126,4 @@ def admissao_documentos_gerar():
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT id, nome, funcao FROM colaboradores WHERE id = %s", (colab_id,))
         colab = cursor.fetchone()
-        conn.close()
     return render_template('doc_lista_admissao.html', colab=colab)

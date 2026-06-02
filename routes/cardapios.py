@@ -97,7 +97,18 @@ def montar_cardapio(id_cardapio):
     cursor.execute("SELECT * FROM itens_cardapio WHERE id_cardapio = %s ORDER BY data_dia", (id_cardapio,))
     itens = cursor.fetchall()
 
-    return render_template("form_cardapio.html", cardapio=cardapio, itens=itens)
+    # Sugestões (autocomplete) a partir do histórico: valores distintos já
+    # usados em cada campo. Os nomes de campo são uma whitelist fixa, então
+    # é seguro interpolar na query.
+    sugestoes = {}
+    for campo in ('base', 'principal1', 'principal2', 'guarnicao', 'salada', 'sobremesa', 'bebida'):
+        cursor.execute(
+            f"SELECT DISTINCT {campo} AS v FROM itens_cardapio "
+            f"WHERE {campo} IS NOT NULL AND {campo} <> '' ORDER BY {campo}"
+        )
+        sugestoes[campo] = [r['v'] for r in cursor.fetchall()]
+
+    return render_template("form_cardapio.html", cardapio=cardapio, itens=itens, sugestoes=sugestoes)
 
 @cardapios_bp.route("/cardapios/salvar_itens/<int:id_cardapio>", methods=["POST"])
 @login_required

@@ -501,3 +501,34 @@ def salvar_precos_grupo(id_grupo):
                descricao=f"Atualizou tabela de preços do grupo '{nome_grupo}': {qtd_salvos} produto(s) com preço")
     flash("Tabela de preços do grupo atualizada com sucesso!", "success")
     return redirect(url_for('cadastros.grupos'))
+
+
+@cadastros_bp.route("/reajustar_precos_grupo/<int:id_grupo>", methods=["POST"])
+@login_required
+@admin_only
+def reajustar_precos_grupo(id_grupo):
+    """Aplica um percentual sobre TODOS os preços já cadastrados na tabela
+    deste grupo de uma vez. Aceita percentual negativo (redução). Nunca
+    deixa o preço ficar negativo."""
+    try:
+        pct = float(request.form.get('percentual', '0').replace(',', '.'))
+    except ValueError:
+        flash("Percentual inválido.", "danger")
+        return redirect(url_for('cadastros.negociar_grupo', id_grupo=id_grupo))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome FROM grupos_clientes WHERE id=%s", (id_grupo,))
+    g = cursor.fetchone()
+    nome = g['nome'] if g else f'#{id_grupo}'
+    cursor.execute("""
+        UPDATE tabela_precos_grupos
+        SET preco_venda = ROUND(GREATEST(0, preco_venda * (1 + %s/100)), 2)
+        WHERE id_grupo = %s AND preco_venda IS NOT NULL
+    """, (pct, id_grupo))
+    n = cursor.rowcount
+    conn.commit()
+    log_action('update', entity_type='tabela_precos_grupo', entity_id=int(id_grupo),
+               descricao=f"Reajuste em lote de {pct:+.2f}% na tabela do grupo '{nome}': {n} preço(s)")
+    flash(f"Reajuste de {pct:+.2f}% aplicado a {n} preço(s) do grupo.".replace('.', ','), "success")
+    return redirect(url_for('cadastros.negociar_grupo', id_grupo=id_grupo))

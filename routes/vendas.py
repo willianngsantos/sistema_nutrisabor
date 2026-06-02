@@ -65,6 +65,36 @@ def salvar_precos(id_cliente):
     flash("Tabela de preços atualizada!", "success")
     return redirect(url_for('vendas.negociar', id_cliente=id_cliente))
 
+@vendas_bp.route("/reajustar_precos_cliente/<int:id_cliente>", methods=["POST"])
+@login_required
+@admin_only
+def reajustar_precos_cliente(id_cliente):
+    """Aplica um percentual sobre TODOS os preços já cadastrados na tabela
+    deste cliente de uma vez. Aceita percentual negativo (redução). Nunca
+    deixa o preço ficar negativo."""
+    try:
+        pct = float(request.form.get('percentual', '0').replace(',', '.'))
+    except ValueError:
+        flash("Percentual inválido.", "danger")
+        return redirect(url_for('vendas.negociar', id_cliente=id_cliente))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT nome_empresa FROM clientes WHERE id=%s", (id_cliente,))
+    cli = cursor.fetchone()
+    nome = cli['nome_empresa'] if cli else f'#{id_cliente}'
+    cursor.execute("""
+        UPDATE tabela_precos
+        SET preco_venda = ROUND(GREATEST(0, preco_venda * (1 + %s/100)), 2)
+        WHERE id_cliente = %s AND preco_venda IS NOT NULL
+    """, (pct, id_cliente))
+    n = cursor.rowcount
+    conn.commit()
+    log_action('update', entity_type='tabela_precos_cliente', entity_id=int(id_cliente),
+               descricao=f"Reajuste em lote de {pct:+.2f}% na tabela do cliente '{nome}': {n} preço(s)")
+    flash(f"Reajuste de {pct:+.2f}% aplicado a {n} preço(s) do cliente.".replace('.', ','), "success")
+    return redirect(url_for('vendas.negociar', id_cliente=id_cliente))
+
 @vendas_bp.route("/pedidos")
 @login_required
 def selecionar_cliente_pedido():

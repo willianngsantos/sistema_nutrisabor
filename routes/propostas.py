@@ -54,6 +54,24 @@ def _get_empresa():
     emp = cur.fetchone()
     return emp or {}
 
+
+# ── Expiração automática de propostas ─────────────────────────────────────────
+def expirar_propostas_vencidas(cursor):
+    """Marca como 'Expirada' as propostas cuja validade já passou e que ainda
+    estavam em 'Rascunho' ou 'Enviada'. Não toca em Aceita/Recusada/Expirada.
+
+    Idempotente — o caller faz o commit. Retorna o nº de propostas expiradas.
+    Roda ao abrir a listagem e via cron (scripts/expirar_propostas.py)."""
+    cursor.execute("""
+        UPDATE propostas
+        SET status = 'Expirada'
+        WHERE status IN ('Rascunho', 'Enviada')
+          AND validade IS NOT NULL
+          AND validade < CURDATE()
+    """)
+    return cursor.rowcount
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  LISTAGEM
 # ─────────────────────────────────────────────────────────────────────────────
@@ -67,6 +85,10 @@ def listar():
 
     conn = get_db_connection()
     cur  = conn.cursor(dictionary=True)
+
+    # Expira automaticamente as propostas vencidas antes de listar/contar
+    expirar_propostas_vencidas(cur)
+    conn.commit()
 
     sql = """
         SELECT p.*, c.nome_empresa AS cliente_nome,

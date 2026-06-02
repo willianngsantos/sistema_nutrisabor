@@ -114,33 +114,33 @@
                 <div class="col-md-12">
                     <div class="form-floating-custom">
                         <label><i class="bi bi-egg-fried me-1"></i> Base</label>
-                        <input type="text" name="base_{{ item['id'] }}" value="{{ item['base'] if item['base'] else 'Arroz e Feijão' }}">
+                        <input type="text" name="base_{{ item['id'] }}" list="dl_base" value="{{ item['base'] if item['base'] else 'Arroz e Feijão' }}">
                     </div>
                 </div>
                 
                 <div class="col-12 col-md-6">
                     <div class="form-floating-custom" style="border-left: 4px solid var(--brand-orange);">
                         <label><i class="bi bi-fire me-1 text-orange"></i> Prato Principal 1</label>
-                        <input type="text" name="p1_{{ item['id'] }}" value="{{ item['principal1'] if item['principal1'] else '' }}" placeholder="Ex: Strogonoff de Carne">
+                        <input type="text" name="p1_{{ item['id'] }}" list="dl_principal1" value="{{ item['principal1'] if item['principal1'] else '' }}" placeholder="Ex: Strogonoff de Carne">
                     </div>
                 </div>
                 <div class="col-12 col-md-6">
                     <div class="form-floating-custom" style="border-left: 4px solid var(--brand-green);">
                         <label><i class="bi bi-flower1 me-1 text-success"></i> Prato Principal 2</label>
-                        <input type="text" name="p2_{{ item['id'] }}" value="{{ item['principal2'] if item['principal2'] else '' }}" placeholder="Ex: Ovos Mexidos com Queijo">
+                        <input type="text" name="p2_{{ item['id'] }}" list="dl_principal2" value="{{ item['principal2'] if item['principal2'] else '' }}" placeholder="Ex: Ovos Mexidos com Queijo">
                     </div>
                 </div>
 
                 <div class="col-12 col-md-6">
                     <div class="form-floating-custom">
                         <label><i class="bi bi-basket me-1"></i> Guarnição</label>
-                        <input type="text" name="guarnicao_{{ item['id'] }}" value="{{ item['guarnicao'] if item['guarnicao'] else '' }}" placeholder="Ex: Batata Palha">
+                        <input type="text" name="guarnicao_{{ item['id'] }}" list="dl_guarnicao" value="{{ item['guarnicao'] if item['guarnicao'] else '' }}" placeholder="Ex: Batata Palha">
                     </div>
                 </div>
                 <div class="col-12 col-md-6">
                     <div class="form-floating-custom">
                         <label><i class="bi bi-tencent-qq me-1"></i> Salada</label>
-                        <input type="text" name="salada_{{ item['id'] }}" value="{{ item['salada'] if item['salada'] else '' }}" placeholder="Ex: Alface e Tomate">
+                        <input type="text" name="salada_{{ item['id'] }}" list="dl_salada" value="{{ item['salada'] if item['salada'] else '' }}" placeholder="Ex: Alface e Tomate">
                     </div>
                 </div>
 
@@ -149,14 +149,14 @@
                 <div class="col-12 {% if cardapio.get('usa_sobremesa', 1) %}col-md-6{% endif %}">
                     <div class="form-floating-custom">
                         <label><i class="bi bi-cup-straw me-1"></i> Bebida</label>
-                        <input type="text" name="bebida_{{ item['id'] }}" value="{{ item['bebida'] if item['bebida'] else 'Suco de Fruta' }}">
+                        <input type="text" name="bebida_{{ item['id'] }}" list="dl_bebida" value="{{ item['bebida'] if item['bebida'] else 'Suco de Fruta' }}">
                     </div>
                 </div>
                 {% if cardapio.get('usa_sobremesa', 1) %}
                 <div class="col-12 col-md-6">
                     <div class="form-floating-custom">
                         <label><i class="bi bi-cake me-1"></i> Sobremesa</label>
-                        <input type="text" name="sobremesa_{{ item['id'] }}" value="{{ item['sobremesa'] if item['sobremesa'] else 'Fruta' }}">
+                        <input type="text" name="sobremesa_{{ item['id'] }}" list="dl_sobremesa" value="{{ item['sobremesa'] if item['sobremesa'] else 'Fruta' }}">
                     </div>
                 </div>
                 {% endif %}
@@ -164,6 +164,18 @@
         </div>
         {% endfor %}
     </div>
+
+    {# Autocomplete: sugestões a partir do histórico de cardápios.
+       Um datalist por campo, compartilhado por todas as linhas de dias. #}
+    {% if sugestoes %}
+    {% for campo in ['base','principal1','principal2','guarnicao','salada','sobremesa','bebida'] %}
+    <datalist id="dl_{{ campo }}">
+        {% for opcao in sugestoes.get(campo, []) %}
+        <option value="{{ opcao }}"></option>
+        {% endfor %}
+    </datalist>
+    {% endfor %}
+    {% endif %}
 
     <div class="card mt-4 border-0 shadow-sm">
         <div class="card-body bg-light rounded-3">

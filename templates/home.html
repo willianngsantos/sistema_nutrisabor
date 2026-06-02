@@ -50,6 +50,17 @@
     </div>
 </div>
 
+<!-- GRÁFICO: faturamento recebido nos últimos 12 meses -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 pt-3 pb-0 d-flex align-items-center">
+        <i class="bi bi-bar-chart-line-fill text-success me-2"></i>
+        <h6 class="fw-bold mb-0">Faturamento recebido · últimos 12 meses</h6>
+    </div>
+    <div class="card-body">
+        <canvas id="graficoFaturamento" height="90"></canvas>
+    </div>
+</div>
+
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-body bg-white rounded">
         <form method="GET" action="/home" class="row g-2 align-items-end">
@@ -443,5 +454,54 @@
             document.getElementById('labelFaturaPagamento').textContent = '#' + (codigoFatura || pedidoId);
         });
     }
+</script>
+
+<!-- Gráfico de faturamento (Chart.js) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    var el = document.getElementById('graficoFaturamento');
+    if (!el || typeof Chart === 'undefined') return;
+
+    var labels  = {{ grafico_labels | tojson }};
+    var valores = {{ grafico_valores | tojson }};
+
+    var fmtBRL = function (v) {
+        return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    };
+
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Recebido',
+                data: valores,
+                backgroundColor: 'rgba(25, 135, 84, 0.75)',
+                borderRadius: 6,
+                maxBarThickness: 48
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function (c) { return fmtBRL(c.parsed.y); } } }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function (v) {
+                            if (v >= 1000) return 'R$ ' + (v / 1000).toLocaleString('pt-BR') + 'k';
+                            return 'R$ ' + v;
+                        }
+                    }
+                }
+            }
+        }
+    });
+})();
 </script>
 {% endblock %}

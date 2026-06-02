@@ -193,6 +193,34 @@ def home():
     """)
     fat_ano_atual = cursor.fetchone()['total'] or 0
 
+    # 3b. GRÁFICO — faturamento PAGO nos últimos 12 meses (por data_pagamento).
+    # Buscamos as somas por mês e preenchemos os meses sem recebimento com 0,
+    # para o gráfico ter sempre 12 colunas em ordem cronológica.
+    cursor.execute("""
+        SELECT DATE_FORMAT(p.data_pagamento, '%Y-%m') AS ym,
+               SUM(i.quantidade * i.preco_praticado) AS total
+        FROM itens_pedido i JOIN pedidos p ON i.id_pedido = p.id
+        WHERE p.status = 'Pago' AND p.data_pagamento IS NOT NULL
+          AND p.data_pagamento >= DATE_FORMAT(CURRENT_DATE() - INTERVAL 11 MONTH, '%Y-%m-01')
+        GROUP BY ym
+    """)
+    _mapa_fat = {r['ym']: float(r['total'] or 0) for r in cursor.fetchall()}
+    _hoje = datetime.now()
+    _meses_abbr = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+                   'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    _yy, _mm = _hoje.year, _hoje.month - 11
+    while _mm <= 0:
+        _mm += 12
+        _yy -= 1
+    grafico_labels, grafico_valores = [], []
+    for _ in range(12):
+        grafico_labels.append(f"{_meses_abbr[_mm - 1]}/{str(_yy)[2:]}")
+        grafico_valores.append(round(_mapa_fat.get(f"{_yy:04d}-{_mm:02d}", 0.0), 2))
+        _mm += 1
+        if _mm > 12:
+            _mm = 1
+            _yy += 1
+
     # 4. MOTOR DE FILTRO
     hoje = datetime.now()
     
@@ -295,7 +323,8 @@ def home():
                            f_mes=f_mes, f_ano=f_ano, f_status=f_status, f_cliente=f_cliente,
                            anos_disponiveis=anos_disponiveis,
                            page=page, total_pages=total_pages,
-                           total_count=total_count, per_page=per_page)
+                           total_count=total_count, per_page=per_page,
+                           grafico_labels=grafico_labels, grafico_valores=grafico_valores)
                            
 
 # Blueprints

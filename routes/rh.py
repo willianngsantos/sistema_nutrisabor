@@ -475,17 +475,28 @@ BENEFICIOS_REAJUSTE = {
 def reajuste():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    # Traz os 4 benefícios para a tela mostrar o valor atual de cada um
+    # Traz os 4 benefícios + as unidades de cada colaborador (para o filtro)
     cursor.execute("""
-        SELECT id, nome, funcao, status,
-               salario_bruto, vale_transporte, vale_refeicao, diversos
-        FROM colaboradores WHERE status != 'inativo' ORDER BY nome
+        SELECT col.id, col.nome, col.funcao, col.status,
+               col.salario_bruto, col.vale_transporte, col.vale_refeicao, col.diversos,
+               GROUP_CONCAT(cu.id_cliente) AS unidades_ids
+        FROM colaboradores col
+        LEFT JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
+        WHERE col.status != 'inativo'
+        GROUP BY col.id
+        ORDER BY col.nome
     """)
     colaboradores = cursor.fetchall()
     # Normaliza decimais para float (o template usa em data-* e formatação)
     for c in colaboradores:
         for k in ('salario_bruto', 'vale_transporte', 'vale_refeicao', 'diversos'):
             c[k] = float(c[k] or 0)
+        c['unidades_ids'] = c['unidades_ids'] or ''
+
+    # Unidades de trabalho para o dropdown de filtro
+    cursor.execute("SELECT id, nome_empresa FROM clientes WHERE atende_local = 1 ORDER BY nome_empresa")
+    unidades = cursor.fetchall()
+
     cursor.execute("""
         SELECT *
         FROM rh_reajustes ORDER BY data_reajuste DESC LIMIT 15
@@ -495,7 +506,8 @@ def reajuste():
         r['data_fmt'] = _fmt_date(r.get('data_reajuste'))
         r['beneficio_label'] = BENEFICIOS_REAJUSTE.get(r.get('beneficio') or 'salario_bruto', 'Salário')
     return render_template('rh_reajuste.html', colaboradores=colaboradores,
-                           historico=historico, beneficios=BENEFICIOS_REAJUSTE)
+                           historico=historico, beneficios=BENEFICIOS_REAJUSTE,
+                           unidades=unidades)
 
 
 @rh_bp.route("/rh/reajuste/aplicar", methods=["POST"])
@@ -507,6 +519,7 @@ def aplicar_reajuste():
     motivo = request.form.get('motivo', '').strip()
     data_reajuste = request.form.get('data_reajuste') or date.today().isoformat()
     selecionados = request.form.getlist('colaboradores')
+    unidade_id = (request.form.get('unidade_id') or '').strip()
 
     # Validações
     if beneficio not in BENEFICIOS_REAJUSTE:
@@ -529,9 +542,19 @@ def aplicar_reajuste():
 
     # beneficio é uma chave da whitelist BENEFICIOS_REAJUSTE → seguro interpolar
     if selecionados:
+        # Colaboradores explicitamente marcados (têm prioridade sobre o filtro)
         fmt = ','.join(['%s'] * len(selecionados))
         cursor.execute(f"SELECT id, {beneficio} AS atual FROM colaboradores WHERE id IN ({fmt})", selecionados)
+    elif unidade_id.isdigit():
+        # Nenhum marcado + unidade filtrada → todos os ativos daquela unidade
+        cursor.execute(f"""
+            SELECT col.id, col.{beneficio} AS atual
+            FROM colaboradores col
+            JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
+            WHERE cu.id_cliente = %s AND col.status != 'inativo'
+        """, (unidade_id,))
     else:
+        # Nenhum marcado e sem unidade → todos os ativos
         cursor.execute(f"SELECT id, {beneficio} AS atual FROM colaboradores WHERE status != 'inativo'")
     colaboradores = cursor.fetchall()
 

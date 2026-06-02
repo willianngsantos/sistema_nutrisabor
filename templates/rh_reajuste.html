@@ -21,6 +21,16 @@
             <input type="date" name="data_reajuste" class="form-control border-0 shadow-sm bg-light" value="{{ hoje if hoje else '' }}" required>
           </div>
           <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Unidade de trabalho</label>
+            <select name="unidade_id" id="unidadeFiltro" class="form-select border-0 shadow-sm bg-light" onchange="filtrarPorUnidade()">
+              <option value="">Todas as unidades</option>
+              {% for u in unidades %}
+              <option value="{{ u['id'] }}">{{ u['nome_empresa'] }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text small"><i class="bi bi-funnel me-1"></i>Filtra a lista de colaboradores abaixo. O reajuste é aplicado só a quem pertence à unidade escolhida.</div>
+          </div>
+          <div class="mb-3">
             <label class="form-label small fw-bold text-uppercase text-secondary">Benefício a reajustar</label>
             <select name="beneficio" id="beneficio" class="form-select border-0 shadow-sm bg-light" onchange="atualizarValoresAtuais()">
               {% for key, label in beneficios.items() %}
@@ -64,7 +74,7 @@
             </label>
             <div class="bg-light rounded-3 p-3" style="max-height:220px;overflow-y:auto;">
               {% for c in colaboradores %}
-              <div class="form-check mb-1">
+              <div class="form-check mb-1 colab-row" data-unidades="{{ c['unidades_ids'] }}">
                 <input class="form-check-input colab-check" type="checkbox" name="colaboradores" value="{{ c['id'] }}" id="ch{{ c['id'] }}">
                 <label class="form-check-label small" for="ch{{ c['id'] }}"
                        data-salario_bruto="{{ '%.2f'|format(c['salario_bruto']) }}"
@@ -173,9 +183,27 @@ function atualizarValoresAtuais() {
   });
 }
 
+// Filtra a lista de colaboradores pela unidade selecionada. Quem fica oculto
+// é desmarcado para não ser submetido sem querer.
+function filtrarPorUnidade() {
+  const uid = document.getElementById('unidadeFiltro').value;
+  document.querySelectorAll('.colab-row').forEach(row => {
+    const unidades = (row.dataset.unidades || '').split(',').filter(Boolean);
+    const mostra = !uid || unidades.includes(uid);
+    row.style.display = mostra ? '' : 'none';
+    if (!mostra) {
+      const cb = row.querySelector('.colab-check');
+      if (cb) cb.checked = false;
+    }
+  });
+}
+
+// "Selecionar/Desmarcar todos" age apenas sobre os colaboradores VISÍVEIS
 function toggleAll() {
-  const cbs = document.querySelectorAll('.colab-check');
-  const allChecked = [...cbs].every(c => c.checked);
+  const cbs = [...document.querySelectorAll('.colab-row')]
+    .filter(r => r.style.display !== 'none')
+    .map(r => r.querySelector('.colab-check'));
+  const allChecked = cbs.length > 0 && cbs.every(c => c.checked);
   cbs.forEach(c => c.checked = !allChecked);
 }
 
@@ -183,6 +211,7 @@ function toggleAll() {
 document.addEventListener('DOMContentLoaded', function() {
   updateLabel();
   atualizarValoresAtuais();
+  filtrarPorUnidade();
 });
 </script>
 {% endblock %}

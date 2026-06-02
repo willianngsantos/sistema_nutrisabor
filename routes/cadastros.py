@@ -3,9 +3,21 @@ from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only
 from utils.audit import log_action, format_field_diff
+from utils.validators import cnpj_valido, cpf_valido, email_valido
 import os
 import uuid
 from werkzeug.utils import secure_filename
+
+
+def _validar_cliente(cnpj, email):
+    """Valida os campos do cliente. Retorna mensagem de erro (str) ou None
+    se estiver tudo certo. Cliente pode ser PJ (CNPJ) ou PF (CPF) — aceitamos
+    qualquer um dos dois válido, espelhando o filtro cpf_cnpj do sistema."""
+    if cnpj and not (cnpj_valido(cnpj) or cpf_valido(cnpj)):
+        return "CNPJ/CPF inválido. Confira os dígitos."
+    if email and not email_valido(email):
+        return "E-mail inválido."
+    return None
 
 # SVG removido propositalmente: arquivos SVG podem conter <script> e, servidos
 # do mesmo domínio, viram vetor de XSS armazenado. Aceitamos só imagens raster.
@@ -14,11 +26,30 @@ ALLOWED_LOGO_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 def allowed_logo(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_LOGO_EXTENSIONS
 
+def _conteudo_imagem_ok(file):
+    """Confere os 'magic bytes' do arquivo — não confia só na extensão.
+    Bloqueia, por exemplo, um SVG/HTML com <script> renomeado para .png.
+    Aceita PNG, JPEG, GIF e WEBP. Faz seek(0) para não consumir o stream."""
+    head = file.stream.read(16)
+    file.stream.seek(0)
+    if head.startswith(b'\x89PNG\r\n\x1a\n'):          # PNG
+        return True
+    if head.startswith(b'\xff\xd8\xff'):               # JPEG
+        return True
+    if head[:6] in (b'GIF87a', b'GIF89a'):             # GIF
+        return True
+    if head[:4] == b'RIFF' and head[8:12] == b'WEBP':  # WEBP
+        return True
+    return False
+
 def save_logo(file):
-    """Salva o logo do cliente e retorna o caminho relativo."""
+    """Salva o logo do cliente e retorna o caminho relativo (ou None se
+    inválido — extensão não permitida ou conteúdo que não é imagem)."""
     if not file or file.filename == '':
         return None
     if not allowed_logo(file.filename):
+        return None
+    if not _conteudo_imagem_ok(file):
         return None
     ext = file.filename.rsplit('.', 1)[1].lower()
     filename = f"{uuid.uuid4().hex}.{ext}"
@@ -159,6 +190,12 @@ def add_cliente():
     email = request.form["email"]
     celular = request.form["celular"]
     id_grupo = request.form.get("id_grupo")
+
+    erro = _validar_cliente(cnpj, email)
+    if erro:
+        flash(erro, "danger")
+        return redirect(url_for('cadastros.clientes'))
+
     logo_path = save_logo(request.files.get("logo_cliente"))
 
     if not id_grupo: id_grupo = None
@@ -188,6 +225,12 @@ def editar_cliente():
     email = request.form["email"]
     celular = request.form["celular"]
     id_grupo = request.form.get("id_grupo")
+
+    erro = _validar_cliente(cnpj, email)
+    if erro:
+        flash(erro, "danger")
+        return redirect(url_for('cadastros.clientes'))
+
     novo_logo = save_logo(request.files.get("logo_cliente"))
     remover_logo = request.form.get("remover_logo") == "1"
 

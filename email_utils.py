@@ -3,7 +3,10 @@ Utilitário de envio de e-mail via Resend (https://resend.com).
 Usa a variável RESEND_API_KEY do .env
 """
 import os
+import logging
 import resend
+
+logger = logging.getLogger(__name__)
 
 
 def send_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
@@ -15,7 +18,7 @@ def send_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
     remetente = os.environ.get('MAIL_FROM', 'NutriSabor <noreply@nutrisabor.sistemaswgs.com.br>')
 
     if not api_key:
-        print("❌ RESEND_API_KEY não configurada no .env")
+        logger.error("RESEND_API_KEY não configurada no .env")
         return False
 
     resend.api_key = api_key
@@ -29,7 +32,7 @@ def send_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
         })
         return True
     except Exception as e:
-        print(f"❌ Erro ao enviar e-mail: {e}")
+        logger.error("Erro ao enviar e-mail para %s: %s", destinatario, e)
         return False
 
 

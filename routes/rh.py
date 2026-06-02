@@ -8,6 +8,7 @@ from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only, rh_access
 from utils.audit import log_action, format_field_diff
+from utils.constants import MESES_PT
 
 rh_bp = Blueprint('rh', __name__)
 
@@ -18,9 +19,6 @@ TIPOS_EXAME = [
     'ASO Retorno ao Trabalho', 'ASO Mudança de Risco',
     'Audiometria', 'Acuidade Visual', 'Espirometria', 'EEG', 'Outros'
 ]
-MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-            'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-
 def _data_extenso_pt(d=None):
     """Retorna data no formato 'TAQUARITINGA, 30 DE SETEMBRO DE 2025.'
     usado em documentos formais. Se d for None, usa hoje."""

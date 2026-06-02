@@ -9,6 +9,7 @@ from database import get_db_connection
 from models import User
 from email_utils import email_codigo
 from utils.audit import log_action, format_field_diff
+from utils.validators import email_valido
 from extensions import limiter
 
 auth_bp = Blueprint('auth', __name__)
@@ -265,6 +266,10 @@ def add_usuario():
     senha_plana = request.form.get("senha", "").strip()
     tipo = request.form["tipo"]
 
+    if not email_valido(email):
+        flash("E-mail inválido.", "danger")
+        return redirect(url_for('auth.listar_usuarios'))
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     novo_id = None
@@ -302,6 +307,10 @@ def editar_usuario():
     email      = request.form["email"].strip()
     tipo       = request.form["tipo"]
     senha      = request.form.get("senha", "").strip()
+
+    if not email_valido(email):
+        flash("E-mail inválido.", "danger")
+        return redirect(url_for('auth.listar_usuarios'))
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)

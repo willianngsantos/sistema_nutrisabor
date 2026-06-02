@@ -14,9 +14,17 @@ from routes.vendas import vendas_bp
 from routes.colaboradores import colaboradores_bp
 from routes.propostas import propostas_bp
 from utils.audit import log_action
+import logging
 import re
 
 load_dotenv()
+
+# Logging: mensagens vão para stderr → capturado pelo journald (systemd) em
+# produção. Substitui os print() espalhados, que se perdiam. Nível via env.
+logging.basicConfig(
+    level=getattr(logging, os.environ.get('LOG_LEVEL', 'INFO').upper(), logging.INFO),
+    format='%(asctime)s %(levelname)s [%(name)s] %(message)s',
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ['SECRET_KEY']
@@ -95,7 +103,7 @@ def format_real(value):
     try:
         val = float(value) if value else 0.0
         return f"R$ {val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except:
+    except (ValueError, TypeError):
         return "R$ 0,00"
 
 @app.template_filter('cpf_cnpj')

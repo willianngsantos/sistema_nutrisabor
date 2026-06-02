@@ -4,6 +4,8 @@ from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only, admin_or_gerencial
 from utils.audit import log_action, format_field_diff
+from utils.validators import cpf_valido
+from utils.constants import MESES_PT
 
 colaboradores_bp = Blueprint('colaboradores', __name__)
 
@@ -219,6 +221,11 @@ def add_colaborador():
     if funcao and funcao not in FUNCOES_VALIDAS:
         funcao = None
 
+    # CPF é opcional, mas se informado tem que ser válido
+    if pessoais['cpf'] and not cpf_valido(pessoais['cpf']):
+        flash("CPF inválido. Confira os dígitos.", "danger")
+        return redirect(url_for('colaboradores.listar'))
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -279,6 +286,11 @@ def editar_colaborador():
         status = 'ativo'
     if funcao and funcao not in FUNCOES_VALIDAS:
         funcao = None
+
+    # CPF é opcional, mas se informado tem que ser válido
+    if pessoais['cpf'] and not cpf_valido(pessoais['cpf']):
+        flash("CPF inválido. Confira os dígitos.", "danger")
+        return redirect(url_for('colaboradores.listar'))
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -371,12 +383,6 @@ def mudar_status(id_colab, novo_status):
 # ──────────────────────────────────────────────
 # RECIBO DE VALE TRANSPORTE
 # ──────────────────────────────────────────────
-
-MESES_PT = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-]
-
 
 @colaboradores_bp.route("/recibo_vt/<int:id_colab>")
 @login_required

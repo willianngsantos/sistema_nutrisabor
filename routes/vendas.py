@@ -1,3 +1,4 @@
+import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from database import get_db_connection
@@ -5,6 +6,7 @@ from datetime import datetime
 from utils.permissions import admin_only
 from utils.audit import log_action
 
+logger = logging.getLogger(__name__)
 vendas_bp = Blueprint('vendas', __name__)
 
 def gerar_codigo_quinzena(data_str):
@@ -14,7 +16,7 @@ def gerar_codigo_quinzena(data_str):
         mes = data.strftime('%m')
         ano = data.strftime('%Y')
         return f"{quinzena}{mes}{ano}"
-    except:
+    except (ValueError, TypeError):
         return ""
 
 @vendas_bp.route("/negociar/<int:id_cliente>")
@@ -162,8 +164,8 @@ def salvar_pedido():
                     
                     total_pedido += (qtd * preco)
                     itens_para_salvar.append((id_prod, qtd, preco))
-            except Exception as e: 
-                print(f"Erro ao processar item {id_prod}: {e}")
+            except (ValueError, TypeError) as e:
+                logger.warning("Erro ao processar item %s no pedido: %s", id_prod, e)
                 continue
 
     if total_pedido <= 0:

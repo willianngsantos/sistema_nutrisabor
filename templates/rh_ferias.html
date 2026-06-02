@@ -130,16 +130,19 @@
           <div class="row g-3 mb-3">
             <div class="col-6">
               <label class="form-label small fw-bold text-uppercase text-secondary">Início</label>
-              <input type="date" name="data_inicio" id="ferias_inicio" class="form-control border-0 shadow-sm" required onchange="calcDias()">
+              <input type="date" name="data_inicio" id="ferias_inicio" class="form-control border-0 shadow-sm" required onchange="aoMudarInicio()">
             </div>
             <div class="col-6">
-              <label class="form-label small fw-bold text-uppercase text-secondary">Fim</label>
-              <input type="date" name="data_fim" id="ferias_fim" class="form-control border-0 shadow-sm" required onchange="calcDias()">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Total de Dias</label>
+              <input type="number" name="dias" id="ferias_dias" class="form-control border-0 shadow-sm bg-white" value="30" min="1" max="60" onchange="aoMudarDias()" oninput="aoMudarDias()">
             </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label small fw-bold text-uppercase text-secondary">Total de Dias</label>
-            <input type="number" name="dias" id="ferias_dias" class="form-control border-0 shadow-sm bg-white" value="30" readonly>
+          <div class="mb-2">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Fim (último dia de férias)</label>
+            <input type="date" name="data_fim" id="ferias_fim" class="form-control border-0 shadow-sm" required onchange="aoMudarFim()">
+            <div class="form-text small text-success fw-semibold mt-1" id="ferias_retorno" style="display:none;">
+              <i class="bi bi-arrow-return-left me-1"></i><span></span>
+            </div>
           </div>
           <div class="mb-1">
             <label class="form-label small fw-bold text-uppercase text-secondary">Observações</label>
@@ -156,13 +159,65 @@
 </div>
 
 <script>
-function calcDias() {
-  const inicio = document.getElementById('ferias_inicio').value;
-  const fim = document.getElementById('ferias_fim').value;
-  if (inicio && fim) {
-    const diff = Math.round((new Date(fim) - new Date(inicio)) / 86400000) + 1;
-    document.getElementById('ferias_dias').value = diff > 0 ? diff : '';
-  }
+// Helpers de data em horário local (evita o -1 dia do fuso ao usar new Date('YYYY-MM-DD'))
+function _parseISO(s) {
+  if (!s) return null;
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
 }
+function _toISO(dt) {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+function _fmtBR(dt) {
+  return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+}
+
+const $inicio  = () => document.getElementById('ferias_inicio');
+const $fim     = () => document.getElementById('ferias_fim');
+const $dias    = () => document.getElementById('ferias_dias');
+const $retorno = () => document.getElementById('ferias_retorno');
+
+// Mostra a data de retorno ao trabalho (fim + 1 dia)
+function _atualizaRetorno() {
+  const fim = _parseISO($fim().value);
+  const box = $retorno();
+  if (!fim) { box.style.display = 'none'; return; }
+  const retorno = new Date(fim); retorno.setDate(retorno.getDate() + 1);
+  box.querySelector('span').textContent = 'Retorno ao trabalho: ' + _fmtBR(retorno);
+  box.style.display = 'block';
+}
+
+// início + dias  →  fim
+function _fimAPartirDeDias() {
+  const inicio = _parseISO($inicio().value);
+  const dias = parseInt($dias().value, 10);
+  if (!inicio || !dias || dias < 1) return;
+  const fim = new Date(inicio); fim.setDate(fim.getDate() + dias - 1);
+  $fim().value = _toISO(fim);
+  _atualizaRetorno();
+}
+
+// início + fim  →  dias
+function _diasAPartirDeDatas() {
+  const inicio = _parseISO($inicio().value);
+  const fim = _parseISO($fim().value);
+  if (!inicio || !fim) return;
+  const diff = Math.round((fim - inicio) / 86400000) + 1;
+  $dias().value = diff > 0 ? diff : '';
+}
+
+// Ao mudar o início: se já há dias, recalcula o fim; senão, se há fim, recalcula dias
+function aoMudarInicio() {
+  if ($dias().value) _fimAPartirDeDias();
+  else if ($fim().value) _diasAPartirDeDatas();
+  _atualizaRetorno();
+}
+// Ao digitar a quantidade de dias: preenche o fim automaticamente
+function aoMudarDias() { _fimAPartirDeDias(); }
+// Ao escolher o fim manualmente: recalcula os dias
+function aoMudarFim() { _diasAPartirDeDatas(); _atualizaRetorno(); }
 </script>
 {% endblock %}

@@ -169,6 +169,70 @@ def _fmt_date(d):
         return str(d)
 
 
+# ─── SINCRONIZAÇÃO AUTOMÁTICA DE STATUS DE FÉRIAS ─────────────────
+def sincronizar_status_ferias(cursor):
+    """Alinha, com base na data de HOJE:
+      - o status dos registros em rh_ferias (agendado → em_andamento → concluido);
+      - o status do colaborador (ativo ↔ ferias).
+
+    Regras de segurança:
+      - Só transita colaborador entre 'ativo' e 'ferias'. NUNCA mexe em quem
+        está 'afastado' ou 'inativo' (esses status têm precedência manual).
+      - Férias 'cancelado' são ignoradas para qualquer efeito.
+
+    É idempotente — pode rodar quantas vezes quiser. O caller faz o commit.
+    Retorna o total de linhas afetadas (útil para log/cron)."""
+    afetadas = 0
+
+    # 1) Férias agendadas cujo período já começou (e não acabou) → em_andamento
+    cursor.execute("""
+        UPDATE rh_ferias
+        SET status = 'em_andamento'
+        WHERE status = 'agendado'
+          AND CURDATE() BETWEEN data_inicio AND data_fim
+    """)
+    afetadas += cursor.rowcount
+
+    # 2) Férias cujo período já terminou → concluido (exceto canceladas)
+    cursor.execute("""
+        UPDATE rh_ferias
+        SET status = 'concluido'
+        WHERE status IN ('agendado', 'em_andamento')
+          AND data_fim < CURDATE()
+    """)
+    afetadas += cursor.rowcount
+
+    # 3) Colaborador ATIVO com férias acontecendo hoje → ferias
+    cursor.execute("""
+        UPDATE colaboradores c
+        SET c.status = 'ferias'
+        WHERE c.status = 'ativo'
+          AND EXISTS (
+              SELECT 1 FROM rh_ferias f
+              WHERE f.id_colaborador = c.id
+                AND f.status IN ('agendado', 'em_andamento')
+                AND CURDATE() BETWEEN f.data_inicio AND f.data_fim
+          )
+    """)
+    afetadas += cursor.rowcount
+
+    # 4) Colaborador em FÉRIAS sem nenhuma férias vigente hoje → volta a ativo
+    cursor.execute("""
+        UPDATE colaboradores c
+        SET c.status = 'ativo'
+        WHERE c.status = 'ferias'
+          AND NOT EXISTS (
+              SELECT 1 FROM rh_ferias f
+              WHERE f.id_colaborador = c.id
+                AND f.status IN ('agendado', 'em_andamento')
+                AND CURDATE() BETWEEN f.data_inicio AND f.data_fim
+          )
+    """)
+    afetadas += cursor.rowcount
+
+    return afetadas
+
+
 # ══════════════════════════════════════════════════════════════════
 # HUB
 # ══════════════════════════════════════════════════════════════════
@@ -179,6 +243,10 @@ def hub():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     hoje = date.today()
+
+    # Mantém os status alinhados com as datas de férias antes de contar os cards
+    sincronizar_status_ferias(cursor)
+    conn.commit()
 
     cursor.execute("SELECT COUNT(*) as total FROM colaboradores WHERE status='ativo'")
     total_ativos = cursor.fetchone()['total']
@@ -389,16 +457,35 @@ def excluir_exame(id_exame):
 
 
 # ══════════════════════════════════════════════════════════════════
-# REAJUSTE SALARIAL
+# REAJUSTE SALARIAL / DE BENEFÍCIOS
 # ══════════════════════════════════════════════════════════════════
+# Benefícios reajustáveis: chave = coluna real em `colaboradores` (também
+# usada como whitelist anti-SQL-injection), valor = rótulo exibido.
+BENEFICIOS_REAJUSTE = {
+    'salario_bruto':  'Salário',
+    'vale_transporte': 'Vale Transporte',
+    'vale_refeicao':  'Vale Refeição',
+    'diversos':       'Diversos',
+}
+
+
 @rh_bp.route("/rh/reajuste")
 @login_required
 @admin_only
 def reajuste():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, nome, funcao, salario_bruto, status FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
+    # Traz os 4 benefícios para a tela mostrar o valor atual de cada um
+    cursor.execute("""
+        SELECT id, nome, funcao, status,
+               salario_bruto, vale_transporte, vale_refeicao, diversos
+        FROM colaboradores WHERE status != 'inativo' ORDER BY nome
+    """)
     colaboradores = cursor.fetchall()
+    # Normaliza decimais para float (o template usa em data-* e formatação)
+    for c in colaboradores:
+        for k in ('salario_bruto', 'vale_transporte', 'vale_refeicao', 'diversos'):
+            c[k] = float(c[k] or 0)
     cursor.execute("""
         SELECT *
         FROM rh_reajustes ORDER BY data_reajuste DESC LIMIT 15
@@ -406,7 +493,9 @@ def reajuste():
     historico = cursor.fetchall()
     for r in historico:
         r['data_fmt'] = _fmt_date(r.get('data_reajuste'))
-    return render_template('rh_reajuste.html', colaboradores=colaboradores, historico=historico)
+        r['beneficio_label'] = BENEFICIOS_REAJUSTE.get(r.get('beneficio') or 'salario_bruto', 'Salário')
+    return render_template('rh_reajuste.html', colaboradores=colaboradores,
+                           historico=historico, beneficios=BENEFICIOS_REAJUSTE)
 
 
 @rh_bp.route("/rh/reajuste/aplicar", methods=["POST"])
@@ -414,44 +503,69 @@ def reajuste():
 @admin_only
 def aplicar_reajuste():
     tipo = request.form.get('tipo')
+    beneficio = request.form.get('beneficio', 'salario_bruto')
     motivo = request.form.get('motivo', '').strip()
     data_reajuste = request.form.get('data_reajuste') or date.today().isoformat()
     selecionados = request.form.getlist('colaboradores')
+
+    # Validações
+    if beneficio not in BENEFICIOS_REAJUSTE:
+        flash("Benefício inválido.", "danger")
+        return redirect(url_for('rh.reajuste'))
+    if tipo not in ('percentual', 'fixo', 'final'):
+        flash("Tipo de reajuste inválido.", "danger")
+        return redirect(url_for('rh.reajuste'))
     try:
         valor = float(request.form.get('valor', '0').replace(',', '.'))
     except ValueError:
         flash("Valor inválido.", "danger")
         return redirect(url_for('rh.reajuste'))
+    if valor < 0:
+        flash("O valor não pode ser negativo.", "danger")
+        return redirect(url_for('rh.reajuste'))
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
+    # beneficio é uma chave da whitelist BENEFICIOS_REAJUSTE → seguro interpolar
     if selecionados:
         fmt = ','.join(['%s'] * len(selecionados))
-        cursor.execute(f"SELECT id, salario_bruto FROM colaboradores WHERE id IN ({fmt})", selecionados)
+        cursor.execute(f"SELECT id, {beneficio} AS atual FROM colaboradores WHERE id IN ({fmt})", selecionados)
     else:
-        cursor.execute("SELECT id, salario_bruto FROM colaboradores WHERE status != 'inativo'")
+        cursor.execute(f"SELECT id, {beneficio} AS atual FROM colaboradores WHERE status != 'inativo'")
     colaboradores = cursor.fetchall()
 
     cursor2 = conn.cursor(dictionary=True)
     qtd = 0
     for col in colaboradores:
-        sal = float(col['salario_bruto'] or 0)
-        novo = round(sal * (1 + valor / 100) if tipo == 'percentual' else sal + valor, 2)
-        cursor2.execute("UPDATE colaboradores SET salario_bruto = %s WHERE id = %s", (novo, col['id']))
+        atual = float(col['atual'] or 0)
+        if tipo == 'percentual':
+            novo = atual * (1 + valor / 100)
+        elif tipo == 'final':
+            novo = valor                      # valor final/absoluto
+        else:                                 # 'fixo' = valor a adicionar
+            novo = atual + valor
+        novo = round(max(0, novo), 2)
+        cursor2.execute(f"UPDATE colaboradores SET {beneficio} = %s WHERE id = %s", (novo, col['id']))
         qtd += 1
 
     cursor2.execute("""
-        INSERT INTO rh_reajustes (data_reajuste, tipo, valor, motivo, aplicado_por, qtd_colaboradores)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (data_reajuste, tipo, valor, motivo, current_user.nome, qtd))
+        INSERT INTO rh_reajustes (data_reajuste, tipo, beneficio, valor, motivo, aplicado_por, qtd_colaboradores)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (data_reajuste, tipo, beneficio, valor, motivo, current_user.nome, qtd))
     id_reajuste = cursor2.lastrowid
 
     conn.commit()
-    label = f"{valor}%" if tipo == 'percentual' else f"R$ {valor:.2f}".replace('.', ',')
+    benef_label = BENEFICIOS_REAJUSTE[beneficio]
+    if tipo == 'percentual':
+        label = f"+{valor:.2f}%".replace('.', ',')
+    elif tipo == 'final':
+        label = f"valor final R$ {valor:.2f}".replace('.', ',')
+    else:
+        label = f"+R$ {valor:.2f}".replace('.', ',')
     log_action('create', entity_type='rh_reajuste', entity_id=id_reajuste,
-               descricao=f"Aplicou reajuste {tipo} de {label} em {qtd} colaborador(es). Motivo: {motivo or '—'}")
-    flash(f"Reajuste de {label} aplicado a {qtd} colaborador(es).", "success")
+               descricao=f"Reajuste de {benef_label} ({label}) em {qtd} colaborador(es). Motivo: {motivo or '—'}")
+    flash(f"Reajuste de {benef_label} ({label}) aplicado a {qtd} colaborador(es).", "success")
     return redirect(url_for('rh.reajuste'))
 
 
@@ -711,6 +825,9 @@ def excluir_jornada(id_jornada):
 def ferias():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    # Alinha status (colaborador ↔ férias) com a data de hoje ao abrir a tela
+    sincronizar_status_ferias(cursor)
+    conn.commit()
     cursor.execute("""
         SELECT f.*, col.nome AS nome_colaborador, col.funcao,
                DATEDIFF(f.data_inicio, CURDATE()) AS dias_ate_inicio
@@ -752,6 +869,9 @@ def add_ferias():
     novo_id = cursor.lastrowid
     cursor.execute("SELECT nome FROM colaboradores WHERE id=%s", (id_colaborador,))
     colab = cursor.fetchone()
+    # Se as férias recém-agendadas já estão vigentes hoje, o colaborador já
+    # entra como 'ferias' automaticamente (e marca a férias como em_andamento)
+    sincronizar_status_ferias(cursor)
     conn.commit()
     log_action('create', entity_type='rh_ferias', entity_id=novo_id,
                descricao=f"Agendou férias para '{colab['nome'] if colab else id_colaborador}' ({data_inicio} a {data_fim}, {dias} dias)")
@@ -775,6 +895,9 @@ def status_ferias(id_ferias, novo_status):
     """, (id_ferias,))
     info = cursor.fetchone() or {}
     cursor.execute("UPDATE rh_ferias SET status=%s WHERE id=%s", (novo_status, id_ferias))
+    # Reflete a mudança manual no status do colaborador (ex.: cancelar/concluir
+    # férias vigente devolve o colaborador para 'ativo')
+    sincronizar_status_ferias(cursor)
     conn.commit()
     log_action('update', entity_type='rh_ferias', entity_id=int(id_ferias),
                descricao=f"Férias de '{info.get('nome') or '—'}': status {info.get('status') or '—'}→{novo_status}")

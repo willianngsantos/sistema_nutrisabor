@@ -21,15 +21,27 @@
             <input type="date" name="data_reajuste" class="form-control border-0 shadow-sm bg-light" value="{{ hoje if hoje else '' }}" required>
           </div>
           <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Benefício a reajustar</label>
+            <select name="beneficio" id="beneficio" class="form-select border-0 shadow-sm bg-light" onchange="atualizarValoresAtuais()">
+              {% for key, label in beneficios.items() %}
+              <option value="{{ key }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
             <label class="form-label small fw-bold text-uppercase text-secondary">Tipo</label>
-            <div class="d-flex gap-3">
+            <div class="d-flex gap-3 flex-wrap">
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="tipo" value="percentual" id="tipoPerc" checked onchange="updateLabel()">
                 <label class="form-check-label fw-semibold small" for="tipoPerc">Percentual (%)</label>
               </div>
               <div class="form-check">
                 <input class="form-check-input" type="radio" name="tipo" value="fixo" id="tipoFixo" onchange="updateLabel()">
-                <label class="form-check-label fw-semibold small" for="tipoFixo">Valor Fixo (R$)</label>
+                <label class="form-check-label fw-semibold small" for="tipoFixo">Valor a adicionar (R$)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="tipo" value="final" id="tipoFinal" onchange="updateLabel()">
+                <label class="form-check-label fw-semibold small" for="tipoFinal">Valor final (R$)</label>
               </div>
             </div>
           </div>
@@ -39,6 +51,7 @@
               <input type="number" name="valor" class="form-control border-0 shadow-sm bg-light" step="0.01" min="0" placeholder="Ex: 5.5" required>
               <span class="input-group-text bg-light border-0 text-muted fw-bold" id="sufixoValor">%</span>
             </div>
+            <div class="form-text small" id="ajudaValor"><i class="bi bi-info-circle me-1"></i>Aumento percentual sobre o valor atual.</div>
           </div>
           <div class="mb-3">
             <label class="form-label small fw-bold text-uppercase text-secondary">Motivo</label>
@@ -53,9 +66,13 @@
               {% for c in colaboradores %}
               <div class="form-check mb-1">
                 <input class="form-check-input colab-check" type="checkbox" name="colaboradores" value="{{ c['id'] }}" id="ch{{ c['id'] }}">
-                <label class="form-check-label small" for="ch{{ c['id'] }}">
+                <label class="form-check-label small" for="ch{{ c['id'] }}"
+                       data-salario_bruto="{{ '%.2f'|format(c['salario_bruto']) }}"
+                       data-vale_transporte="{{ '%.2f'|format(c['vale_transporte']) }}"
+                       data-vale_refeicao="{{ '%.2f'|format(c['vale_refeicao']) }}"
+                       data-diversos="{{ '%.2f'|format(c['diversos']) }}">
                   <span class="fw-semibold">{{ c['nome'] }}</span>
-                  <span class="text-muted"> — R$ {{ "%.2f"|format(c['salario_bruto'] or 0) | replace('.', ',') }}</span>
+                  <span class="text-muted valor-atual"> — R$ {{ "%.2f"|format(c['salario_bruto']) | replace('.', ',') }}</span>
                   <span class="badge bg-{{ 'success' if c['status']=='ativo' else 'warning text-dark' if c['status']=='ferias' else 'secondary' }}-subtle text-{{ 'success' if c['status']=='ativo' else 'warning' if c['status']=='ferias' else 'secondary' }} border ms-1" style="font-size:.65rem;">{{ c['status']|capitalize }}</span>
                 </label>
               </div>
@@ -84,6 +101,7 @@
           <thead class="bg-light text-secondary small text-uppercase" style="font-weight:600;">
             <tr>
               <th class="ps-4 border-0">Data</th>
+              <th class="border-0">Benefício</th>
               <th class="border-0">Reajuste</th>
               <th class="border-0 d-none d-md-table-cell">Colaboradores</th>
               <th class="border-0 d-none d-md-table-cell">Aplicado por</th>
@@ -94,9 +112,12 @@
             {% for h in historico %}
             <tr>
               <td class="ps-4 small text-muted">{{ h['data_fmt'] }}</td>
+              <td class="small">{{ h['beneficio_label'] }}</td>
               <td>
                 {% if h['tipo'] == 'percentual' %}
-                  <span class="badge bg-success-subtle text-success border border-success-subtle">+{{ h['valor']|int }}%</span>
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">+{{ "%.2f"|format(h['valor']) | replace('.', ',') }}%</span>
+                {% elif h['tipo'] == 'final' %}
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle">= R$ {{ "%.2f"|format(h['valor']) | replace('.', ',') }}</span>
                 {% else %}
                   <span class="badge bg-info-subtle text-info border border-info-subtle">+R$ {{ "%.2f"|format(h['valor']) | replace('.', ',') }}</span>
                 {% endif %}
@@ -106,7 +127,7 @@
               <td class="small text-muted">{{ h['motivo'] or '—' }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-center py-4 text-muted small">Nenhum reajuste registrado ainda.</td></tr>
+            <tr><td colspan="6" class="text-center py-4 text-muted small">Nenhum reajuste registrado ainda.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -116,15 +137,52 @@
 </div>
 
 <script>
-function updateLabel() {
-  const perc = document.getElementById('tipoPerc').checked;
-  document.getElementById('labelValor').textContent = perc ? 'Percentual de Aumento' : 'Valor Fixo a Adicionar (R$)';
-  document.getElementById('sufixoValor').textContent = perc ? '%' : 'R$';
+function _tipoSelecionado() {
+  const r = document.querySelector('input[name="tipo"]:checked');
+  return r ? r.value : 'percentual';
 }
+
+function updateLabel() {
+  const tipo = _tipoSelecionado();
+  const label = document.getElementById('labelValor');
+  const sufixo = document.getElementById('sufixoValor');
+  const ajuda = document.getElementById('ajudaValor');
+  if (tipo === 'percentual') {
+    label.textContent = 'Percentual de Aumento';
+    sufixo.textContent = '%';
+    ajuda.innerHTML = '<i class="bi bi-info-circle me-1"></i>Aumento percentual sobre o valor atual.';
+  } else if (tipo === 'final') {
+    label.textContent = 'Novo Valor (total)';
+    sufixo.textContent = 'R$';
+    ajuda.innerHTML = '<i class="bi bi-info-circle me-1"></i>Define o valor final. O sistema calcula a diferença para você (ex.: informe 2.300 e todos os selecionados passam a ter esse valor).';
+  } else {
+    label.textContent = 'Valor a Adicionar (R$)';
+    sufixo.textContent = 'R$';
+    ajuda.innerHTML = '<i class="bi bi-info-circle me-1"></i>Soma este valor ao atual de cada colaborador.';
+  }
+}
+
+// Atualiza o "— R$ X" de cada colaborador conforme o benefício escolhido
+function atualizarValoresAtuais() {
+  const beneficio = document.getElementById('beneficio').value;
+  document.querySelectorAll('.colab-check').forEach(cb => {
+    const label = cb.closest('.form-check').querySelector('label');
+    const span = label.querySelector('.valor-atual');
+    const valor = parseFloat(label.dataset[beneficio] || '0');
+    span.textContent = ' — R$ ' + valor.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  });
+}
+
 function toggleAll() {
   const cbs = document.querySelectorAll('.colab-check');
   const allChecked = [...cbs].every(c => c.checked);
   cbs.forEach(c => c.checked = !allChecked);
 }
+
+// Inicializa ao carregar
+document.addEventListener('DOMContentLoaded', function() {
+  updateLabel();
+  atualizarValoresAtuais();
+});
 </script>
 {% endblock %}

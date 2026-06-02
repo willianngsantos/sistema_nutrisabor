@@ -471,8 +471,10 @@ def recibos_vt_lote():
     """)
     unidades = cursor.fetchall()
 
-    # Monta a query base de colaboradores ativos/afastados/férias
-    # "inativo" fica de fora — não faz sentido gerar recibo pra quem saiu
+    # Lote de VT gera recibo SOMENTE para quem está 'ativo' E tem VT habilitado
+    # (recebe_vt=1). Quem está de férias, afastado ou inativo não recebe VT —
+    # VT é para deslocamento ao trabalho. O filtro recebe_vt também garante que
+    # quem teve o VT desabilitado (ex.: nutricionista) não entre no lote.
     if unidade_id:
         cursor.execute("""
             SELECT
@@ -487,7 +489,7 @@ def recibos_vt_lote():
                 ON cl_filtro.id = %s
             LEFT JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
             LEFT JOIN clientes c ON cu.id_cliente = c.id
-            WHERE col.status != 'inativo' AND col.recebe_vt = 1
+            WHERE col.status = 'ativo' AND col.recebe_vt = 1
             GROUP BY col.id, cl_filtro.nome_empresa
             ORDER BY col.nome
         """, (unidade_id, unidade_id))
@@ -503,7 +505,7 @@ def recibos_vt_lote():
             FROM colaboradores col
             LEFT JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
             LEFT JOIN clientes c ON cu.id_cliente = c.id
-            WHERE col.status != 'inativo' AND col.recebe_vt = 1
+            WHERE col.status = 'ativo' AND col.recebe_vt = 1
             GROUP BY col.id
             ORDER BY MIN(c.nome_empresa), col.nome
         """)

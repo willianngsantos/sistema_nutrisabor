@@ -371,6 +371,85 @@
         
     </div>
 
+    <!-- RESUMOS ANALÍTICOS -->
+    <div class="row g-3 mb-4">
+        <!-- Por mês (competência) -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center">
+                    <i class="bi bi-calendar3 text-primary me-2"></i>
+                    <h6 class="fw-bold mb-0">Resumo por mês <span class="text-muted fw-normal small">(competência)</span></h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 summary-table">
+                        <thead>
+                            <tr class="text-secondary small text-uppercase" style="font-size:.72rem;">
+                                <th class="ps-3">Mês</th>
+                                <th class="text-center">Faturas</th>
+                                <th class="text-end">Recebido</th>
+                                <th class="text-end">A receber</th>
+                                <th class="text-end pe-3">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in por_mes %}
+                            <tr>
+                                <td class="ps-3 fw-semibold">{{ m['label'] }}</td>
+                                <td class="text-center text-muted">{{ m['qtd'] }}</td>
+                                <td class="text-end text-success">{{ m['recebido'] | real }}</td>
+                                <td class="text-end" style="color:#d97706;">{{ m['a_receber'] | real }}</td>
+                                <td class="text-end fw-bold pe-3">{{ m['total'] | real }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="border-top">
+                                <td class="ps-3 fw-bold">Total</td>
+                                <td class="text-center fw-bold">{{ por_mes | sum(attribute='qtd') }}</td>
+                                <td class="text-end fw-bold text-success">{{ total_recebido | real }}</td>
+                                <td class="text-end fw-bold" style="color:#d97706;">{{ total_a_receber | real }}</td>
+                                <td class="text-end fw-bold pe-3">{{ total_periodo | real }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Por cliente -->
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center">
+                    <i class="bi bi-people text-primary me-2"></i>
+                    <h6 class="fw-bold mb-0">Resumo por cliente</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 summary-table">
+                        <thead>
+                            <tr class="text-secondary small text-uppercase" style="font-size:.72rem;">
+                                <th class="ps-3">Cliente</th>
+                                <th class="text-center">Faturas</th>
+                                <th class="text-end">Recebido</th>
+                                <th class="text-end pe-3">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cl in por_cliente %}
+                            <tr>
+                                <td class="ps-3 fw-semibold text-secondary">{{ cl['nome_empresa'] }}</td>
+                                <td class="text-center text-muted">{{ cl['qtd'] }}</td>
+                                <td class="text-end text-success">{{ cl['recebido'] | real }}</td>
+                                <td class="text-end fw-bold pe-3">{{ cl['total'] | real }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h6 class="fw-bold text-secondary text-uppercase small mb-2"><i class="bi bi-list-ul me-1"></i>Detalhamento das faturas</h6>
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
             <table class="table report-table mb-0">

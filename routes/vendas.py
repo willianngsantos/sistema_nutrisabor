@@ -5,6 +5,7 @@ from database import get_db_connection
 from datetime import datetime
 from utils.permissions import admin_only
 from utils.audit import log_action
+from utils.constants import MESES_PT
 
 logger = logging.getLogger(__name__)
 vendas_bp = Blueprint('vendas', __name__)
@@ -398,57 +399,92 @@ def relatorios():
     lista_clientes = cursor.fetchall()
     
     resultados = []
-    
+    por_mes = []
+    por_cliente = []
+
     total_periodo = 0
     total_recebido = 0
     total_a_receber = 0
     f_inicio = f_fim = f_cliente = f_status = ""
-    
+
     if request.method == "POST":
         f_inicio = request.form.get("data_inicio")
         f_fim = request.form.get("data_fim")
         f_cliente = request.form.get("cliente_id")
         f_status = request.form.get("status")
-        
-        sql = """
-            SELECT p.id, c.nome_empresa, p.codigo_fatura, DATE_FORMAT(p.data_fim, '%d/%m/%Y') as data,
-                   p.status, COALESCE(SUM(i.quantidade * i.preco_praticado), 0) as total
-            FROM pedidos p
-            JOIN clientes c ON p.id_cliente = c.id
-            LEFT JOIN itens_pedido i ON p.id = i.id_pedido
-            WHERE 1=1 
-        """
+
+        # WHERE compartilhado pelas 3 consultas (detalhe, por mês, por cliente)
+        where_sql = ""
         params = []
-        
         if f_inicio and f_fim:
             data1 = min(f_inicio, f_fim)
             data2 = max(f_inicio, f_fim)
-            sql += " AND p.data_fim BETWEEN %s AND %s"
+            where_sql += " AND p.data_fim BETWEEN %s AND %s"
             params.extend([data1, data2])
-            
         if f_cliente:
-            sql += " AND p.id_cliente = %s"
+            where_sql += " AND p.id_cliente = %s"
             params.append(f_cliente)
-            
         if f_status:
-            sql += " AND p.status = %s"
+            where_sql += " AND p.status = %s"
             params.append(f_status)
-            
-        sql += " GROUP BY p.id, c.nome_empresa, p.codigo_fatura, p.data_fim, p.status ORDER BY p.data_fim DESC"
-        
-        cursor.execute(sql, tuple(params))
+
+        # Soma por status reaproveitada nas duas agregações
+        col_total     = "COALESCE(SUM(i.quantidade * i.preco_praticado), 0)"
+        col_recebido  = "COALESCE(SUM(CASE WHEN p.status='Pago' THEN i.quantidade*i.preco_praticado ELSE 0 END), 0)"
+        col_areceber  = "COALESCE(SUM(CASE WHEN p.status IN ('Aprovado','Pendente') THEN i.quantidade*i.preco_praticado ELSE 0 END), 0)"
+
+        # 1) Detalhamento (lista de faturas)
+        cursor.execute(f"""
+            SELECT p.id, c.nome_empresa, p.codigo_fatura, DATE_FORMAT(p.data_fim, '%d/%m/%Y') as data,
+                   p.status, {col_total} as total
+            FROM pedidos p
+            JOIN clientes c ON p.id_cliente = c.id
+            LEFT JOIN itens_pedido i ON p.id = i.id_pedido
+            WHERE 1=1 {where_sql}
+            GROUP BY p.id, c.nome_empresa, p.codigo_fatura, p.data_fim, p.status
+            ORDER BY p.data_fim DESC
+        """, tuple(params))
         resultados = cursor.fetchall()
-        
+
+        # 2) Resumo por MÊS (competência)
+        cursor.execute(f"""
+            SELECT DATE_FORMAT(p.data_fim, '%Y-%m') AS ym,
+                   {col_total} AS total, {col_recebido} AS recebido,
+                   {col_areceber} AS a_receber, COUNT(DISTINCT p.id) AS qtd
+            FROM pedidos p
+            JOIN clientes c ON p.id_cliente = c.id
+            LEFT JOIN itens_pedido i ON p.id = i.id_pedido
+            WHERE 1=1 {where_sql}
+            GROUP BY ym ORDER BY ym
+        """, tuple(params))
+        por_mes = cursor.fetchall()
+        for m in por_mes:
+            ano, mes = m['ym'].split('-')
+            m['label'] = f"{MESES_PT[int(mes) - 1]}/{ano}"
+
+        # 3) Resumo por CLIENTE
+        cursor.execute(f"""
+            SELECT c.nome_empresa,
+                   {col_total} AS total, {col_recebido} AS recebido,
+                   {col_areceber} AS a_receber, COUNT(DISTINCT p.id) AS qtd
+            FROM pedidos p
+            JOIN clientes c ON p.id_cliente = c.id
+            LEFT JOIN itens_pedido i ON p.id = i.id_pedido
+            WHERE 1=1 {where_sql}
+            GROUP BY c.id, c.nome_empresa ORDER BY total DESC
+        """, tuple(params))
+        por_cliente = cursor.fetchall()
+
         if resultados:
             total_periodo = sum(r['total'] for r in resultados)
             total_recebido = sum(r['total'] for r in resultados if r['status'] == 'Pago')
             total_a_receber = sum(r['total'] for r in resultados if r['status'] in ['Aprovado', 'Pendente'])
-            
-    
-    return render_template("relatorios.html", resultados=resultados, 
-                           total_periodo=total_periodo, 
+
+    return render_template("relatorios.html", resultados=resultados,
+                           por_mes=por_mes, por_cliente=por_cliente,
+                           total_periodo=total_periodo,
                            total_recebido=total_recebido,
                            total_a_receber=total_a_receber,
-                           clientes=lista_clientes, 
-                           f_inicio=f_inicio, f_fim=f_fim, 
+                           clientes=lista_clientes,
+                           f_inicio=f_inicio, f_fim=f_fim,
                            f_cliente=f_cliente, f_status=f_status)

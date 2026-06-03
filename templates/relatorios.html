@@ -314,20 +314,29 @@
         </div>
         <form method="POST" class="row g-3 align-items-end" id="formRelatorio">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <label class="form-label text-secondary small fw-bold text-uppercase">Data Início</label>
                 <input type="date" name="data_inicio" id="data_inicio" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" value="{{ f_inicio }}">
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
                 <label class="form-label text-secondary small fw-bold text-uppercase">Data Fim</label>
                 <input type="date" name="data_fim" id="data_fim" class="form-control form-control-sm border-0 bg-light fw-bold text-primary" value="{{ f_fim }}">
             </div>
             <div class="col-12 col-md-3">
                 <label class="form-label text-secondary small fw-bold text-uppercase">Cliente</label>
-                <select name="cliente_id" class="form-select form-select-sm border-0 bg-light fw-bold">
+                <select name="cliente_id" class="form-select form-select-sm border-0 bg-light fw-bold js-autocomplete">
                     <option value="">Todos os Clientes</option>
                     {% for c in clientes %}
                     <option value="{{ c['id'] }}" {% if f_cliente == c['id']|string %}selected{% endif %}>{{ c['nome_empresa'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label text-secondary small fw-bold text-uppercase">Grupo</label>
+                <select name="grupo_id" class="form-select form-select-sm border-0 bg-light fw-bold">
+                    <option value="">Todos os Grupos</option>
+                    {% for g in grupos %}
+                    <option value="{{ g['id'] }}" {% if f_grupo == g['id']|string %}selected{% endif %}>{{ g['nome'] }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -340,7 +349,7 @@
                     <option value="Pago" {% if f_status == 'Pago' %}selected{% endif %}>Pago</option>
                 </select>
             </div>
-            <div class="col-6 col-md-1">
+            <div class="col-12 col-md-1">
                 <button type="submit" class="btn btn-primary btn-sm w-100 shadow-sm fw-bold">
                     <i class="bi bi-search"></i>
                 </button>

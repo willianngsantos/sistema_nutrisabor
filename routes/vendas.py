@@ -397,7 +397,9 @@ def relatorios():
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT id, nome_empresa FROM clientes ORDER BY nome_empresa")
     lista_clientes = cursor.fetchall()
-    
+    cursor.execute("SELECT id, nome FROM grupos_clientes ORDER BY nome")
+    lista_grupos = cursor.fetchall()
+
     resultados = []
     por_mes = []
     por_cliente = []
@@ -405,12 +407,13 @@ def relatorios():
     total_periodo = 0
     total_recebido = 0
     total_a_receber = 0
-    f_inicio = f_fim = f_cliente = f_status = ""
+    f_inicio = f_fim = f_cliente = f_grupo = f_status = ""
 
     if request.method == "POST":
         f_inicio = request.form.get("data_inicio")
         f_fim = request.form.get("data_fim")
         f_cliente = request.form.get("cliente_id")
+        f_grupo = request.form.get("grupo_id")
         f_status = request.form.get("status")
 
         # WHERE compartilhado pelas 3 consultas (detalhe, por mês, por cliente)
@@ -424,6 +427,9 @@ def relatorios():
         if f_cliente:
             where_sql += " AND p.id_cliente = %s"
             params.append(f_cliente)
+        if f_grupo:
+            where_sql += " AND c.id_grupo = %s"
+            params.append(f_grupo)
         if f_status:
             where_sql += " AND p.status = %s"
             params.append(f_status)
@@ -485,6 +491,6 @@ def relatorios():
                            total_periodo=total_periodo,
                            total_recebido=total_recebido,
                            total_a_receber=total_a_receber,
-                           clientes=lista_clientes,
+                           clientes=lista_clientes, grupos=lista_grupos,
                            f_inicio=f_inicio, f_fim=f_fim,
-                           f_cliente=f_cliente, f_status=f_status)
+                           f_cliente=f_cliente, f_grupo=f_grupo, f_status=f_status)

@@ -96,7 +96,7 @@
             </div>
             <div class="col-12 col-md-3">
                 <label class="form-label small fw-bold text-secondary text-uppercase">Cliente</label>
-                <select name="cliente_id" class="form-select border-1 shadow-sm bg-light">
+                <select name="cliente_id" class="form-select border-1 shadow-sm bg-light js-autocomplete">
                     <option value="">Todos os Clientes</option>
                     {% for c in clientes %}
                     <option value="{{ c['id'] }}" {% if f_cliente == c['id']|string %}selected{% endif %}>{{ c['nome_empresa'] }}</option>

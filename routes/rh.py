@@ -1001,9 +1001,13 @@ def ponto():
     # Dropdown de colaborador (individual): mostra todos exceto inativos
     cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
     colaboradores = cursor.fetchall()
-    # Contagem para o card "Folha Geral" reflete o filtro selecionado
+    # Contagem para o card "Folha Geral" reflete o filtro selecionado.
+    # Nutricionista não registra ponto, então fica fora da folha geral.
     where_geral = "status = 'ativo'" if status_filtro == 'ativos' else "status != 'inativo'"
-    cursor.execute(f"SELECT COUNT(*) AS qt FROM colaboradores WHERE {where_geral}")
+    cursor.execute(
+        f"SELECT COUNT(*) AS qt FROM colaboradores "
+        f"WHERE {where_geral} AND COALESCE(funcao,'') <> 'Nutricionista'"
+    )
     total_geral = cursor.fetchone()['qt']
     colab_sel = None
     if colab_id:
@@ -1128,9 +1132,12 @@ def imprimir_ponto_geral():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    # Nutricionista não registra ponto → fora da folha de ponto GERAL.
+    # COALESCE para também incluir quem está sem função definida (funcao NULL).
     cursor.execute(
         f"SELECT id, nome, funcao, cbo, ctps, id_jornada "
-        f"FROM colaboradores WHERE {where_status} ORDER BY nome"
+        f"FROM colaboradores WHERE {where_status} "
+        f"AND COALESCE(funcao,'') <> 'Nutricionista' ORDER BY nome"
     )
     colaboradores = cursor.fetchall()
     # Enriquece cada colaborador com os grupos de jornada agrupados

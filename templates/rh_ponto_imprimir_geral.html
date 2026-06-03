@@ -5,13 +5,13 @@
   <title>Folha de Ponto Geral — {{ MESES_PT[mes-1] }}/{{ ano }}</title>
   <!-- Pre-carrega a logo: garante cache antes do dialogo de impressao,
        evitando re-render tardio que deixa o preview branco no Safari -->
-  <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
+  <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo_preto.png') }}">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
-      font-size: 8.5pt;
+      font-size: 9pt;
       color: #000;
       background: #e8e8e8;
       padding: 16px;
@@ -37,23 +37,23 @@
       padding-bottom: 6px;
       margin-bottom: 8px;
     }
-    .header-left  { display: flex; align-items: center; gap: 8px; }
-    .header-logo  { width: 40px; height: 40px; border-radius: 4px; object-fit: contain; border: 1px solid #ccc; padding: 2px; }
-    .header-title { font-size: 12pt; font-weight: 700; color: #000; }
-    .header-sub   { font-size: 7pt; color: #444; margin-top: 2px; }
+    .header-left  { display: flex; align-items: center; gap: 10px; }
+    .header-logo  { width: 58px; height: 58px; object-fit: contain; }
+    .header-title { font-size: 14pt; font-weight: 800; color: #000; }
+    .header-sub   { font-size: 7.5pt; color: #000; margin-top: 2px; font-weight: 600; }
     .header-right { text-align: right; line-height: 1.4; }
-    .nome-colab   { font-size: 10pt; font-weight: 700; }
-    .funcao-colab { font-size: 7.5pt; color: #444; }
+    .nome-colab   { font-size: 11pt; font-weight: 800; color: #000; }
+    .funcao-colab { font-size: 8pt; color: #000; font-weight: 600; }
     .mes-colab    { font-size: 9pt; font-weight: 700; border: 1.5px solid #000; display: inline-block; padding: 1px 6px; margin-top: 2px; }
 
     /* ── Tabela (mesmas dimensoes da folha individual) ────── */
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 7.5pt;
+      font-size: 8.5pt;
       table-layout: fixed;
       margin-top: 4px;
-      border: 1.5px solid #000;
+      border: 2px solid #000;
     }
     /* Larguras em % distribuem proporcionalmente em qualquer A4 paisagem.
        Mesma proporcao da folha individual. */
@@ -66,40 +66,40 @@
     thead tr th {
       background: #000;
       color: #fff;
-      font-size: 6.5pt;
-      font-weight: 700;
-      padding: 4px 2px;
+      font-size: 7.5pt;
+      font-weight: 800;
+      padding: 5px 2px;
       border: 1px solid #000;
       text-align: center;
       white-space: nowrap;
     }
     thead tr th.th-l { text-align: left; padding-left: 5px; }
 
-    tbody tr       { height: 15px; border-bottom: 1px solid #ccc; }
-    tbody tr.fds   { border-bottom: 1px solid #aaa; }
+    tbody tr       { height: 16px; border-bottom: 1px solid #555; }
+    tbody tr.fds   { border-bottom: 1px solid #555; }
 
     tbody td {
-      border-left: 1px solid #ccc;
-      border-right: 1px solid #ccc;
+      border-left: 1px solid #777;
+      border-right: 1px solid #777;
       padding: 0 2px;
       text-align: center;
       vertical-align: middle;
       overflow: hidden;
     }
-    tbody td:first-child { border-left: 1px solid #000; }
-    tbody td:last-child  { border-right: 1px solid #000; }
+    tbody td:first-child { border-left: 1.5px solid #000; }
+    tbody td:last-child  { border-right: 1.5px solid #000; }
 
-    tbody td.td-data { text-align: left; font-weight: 700; padding-left: 4px; font-size: 7pt; }
-    tbody td.td-dia  { text-align: left; font-size: 6.5pt; color: #333; padding-left: 3px; font-style: italic; }
-    tbody tr.fds td.td-data { color: #555; }
+    tbody td.td-data { text-align: left; font-weight: 800; padding-left: 4px; font-size: 8pt; color: #000; }
+    tbody td.td-dia  { text-align: left; font-size: 7.5pt; color: #000; padding-left: 3px; font-weight: 600; }
+    tbody tr.fds td.td-data { color: #000; }
     tbody tr.fds td { background: repeating-linear-gradient(
       45deg, transparent, transparent 3px, rgba(0,0,0,.03) 3px, rgba(0,0,0,.03) 4px
     ); }
 
     tbody td.td-hora {
-      font-size: 8pt;
-      font-weight: 600;
-      color: #999;
+      font-size: 9pt;
+      font-weight: 700;
+      color: #333;
       letter-spacing: .5px;
     }
 
@@ -111,12 +111,13 @@
     }
     .legenda {
       flex: 2;
-      border: 1px solid #aaa;
+      border: 1px solid #555;
       border-radius: 2px;
       padding: 4px 7px;
-      font-size: 6.5pt;
-      color: #333;
+      font-size: 7pt;
+      color: #000;
       line-height: 1.7;
+      font-weight: 600;
     }
     .totais-mini {
       flex: 1;
@@ -125,11 +126,12 @@
       gap: 4px;
     }
     .tot-mini {
-      border: 1px solid #aaa;
+      border: 1px solid #555;
       border-radius: 2px;
       padding: 3px 5px;
-      font-size: 6pt;
-      color: #555;
+      font-size: 6.5pt;
+      color: #000;
+      font-weight: 700;
     }
     .tot-mini .v { font-size: 12pt; font-weight: 700; color: #000; text-align: right; height: 16px; }
 
@@ -140,11 +142,12 @@
     }
     .assin-line {
       flex: 1;
-      border-top: 1px solid #000;
+      border-top: 1.5px solid #000;
       padding-top: 4px;
       text-align: center;
-      font-size: 7pt;
-      color: #333;
+      font-size: 7.5pt;
+      color: #000;
+      font-weight: 600;
     }
 
     .rodape-global {
@@ -191,10 +194,10 @@
         max-width: 100% !important;
         margin: 0 !important;
         page-break-after: always;
-        zoom: 0.93;
+        zoom: 0.90;
       }
       .sheet:last-of-type { page-break-after: auto; }
-      tbody td.td-hora { color: #555 !important; }
+      tbody td.td-hora { color: #000 !important; }
     }
   </style>
 </head>
@@ -243,7 +246,7 @@
   <!-- Cabeçalho (mesmo layout da Folha Individual) -->
   <div class="header">
     <div class="header-left">
-      <img src="/static/img/logo.png" alt="Logo" class="header-logo">
+      <img src="/static/img/logo_preto.png" alt="Logo" class="header-logo">
       <div>
         <div class="header-title">Folha de Ponto</div>
         <div class="header-sub">Controle de frequência mensal — preenchimento manual</div>

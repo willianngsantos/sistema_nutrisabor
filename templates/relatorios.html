@@ -299,6 +299,10 @@
                 <i class="bi bi-circle-half"></i>
                 <span>Modo P&amp;B</span>
             </label>
+            <button type="submit" form="formRelatorio" formaction="{{ url_for('vendas.exportar_relatorio_csv') }}"
+                    class="btn btn-outline-success btn-sm shadow-sm bg-white" title="Baixar os lançamentos filtrados em CSV (Excel)">
+                <i class="bi bi-filetype-csv me-1"></i> Exportar CSV
+            </button>
             <button id="btnImprimir" class="btn btn-outline-secondary btn-sm shadow-sm bg-white" onclick="imprimirSeguro()">
                 <i class="bi bi-printer me-1"></i> Imprimir
             </button>
@@ -311,6 +315,13 @@
             <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-0" onclick="atalhoPeriodo('mes')">Mês atual</button>
             <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-0" onclick="atalhoPeriodo('3meses')">Últimos 3 meses</button>
             <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill py-0" onclick="atalhoPeriodo('ano')">Este ano</button>
+            {% if anos_disponiveis %}
+            <span class="small text-muted ms-2 me-1">Ano inteiro:</span>
+            <select class="form-select form-select-sm w-auto d-inline-block py-0" style="max-width:120px;" onchange="filtrarAno(this.value)">
+                <option value="">Escolher…</option>
+                {% for a in anos_disponiveis %}<option value="{{ a }}">{{ a }}</option>{% endfor %}
+            </select>
+            {% endif %}
         </div>
         <form method="POST" class="row g-3 align-items-end" id="formRelatorio">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -565,6 +576,14 @@
         }
         document.getElementById('data_inicio').value = _isoData(ini);
         document.getElementById('data_fim').value = _isoData(fim);
+        document.getElementById('formRelatorio').submit();
+    }
+
+    // Atalho "Ano inteiro": 1º de janeiro a 31 de dezembro do ano escolhido.
+    function filtrarAno(ano) {
+        if (!ano) return;
+        document.getElementById('data_inicio').value = ano + '-01-01';
+        document.getElementById('data_fim').value = ano + '-12-31';
         document.getElementById('formRelatorio').submit();
     }
 

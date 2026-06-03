@@ -390,6 +390,29 @@ def ver_fatura(id_pedido):
 
     return render_template("fatura.html", pedido=pedido, cliente=cliente, itens=itens, empresa=empresa, total_geral=total_geral, total_whatsapp=total_formatado, grupo_info=grupo_info)
 
+def _filtros_relatorio(form):
+    """Monta o WHERE + params do relatório a partir dos campos do formulário.
+    Compartilhado entre a tela de relatórios e a exportação CSV para a regra
+    de filtro nunca divergir. Retorna (where_sql, params)."""
+    where_sql = ""
+    params = []
+    f_inicio = form.get("data_inicio")
+    f_fim = form.get("data_fim")
+    if f_inicio and f_fim:
+        where_sql += " AND p.data_fim BETWEEN %s AND %s"
+        params.extend([min(f_inicio, f_fim), max(f_inicio, f_fim)])
+    if form.get("cliente_id"):
+        where_sql += " AND p.id_cliente = %s"
+        params.append(form.get("cliente_id"))
+    if form.get("grupo_id"):
+        where_sql += " AND c.id_grupo = %s"
+        params.append(form.get("grupo_id"))
+    if form.get("status"):
+        where_sql += " AND p.status = %s"
+        params.append(form.get("status"))
+    return where_sql, params
+
+
 @vendas_bp.route("/relatorios", methods=["GET", "POST"])
 @login_required
 def relatorios():
@@ -399,6 +422,9 @@ def relatorios():
     lista_clientes = cursor.fetchall()
     cursor.execute("SELECT id, nome FROM grupos_clientes ORDER BY nome")
     lista_grupos = cursor.fetchall()
+    # Anos com faturas (para o atalho "Ano inteiro")
+    cursor.execute("SELECT DISTINCT YEAR(data_fim) AS ano FROM pedidos WHERE data_fim IS NOT NULL ORDER BY ano DESC")
+    anos_disponiveis = [str(r['ano']) for r in cursor.fetchall()]
 
     resultados = []
     por_mes = []
@@ -417,22 +443,7 @@ def relatorios():
         f_status = request.form.get("status")
 
         # WHERE compartilhado pelas 3 consultas (detalhe, por mês, por cliente)
-        where_sql = ""
-        params = []
-        if f_inicio and f_fim:
-            data1 = min(f_inicio, f_fim)
-            data2 = max(f_inicio, f_fim)
-            where_sql += " AND p.data_fim BETWEEN %s AND %s"
-            params.extend([data1, data2])
-        if f_cliente:
-            where_sql += " AND p.id_cliente = %s"
-            params.append(f_cliente)
-        if f_grupo:
-            where_sql += " AND c.id_grupo = %s"
-            params.append(f_grupo)
-        if f_status:
-            where_sql += " AND p.status = %s"
-            params.append(f_status)
+        where_sql, params = _filtros_relatorio(request.form)
 
         # Soma por status reaproveitada nas duas agregações
         col_total     = "COALESCE(SUM(i.quantidade * i.preco_praticado), 0)"
@@ -492,5 +503,57 @@ def relatorios():
                            total_recebido=total_recebido,
                            total_a_receber=total_a_receber,
                            clientes=lista_clientes, grupos=lista_grupos,
+                           anos_disponiveis=anos_disponiveis,
                            f_inicio=f_inicio, f_fim=f_fim,
                            f_cliente=f_cliente, f_grupo=f_grupo, f_status=f_status)
+
+
+@vendas_bp.route("/relatorios/exportar", methods=["POST"])
+@login_required
+def exportar_relatorio_csv():
+    """Exporta o detalhamento do relatório (respeitando os filtros) em CSV.
+    Formato amigável ao Excel-BR: separador ';', decimal com vírgula e BOM
+    UTF-8 para os acentos abrirem corretos."""
+    import csv
+    import io
+    from flask import Response
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    where_sql, params = _filtros_relatorio(request.form)
+    cursor.execute(f"""
+        SELECT p.codigo_fatura, c.nome_empresa, COALESCE(g.nome, '') AS grupo,
+               DATE_FORMAT(p.data_fim, '%d/%m/%Y') AS competencia, p.status,
+               DATE_FORMAT(p.data_pagamento, '%d/%m/%Y') AS pago_em,
+               COALESCE(SUM(i.quantidade * i.preco_praticado), 0) AS total
+        FROM pedidos p
+        JOIN clientes c ON p.id_cliente = c.id
+        LEFT JOIN grupos_clientes g ON c.id_grupo = g.id
+        LEFT JOIN itens_pedido i ON p.id = i.id_pedido
+        WHERE 1=1 {where_sql}
+        GROUP BY p.id, p.codigo_fatura, c.nome_empresa, g.nome,
+                 p.data_fim, p.status, p.data_pagamento
+        ORDER BY p.data_fim DESC, c.nome_empresa
+    """, tuple(params))
+    linhas = cursor.fetchall()
+
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=';')
+    w.writerow(['Fatura', 'Cliente', 'Grupo', 'Competência', 'Status', 'Pago em', 'Total (R$)'])
+    total_geral = 0.0
+    for r in linhas:
+        total = float(r['total'] or 0)
+        total_geral += total
+        w.writerow([
+            r['codigo_fatura'] or '', r['nome_empresa'] or '', r['grupo'] or '',
+            r['competencia'] or '', r['status'] or '', r['pago_em'] or '',
+            f"{total:.2f}".replace('.', ','),
+        ])
+    w.writerow([])
+    w.writerow(['', '', '', '', '', 'TOTAL', f"{total_geral:.2f}".replace('.', ',')])
+
+    conteudo = '\ufeff' + buf.getvalue()  # BOM para o Excel reconhecer UTF-8
+    log_action('view', entity_type='relatorio',
+               descricao=f"Exportou relatório CSV ({len(linhas)} fatura(s))")
+    return Response(conteudo, mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename=relatorio_nutrisabor.csv'})

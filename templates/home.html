@@ -8,7 +8,7 @@
     </div>
 </div>
 
-<div class="row g-2 g-md-3 mb-3">
+<div class="row g-2 g-md-3 mb-3" id="cardsKpi">
     <div class="col-4 col-md-4">
         <div class="card border-0 shadow-sm p-2 p-md-3 position-relative overflow-hidden">
             <div class="d-flex align-items-center">
@@ -127,7 +127,7 @@
 
 <div class="row">
     <div class="col-lg-12">
-        <div class="card border-0 shadow-sm h-100">
+        <div class="card border-0 shadow-sm h-100" id="cardFaturas">
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-check me-2"></i>Gestão de Faturas</h5>
                 <a href="{{ url_for('vendas.selecionar_cliente_pedido') }}" class="btn btn-sm btn-primary shadow-sm">
@@ -517,6 +517,49 @@
                 }
             }
         }
+    });
+})();
+</script>
+
+<!-- Aprovar/Receber/Estornar sem recarregar a página (mantém a rolagem) -->
+<script>
+(function () {
+    function swapDe(html, id) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        var novo = doc.getElementById(id);
+        var atual = document.getElementById(id);
+        if (novo && atual) atual.innerHTML = novo.innerHTML;
+    }
+
+    // Intercepta o submit de qualquer formulário de mudança de status de fatura
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || form.tagName !== 'FORM' || !form.action) return;
+        if (form.action.indexOf('/mudar_status/') === -1) return;
+
+        e.preventDefault();
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+
+        // 1) Aplica a mudança de status; 2) rebusca a página atual (com os
+        // filtros/página vigentes) e troca apenas a lista e os cards de total.
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function () {
+            return fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        })
+        .then(function (r) { return r.text(); })
+        .then(function (html) {
+            swapDe(html, 'cardFaturas');   // lista de faturas (status, ações, paginação)
+            swapDe(html, 'cardsKpi');      // cards de "Recebido"
+        })
+        .catch(function () {
+            // Em caso de falha de rede, recarrega como fallback
+            window.location.reload();
+        });
     });
 })();
 </script>

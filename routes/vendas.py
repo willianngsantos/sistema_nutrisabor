@@ -48,22 +48,44 @@ def salvar_precos(id_cliente):
     cursor.execute("SELECT nome_empresa FROM clientes WHERE id=%s", (id_cliente,))
     cli = cursor.fetchone()
     nome_cli = cli['nome_empresa'] if cli else f'#{id_cliente}'
-    qtd_alterados = 0
+    qtd_definidos = 0
+    qtd_removidos = 0
     for key, valor in request.form.items():
-        if key.startswith("preco_"):
-            id_produto = key.split("_")[1]
-            if valor:
-                cursor.execute("SELECT id FROM tabela_precos WHERE id_cliente=%s AND id_produto=%s", (id_cliente, id_produto))
-                existe = cursor.fetchone()
-                if existe:
-                    cursor.execute("UPDATE tabela_precos SET preco_venda=%s WHERE id=%s", (valor, existe['id']))
-                else:
-                    cursor.execute("INSERT INTO tabela_precos (id_cliente, id_produto, preco_venda) VALUES (%s, %s, %s)", (id_cliente, id_produto, valor))
-                qtd_alterados += 1
+        if not key.startswith("preco_"):
+            continue
+        id_produto = key.split("_")[1]
+
+        # Normaliza o valor digitado (aceita vírgula como decimal)
+        preco = None
+        v = (valor or "").strip().replace(".", "").replace(",", ".") if (valor and "," in valor) else (valor or "").strip()
+        if v:
+            try:
+                preco = float(v)
+            except ValueError:
+                preco = None
+
+        cursor.execute("SELECT id FROM tabela_precos WHERE id_cliente=%s AND id_produto=%s", (id_cliente, id_produto))
+        existe = cursor.fetchone()
+
+        if preco is not None and preco > 0:
+            # Define/atualiza o preço diferenciado (vira "favorito")
+            if existe:
+                cursor.execute("UPDATE tabela_precos SET preco_venda=%s WHERE id=%s", (preco, existe['id']))
+            else:
+                cursor.execute("INSERT INTO tabela_precos (id_cliente, id_produto, preco_venda) VALUES (%s, %s, %s)", (id_cliente, id_produto, preco))
+            qtd_definidos += 1
+        elif existe:
+            # Campo vazio (ou 0) e havia preço → REMOVE o preço diferenciado
+            cursor.execute("DELETE FROM tabela_precos WHERE id=%s", (existe['id'],))
+            qtd_removidos += 1
+
     conn.commit()
     log_action('update', entity_type='tabela_precos_cliente', entity_id=int(id_cliente),
-               descricao=f"Atualizou tabela de preços do cliente '{nome_cli}': {qtd_alterados} produto(s)")
-    flash("Tabela de preços atualizada!", "success")
+               descricao=f"Tabela de preços do cliente '{nome_cli}': {qtd_definidos} definido(s), {qtd_removidos} removido(s)")
+    if qtd_removidos:
+        flash(f"Tabela atualizada! {qtd_definidos} preço(s) definido(s) e {qtd_removidos} removido(s).", "success")
+    else:
+        flash("Tabela de preços atualizada!", "success")
     return redirect(url_for('vendas.negociar', id_cliente=id_cliente))
 
 @vendas_bp.route("/reajustar_precos_cliente/<int:id_cliente>", methods=["POST"])

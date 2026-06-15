@@ -167,13 +167,16 @@ def fazer_pedido(id_cliente=None, id_pedido=None):
     cursor.execute("SELECT id, nome_empresa, cnpj, email, celular, id_grupo FROM clientes WHERE id = %s", (id_cliente,))
     cliente = cursor.fetchone()
     
+    # NULLIF(..., 0): um preço cadastrado como 0 é tratado como "sem preço
+    # negociado" (cai no preço padrão e NÃO recebe o selo CLIENTE/GRUPO).
+    # Assim, zerar um item equivale a removê-lo dos preços diferenciados.
     query = """
-        SELECT 
-            p.id, p.nome, p.unidade, p.custo_base, 
-            COALESCE(tc.preco_venda, tg.preco_venda, p.custo_base) as preco_final,
+        SELECT
+            p.id, p.nome, p.unidade, p.custo_base,
+            COALESCE(NULLIF(tc.preco_venda, 0), NULLIF(tg.preco_venda, 0), p.custo_base) as preco_final,
             CASE
-                WHEN tc.preco_venda IS NOT NULL THEN 'CLIENTE'
-                WHEN tg.preco_venda IS NOT NULL THEN 'GRUPO'
+                WHEN NULLIF(tc.preco_venda, 0) IS NOT NULL THEN 'CLIENTE'
+                WHEN NULLIF(tg.preco_venda, 0) IS NOT NULL THEN 'GRUPO'
                 ELSE 'PADRÃO'
             END as origem_preco
         FROM produtos p

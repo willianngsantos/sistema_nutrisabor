@@ -189,6 +189,23 @@ inputEl.addEventListener('input', function () {
 // Fecha ao perder foco
 inputEl.addEventListener('blur', () => setTimeout(fecharSugestoes, 150));
 
+// Enter: 1º seleciona o primeiro cliente filtrado; 2º inicia o faturamento
+inputEl.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();  // nunca submete sem um cliente escolhido
+
+    // Já tem cliente selecionado → inicia o faturamento
+    if (hiddenEl.value) {
+        document.getElementById('formPedido').submit();
+        return;
+    }
+    // Senão, seleciona o primeiro resultado da busca
+    const q = this.value.trim().toLowerCase();
+    if (!q) return;
+    const matches = CLIENTES_DB.filter(c => c.nome.toLowerCase().includes(q));
+    if (matches.length) selecionarCliente(matches[0].id, matches[0].nome);
+});
+
 function fecharSugestoes() {
     sugestoesEl.innerHTML = '';
     sugestoesEl.style.display = 'none';

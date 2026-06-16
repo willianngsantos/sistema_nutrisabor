@@ -267,7 +267,39 @@
         .report-table td:nth-child(2),
         .report-table td:nth-child(4),
         .report-table td:nth-child(5) { white-space: nowrap !important; }
-        
+
+        /* ── RESUMOS ANALÍTICOS (por mês / por cliente) no print ── */
+        /* Empilha em vez de lado a lado e impede quebra no meio da tabela */
+        .summary-cols { display: block !important; margin: 0 0 8px 0 !important; }
+        .summary-cols > [class*="col-"] {
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+            padding: 0 !important;
+            margin: 0 0 8px 0 !important;
+        }
+        .summary-card { page-break-inside: avoid; border: none !important; }
+        .summary-card .card-header { padding: 2px 0 4px 0 !important; }
+        .summary-card .card-header h6 { font-size: 9pt !important; }
+        .summary-table { width: 100% !important; border-collapse: collapse !important; margin: 0 !important; }
+        .summary-table th {
+            background-color: #f1f5f9 !important;
+            color: #000 !important;
+            border: 1px solid #000 !important;
+            font-size: 7pt !important;
+            padding: 3px 5px !important;
+        }
+        .summary-table td {
+            border: 1px solid #000 !important;
+            color: #000 !important;
+            font-size: 7.5pt !important;
+            padding: 3px 5px !important;
+        }
+        .summary-table tfoot td { font-weight: bold !important; background-color: #f8fafc !important; }
+
+        /* "Detalhamento das faturas" começa em página nova só se necessário */
+        h6.text-uppercase { page-break-after: avoid; }
+
         a { text-decoration: none !important; color: black !important; }
     }
 </style>
@@ -398,10 +430,10 @@
     </div>
 
     <!-- RESUMOS ANALÍTICOS -->
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4 summary-cols">
         <!-- Por mês (competência) -->
         <div class="col-12 col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 summary-card">
                 <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center">
                     <i class="bi bi-calendar3 text-primary me-2"></i>
                     <h6 class="fw-bold mb-0">Resumo por mês <span class="text-muted fw-normal small">(competência)</span></h6>
@@ -444,7 +476,7 @@
 
         <!-- Por cliente -->
         <div class="col-12 col-lg-6">
-            <div class="card border-0 shadow-sm h-100">
+            <div class="card border-0 shadow-sm h-100 summary-card">
                 <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center">
                     <i class="bi bi-people text-primary me-2"></i>
                     <h6 class="fw-bold mb-0">Resumo por cliente</h6>

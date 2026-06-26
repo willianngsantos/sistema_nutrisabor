@@ -2,7 +2,7 @@
 <html lang="pt-br" style="color-scheme: light;">
 <head>
   <meta charset="UTF-8">
-  <title>Demonstrativo de Faturamento — {{ ano }}</title>
+  <title>Demonstrativo de Faturamento — {{ periodo_label }}</title>
   <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -91,8 +91,10 @@
   <div class="toolbar">
     <button onclick="voltar()" class="btn btn-sm btn-outline-light rounded-circle" title="Voltar"><i class="bi bi-arrow-left"></i></button>
     <span class="text-white-50 small border-start ps-3"><i class="bi bi-bank me-1"></i>Demonstrativo de Faturamento</span>
-    <select class="form-select form-select-sm w-auto ms-2" onchange="location.href='?ano='+this.value">
-      {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    <select class="form-select form-select-sm w-auto ms-2"
+            onchange="location.href = this.value === '12m' ? '{{ url_for('vendas.demonstrativo_faturamento') }}' : '?ano=' + this.value">
+      <option value="12m" {% if modo_sel == '12m' %}selected{% endif %}>Últimos 12 meses</option>
+      {% for a in anos %}<option value="{{ a }}" {% if modo_sel == a|string %}selected{% endif %}>Ano {{ a }}</option>{% endfor %}
     </select>
     <button id="btnImprimir" onclick="imprimirSeguro()" class="btn btn-sm btn-light rounded-pill px-4 ms-auto fw-bold">
       <i class="bi bi-printer-fill me-1"></i> Imprimir / Salvar PDF
@@ -127,7 +129,7 @@
       <tbody>
         {% for l in linhas %}
         <tr>
-          <td>{{ l['mes'] }} / {{ ano }}</td>
+          <td>{{ l['mes'] }} / {{ l['ano'] }}</td>
           <td class="r">{{ l['total'] | real }}</td>
         </tr>
         {% else %}

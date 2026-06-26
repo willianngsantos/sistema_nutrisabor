@@ -331,6 +331,10 @@
                 <i class="bi bi-circle-half"></i>
                 <span>Modo P&amp;B</span>
             </label>
+            <a href="{{ url_for('vendas.demonstrativo_faturamento') }}" target="_blank"
+               class="btn btn-outline-dark btn-sm shadow-sm bg-white" title="Demonstrativo de faturamento mês a mês (para o banco)">
+                <i class="bi bi-bank me-1"></i> Demonstrativo p/ Banco
+            </a>
             <button type="submit" form="formRelatorio" formaction="{{ url_for('vendas.exportar_relatorio_csv') }}"
                     class="btn btn-outline-success btn-sm shadow-sm bg-white" title="Baixar os lançamentos filtrados em CSV (Excel)">
                 <i class="bi bi-filetype-csv me-1"></i> Exportar CSV

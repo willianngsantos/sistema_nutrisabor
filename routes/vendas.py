@@ -582,3 +582,49 @@ def exportar_relatorio_csv():
                descricao=f"Exportou relatório CSV ({len(linhas)} fatura(s))")
     return Response(conteudo, mimetype='text/csv',
                     headers={'Content-Disposition': 'attachment; filename=relatorio_nutrisabor.csv'})
+
+
+@vendas_bp.route("/relatorios/demonstrativo")
+@login_required
+def demonstrativo_faturamento():
+    """Demonstrativo de Faturamento (mês a mês, por competência/data_fim) —
+    documento de impressão para enviar ao banco. Para o ano corrente mostra
+    de janeiro até o mês atual (evita meses futuros zerados); anos passados
+    saem Jan–Dez completos."""
+    hoje = datetime.now()
+    try:
+        ano = int(request.args.get('ano', hoje.year))
+    except (ValueError, TypeError):
+        ano = hoje.year
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT MONTH(p.data_fim) AS mes,
+               COALESCE(SUM(i.quantidade * i.preco_praticado), 0) AS total
+        FROM pedidos p JOIN itens_pedido i ON i.id_pedido = p.id
+        WHERE p.data_fim IS NOT NULL AND YEAR(p.data_fim) = %s
+        GROUP BY mes
+    """, (ano,))
+    mapa = {r['mes']: float(r['total'] or 0) for r in cursor.fetchall()}
+
+    ultimo_mes = hoje.month if ano == hoje.year else 12
+    linhas, total = [], 0.0
+    for m in range(1, ultimo_mes + 1):
+        v = round(mapa.get(m, 0.0), 2)
+        linhas.append({'mes': MESES_PT[m - 1], 'total': v})
+        total += v
+
+    cursor.execute("SELECT DISTINCT YEAR(data_fim) AS ano FROM pedidos WHERE data_fim IS NOT NULL ORDER BY ano DESC")
+    anos = [r['ano'] for r in cursor.fetchall()] or [hoje.year]
+    cursor.execute("SELECT * FROM empresa WHERE id = 1")
+    empresa = cursor.fetchone()
+
+    log_action('view', entity_type='demonstrativo',
+               descricao=f"Gerou demonstrativo de faturamento {ano} (total R${total:.2f})")
+    periodo_label = f"{MESES_PT[0]} a {MESES_PT[ultimo_mes - 1]} de {ano}"
+    return render_template('demonstrativo.html',
+                           linhas=linhas, total=total, ano=ano, anos=anos,
+                           empresa=empresa, periodo_label=periodo_label,
+                           media=(total / len(linhas)) if linhas else 0,
+                           gerado_em=hoje.strftime('%d/%m/%Y às %H:%M'))

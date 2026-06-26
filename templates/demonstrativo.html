@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-br" style="color-scheme: light;">
+<head>
+  <meta charset="UTF-8">
+  <title>Demonstrativo de Faturamento — {{ ano }}</title>
+  <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body {
+      background: #525659;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      color: #000;
+    }
+
+    /* Barra de ações (não imprime) */
+    .toolbar {
+      max-width: 210mm; margin: 16px auto 10px; display: flex; gap: 8px;
+      align-items: center; flex-wrap: wrap;
+    }
+    .toolbar select { border-radius: 20px; }
+
+    .page {
+      background: #fff; width: 210mm; min-height: 297mm; margin: 0 auto 24px;
+      padding: 18mm 18mm; box-shadow: 0 12px 30px rgba(0,0,0,.25);
+    }
+
+    .doc-header {
+      display: flex; align-items: center; gap: 16px;
+      border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 6px;
+    }
+    .doc-header img { height: 64px; width: auto; }
+    .empresa-nome { font-size: 1.15rem; font-weight: 800; color: #000; line-height: 1.15; }
+    .empresa-meta { font-size: .78rem; color: #222; line-height: 1.4; margin-top: 2px; }
+
+    .doc-title {
+      text-align: center; margin: 18px 0 4px;
+      font-size: 1.2rem; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
+    }
+    .doc-period { text-align: center; font-size: .85rem; color: #333; margin-bottom: 18px; }
+
+    table.fat { width: 100%; border-collapse: collapse; }
+    table.fat th {
+      background: #000; color: #fff; text-transform: uppercase; font-size: .72rem;
+      letter-spacing: .5px; padding: 8px 12px; border: 1px solid #000; text-align: left;
+    }
+    table.fat th.r, table.fat td.r { text-align: right; }
+    table.fat td {
+      padding: 7px 12px; border: 1px solid #000; font-size: .9rem;
+      font-variant-numeric: tabular-nums;
+    }
+    table.fat tbody tr:nth-child(even) td { background: #f5f5f5; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    table.fat tfoot td {
+      font-weight: 800; font-size: 1rem; border-top: 2px solid #000;
+      background: #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+
+    .resumo {
+      display: flex; gap: 12px; margin-top: 16px;
+    }
+    .resumo .box {
+      flex: 1; border: 1px solid #000; border-radius: 6px; padding: 10px 14px; text-align: center;
+    }
+    .resumo .box .lbl { font-size: .68rem; text-transform: uppercase; letter-spacing: .5px; color: #444; }
+    .resumo .box .val { font-size: 1.15rem; font-weight: 800; color: #000; }
+
+    .doc-footer {
+      margin-top: 26px; padding-top: 8px; border-top: 1px solid #999;
+      font-size: .72rem; color: #555; display: flex; justify-content: space-between;
+    }
+
+    @page { size: A4 portrait; margin: 0; }
+    @media print {
+      body { background: #fff !important; }
+      .toolbar { display: none !important; }
+      .page { box-shadow: none !important; margin: 0 !important; width: 100% !important; padding: 12mm 14mm !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <button onclick="voltar()" class="btn btn-sm btn-outline-light rounded-circle" title="Voltar"><i class="bi bi-arrow-left"></i></button>
+    <span class="text-white-50 small border-start ps-3"><i class="bi bi-bank me-1"></i>Demonstrativo de Faturamento</span>
+    <select class="form-select form-select-sm w-auto ms-2" onchange="location.href='?ano='+this.value">
+      {% for a in anos %}<option value="{{ a }}" {% if a == ano %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <button id="btnImprimir" onclick="imprimirSeguro()" class="btn btn-sm btn-light rounded-pill px-4 ms-auto fw-bold">
+      <i class="bi bi-printer-fill me-1"></i> Imprimir / Salvar PDF
+    </button>
+  </div>
+
+  <div class="page">
+    <!-- Cabeçalho da empresa -->
+    <div class="doc-header">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+      <div>
+        <div class="empresa-nome">{{ empresa['razao_social'] if empresa and empresa['razao_social'] else 'NutriSabor' }}</div>
+        <div class="empresa-meta">
+          {% if empresa and empresa['cnpj'] %}<strong>CNPJ:</strong> {{ empresa['cnpj'] | cpf_cnpj }}<br>{% endif %}
+          {% if empresa and empresa['endereco'] %}{{ empresa['endereco'] }}{% if empresa['cidade'] %} — {{ empresa['cidade'] }}{% if empresa['estado'] %}/{{ empresa['estado'] }}{% endif %}{% endif %}<br>{% endif %}
+          {% if empresa and empresa['telefone'] %}<strong>Tel:</strong> {{ empresa['telefone'] }}{% endif %}
+          {% if empresa and empresa['email'] %} · {{ empresa['email'] }}{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-title">Demonstrativo de Faturamento</div>
+    <div class="doc-period">Período: {{ periodo_label }}</div>
+
+    <table class="fat">
+      <thead>
+        <tr>
+          <th style="width:60%;">Mês de competência</th>
+          <th class="r" style="width:40%;">Faturamento (R$)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in linhas %}
+        <tr>
+          <td>{{ l['mes'] }} / {{ ano }}</td>
+          <td class="r">{{ l['total'] | real }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="2" class="text-center text-muted">Sem faturamento no período.</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>TOTAL DO PERÍODO</td>
+          <td class="r">{{ total | real }}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="resumo">
+      <div class="box">
+        <div class="lbl">Meses considerados</div>
+        <div class="val">{{ linhas | length }}</div>
+      </div>
+      <div class="box">
+        <div class="lbl">Faturamento total</div>
+        <div class="val">{{ total | real }}</div>
+      </div>
+      <div class="box">
+        <div class="lbl">Média mensal</div>
+        <div class="val">{{ media | real }}</div>
+      </div>
+    </div>
+
+    <div class="doc-footer">
+      <span>Valores por competência (data de fechamento da fatura).</span>
+      <span>Gerado em {{ gerado_em }} · Sistema NutriSabor</span>
+    </div>
+  </div>
+
+  <script>
+    function voltar(){ if (window.history.length > 1) window.history.back(); else window.location.href='/relatorios'; }
+    async function imprimirSeguro(){
+      const btn = document.getElementById('btnImprimir');
+      const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Preparando...';
+      try {
+        if (document.fonts && document.fonts.ready) await document.fonts.ready;
+        await Promise.all(Array.from(document.images).map(img => (img.complete && img.naturalWidth>0) ? Promise.resolve()
+          : new Promise(r => { img.addEventListener('load', r, {once:true}); img.addEventListener('error', r, {once:true}); })));
+        await new Promise(r => setTimeout(r, 100));
+      } catch(e) {}
+      finally { btn.disabled = false; btn.innerHTML = orig; }
+      window.print();
+    }
+  </script>
+</body>
+</html>

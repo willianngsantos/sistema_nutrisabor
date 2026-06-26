@@ -72,9 +72,17 @@
 
     @page { size: A4 portrait; margin: 0; }
     @media print {
-      body { background: #fff !important; }
+      html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
       .toolbar { display: none !important; }
-      .page { box-shadow: none !important; margin: 0 !important; width: 100% !important; padding: 12mm 14mm !important; }
+      /* min-height: auto evita a 2ª página em branco — a folha passa a ter
+         só a altura do conteúdo (na tela continua 297mm para parecer A4). */
+      .page {
+        box-shadow: none !important;
+        margin: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+        padding: 12mm 14mm !important;
+      }
     }
   </style>
 </head>

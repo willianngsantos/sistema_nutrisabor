@@ -111,7 +111,12 @@
                 <div class="text-success" style="font-size:.7rem;"><i class="bi bi-arrow-return-left me-1"></i>retorna {{ a['retorno_fmt'] }}</div>
               </td>
               <td class="text-center"><span class="badge bg-light text-dark border">{{ a['dias'] }}</span></td>
-              <td class="d-none d-md-table-cell small text-muted">{{ a['cid'] or '—' }}</td>
+              <td class="d-none d-md-table-cell small">
+                {% if a['cid'] %}
+                  <span class="fw-semibold">{{ a['cid'] }}</span>
+                  {% if a['cid_desc'] %}<div class="text-muted" style="font-size:.7rem;line-height:1.1;" title="{{ a['cid_desc'] }}">{{ a['cid_desc']|truncate(38) }}</div>{% endif %}
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </td>
               <td class="text-end pe-3">
                 <div class="d-flex gap-1 justify-content-end">
                   {% if a['arquivo_path'] %}
@@ -180,16 +185,17 @@
           <div class="form-text small text-success fw-semibold mb-3" id="at_resumo" style="display:none;">
             <i class="bi bi-calendar-check me-1"></i><span></span>
           </div>
-          <div class="row g-3 mb-3">
+          <div class="row g-3 mb-1">
             <div class="col-6">
               <label class="form-label small fw-bold text-uppercase text-secondary">CID <span class="text-muted">(opcional)</span></label>
-              <input type="text" name="cid" class="form-control border-0 shadow-sm" placeholder="Ex: J11">
+              <input type="text" name="cid" id="at_cid" class="form-control border-0 shadow-sm" placeholder="Ex: J11" autocomplete="off" oninput="buscarCid('at_cid','at_cid_desc')">
             </div>
             <div class="col-6">
               <label class="form-label small fw-bold text-uppercase text-secondary">Médico <span class="text-muted">(opcional)</span></label>
               <input type="text" name="medico" class="form-control border-0 shadow-sm" placeholder="Nome / CRM">
             </div>
           </div>
+          <div class="form-text small mb-3" id="at_cid_desc" style="min-height:1em;"></div>
           <div class="mb-3">
             <label class="form-label small fw-bold text-uppercase text-secondary">Anexo do atestado <span class="text-muted">(opcional)</span></label>
             <input type="file" name="arquivo" class="form-control border-0 shadow-sm" accept=".pdf,.jpg,.jpeg,.png">
@@ -233,16 +239,17 @@
           <div class="form-text small text-success fw-semibold mb-3" id="ed_resumo" style="display:none;">
             <i class="bi bi-calendar-check me-1"></i><span></span>
           </div>
-          <div class="row g-3 mb-3">
+          <div class="row g-3 mb-1">
             <div class="col-6">
               <label class="form-label small fw-bold text-uppercase text-secondary">CID</label>
-              <input type="text" name="cid" id="ed_cid" class="form-control border-0 shadow-sm">
+              <input type="text" name="cid" id="ed_cid" class="form-control border-0 shadow-sm" autocomplete="off" oninput="buscarCid('ed_cid','ed_cid_desc')">
             </div>
             <div class="col-6">
               <label class="form-label small fw-bold text-uppercase text-secondary">Médico</label>
               <input type="text" name="medico" id="ed_medico" class="form-control border-0 shadow-sm">
             </div>
           </div>
+          <div class="form-text small mb-3" id="ed_cid_desc" style="min-height:1em;"></div>
           <div class="mb-3">
             <label class="form-label small fw-bold text-uppercase text-secondary">Substituir anexo <span class="text-muted">(opcional)</span></label>
             <input type="file" name="arquivo" class="form-control border-0 shadow-sm" accept=".pdf,.jpg,.jpeg,.png">
@@ -279,6 +286,31 @@ function _resumoPeriodo(iniId, diasId, boxId){
 function calcFim(){ _resumoPeriodo('at_inicio','at_dias','at_resumo'); }
 function calcFimEdit(){ _resumoPeriodo('ed_inicio','ed_dias','ed_resumo'); }
 
+// CID → descrição automática (consulta o servidor, com debounce)
+const _cidTimers = {};
+function buscarCid(inputId, boxId){
+  const cod = document.getElementById(inputId).value.trim();
+  const box = document.getElementById(boxId);
+  if(!cod){ box.textContent=''; return; }
+  box.className = 'form-text small mb-3 text-muted';
+  box.textContent = 'Buscando…';
+  clearTimeout(_cidTimers[inputId]);
+  _cidTimers[inputId] = setTimeout(function(){
+    fetch('/rh/atestados/cid?codigo=' + encodeURIComponent(cod))
+      .then(r => r.json())
+      .then(d => {
+        if(d.ok){
+          box.className = 'form-text small mb-3 text-success fw-semibold';
+          box.innerHTML = '<i class="bi bi-check-circle me-1"></i>' + d.descricao;
+        } else {
+          box.className = 'form-text small mb-3 text-warning';
+          box.innerHTML = '<i class="bi bi-question-circle me-1"></i>CID não encontrado';
+        }
+      })
+      .catch(() => { box.textContent=''; });
+  }, 300);
+}
+
 // Abre o modal de edição preenchido (via data-* do botão)
 document.addEventListener('click', function(e){
   const btn = e.target.closest('.edit-atestado');
@@ -290,6 +322,7 @@ document.addEventListener('click', function(e){
   document.getElementById('ed_medico').value = btn.dataset.medico || '';
   document.getElementById('ed_obs').value = btn.dataset.obs || '';
   calcFimEdit();
+  buscarCid('ed_cid','ed_cid_desc');
   new bootstrap.Modal(document.getElementById('modalEditAtestado')).show();
 });
 </script>

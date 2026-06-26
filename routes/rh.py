@@ -9,6 +9,7 @@ from database import get_db_connection
 from utils.permissions import admin_only, rh_access
 from utils.audit import log_action, format_field_diff
 from utils.constants import MESES_PT
+from utils.cid10 import descricao_cid
 
 rh_bp = Blueprint('rh', __name__)
 
@@ -548,6 +549,7 @@ def atestados():
         a['fim_fmt'] = _fmt_date(a.get('data_fim'))
         a['retorno_fmt'] = _fmt_date(a['data_fim'] + timedelta(days=1)) if a.get('data_fim') else ''
         a['data_inicio_iso'] = a['data_inicio'].strftime('%Y-%m-%d') if a.get('data_inicio') else ''
+        a['cid_desc'] = descricao_cid(a.get('cid'))
 
     cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
     colaboradores = cursor.fetchall()
@@ -691,6 +693,18 @@ def baixar_atestado(id_atestado):
         abort(404)
     diretorio = os.path.join(current_app.root_path, 'static', 'uploads', 'rh_atestados')
     return send_from_directory(diretorio, os.path.basename(a['arquivo_path']))
+
+
+@rh_bp.route("/rh/atestados/cid")
+@login_required
+@rh_access
+def cid_lookup():
+    """Consulta a descrição de um código CID-10 (usado pelo autocomplete da
+    tela de atestados ao digitar o código)."""
+    from flask import jsonify
+    codigo = request.args.get('codigo', '')
+    desc = descricao_cid(codigo)
+    return jsonify({'ok': desc is not None, 'codigo': codigo, 'descricao': desc or ''})
 
 
 # ══════════════════════════════════════════════════════════════════

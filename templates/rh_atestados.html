@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% from "_rh_nav.html" import rh_nav with context %}
+{% block conteudo %}
+{{ rh_nav('atestados') }}
+
+<div class="row align-items-center mb-3 g-2">
+  <div class="col"><h4 class="fw-bold mb-0"><i class="bi bi-file-medical me-2 text-success"></i>Atestados Médicos</h4></div>
+  <div class="col-auto">
+    <button class="btn btn-success rounded-pill btn-sm fw-bold px-3" data-bs-toggle="modal" data-bs-target="#modalAddAtestado">
+      <i class="bi bi-plus-lg me-1"></i> Novo Atestado
+    </button>
+  </div>
+</div>
+
+<!-- Filtro de período + colaborador -->
+<form method="GET" class="mb-3 d-flex gap-2 align-items-center flex-wrap">
+  <select name="mes" class="form-select form-select-sm w-auto border-0 shadow-sm bg-white" onchange="this.form.submit()">
+    {% for i in range(1, 13) %}
+    <option value="{{ i }}" {% if i == mes %}selected{% endif %}>{{ MESES_PT[i-1] }}</option>
+    {% endfor %}
+  </select>
+  <select name="ano" class="form-select form-select-sm w-auto border-0 shadow-sm bg-white" onchange="this.form.submit()">
+    {% for y in range(ano - 2, ano + 2) %}
+    <option value="{{ y }}" {% if y == ano %}selected{% endif %}>{{ y }}</option>
+    {% endfor %}
+  </select>
+  <select name="colab_id" class="form-select form-select-sm w-auto border-0 shadow-sm bg-white" onchange="this.form.submit()">
+    <option value="">Todos os colaboradores</option>
+    {% for c in colaboradores %}
+    <option value="{{ c['id'] }}" {% if filtro_colab == c['id']|string %}selected{% endif %}>{{ c['nome'] }}</option>
+    {% endfor %}
+  </select>
+  {% if filtro_colab %}
+  <a href="{{ url_for('rh.atestados', mes=mes, ano=ano) }}" class="btn btn-outline-secondary btn-sm">Limpar</a>
+  {% endif %}
+</form>
+
+<div class="row g-3">
+  <!-- RESUMO DO MÊS POR COLABORADOR (relatório) -->
+  <div class="col-12 col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-3 pb-2 d-flex align-items-center justify-content-between">
+        <h6 class="fw-bold mb-0"><i class="bi bi-clipboard-data me-2 text-primary"></i>Resumo · {{ MESES_PT[mes-1] }}/{{ ano }}</h6>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ total_mes_dias }} dia(s)</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="text-secondary small text-uppercase" style="font-size:.7rem;">
+            <tr>
+              <th class="ps-3">Colaborador</th>
+              <th class="text-center">Atestados</th>
+              <th class="text-center pe-3">Dias</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in resumo %}
+            <tr>
+              <td class="ps-3">
+                <div class="fw-semibold small">{{ r['nome'] }}</div>
+                <div class="text-muted" style="font-size:.7rem;">{{ r['funcao'] or '—' }}</div>
+              </td>
+              <td class="text-center">{{ r['qtd'] }}</td>
+              <td class="text-center pe-3 fw-bold {% if r['total_dias'] >= 15 %}text-danger{% elif r['total_dias'] >= 5 %}text-warning{% endif %}">{{ r['total_dias'] }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center py-4 text-muted small">Nenhum atestado neste mês.</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if resumo %}
+          <tfoot>
+            <tr class="border-top">
+              <td class="ps-3 fw-bold">Total ({{ resumo|length }} colaborador(es))</td>
+              <td class="text-center fw-bold">{{ total_mes_qtd }}</td>
+              <td class="text-center pe-3 fw-bold">{{ total_mes_dias }}</td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISTA DETALHADA -->
+  <div class="col-12 col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white border-0 pt-3 pb-2">
+        <h6 class="fw-bold mb-0"><i class="bi bi-list-ul me-2"></i>Atestados do mês</h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light text-secondary small text-uppercase" style="font-weight:600;">
+            <tr>
+              <th class="ps-3 border-0">Colaborador</th>
+              <th class="border-0">Período</th>
+              <th class="border-0 text-center">Dias</th>
+              <th class="border-0 d-none d-md-table-cell">CID</th>
+              <th class="border-0 text-end pe-3">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in atestados %}
+            <tr>
+              <td class="ps-3">
+                <div class="fw-semibold small">{{ a['nome_colaborador'] }}</div>
+                <div class="text-muted" style="font-size:.7rem;">{{ a['funcao'] or '—' }}</div>
+              </td>
+              <td>
+                <span class="small fw-semibold">{{ a['inicio_fmt'] }}</span>
+                <span class="text-muted small">→</span>
+                <span class="small fw-semibold">{{ a['fim_fmt'] }}</span>
+                <div class="text-success" style="font-size:.7rem;"><i class="bi bi-arrow-return-left me-1"></i>retorna {{ a['retorno_fmt'] }}</div>
+              </td>
+              <td class="text-center"><span class="badge bg-light text-dark border">{{ a['dias'] }}</span></td>
+              <td class="d-none d-md-table-cell small text-muted">{{ a['cid'] or '—' }}</td>
+              <td class="text-end pe-3">
+                <div class="d-flex gap-1 justify-content-end">
+                  {% if a['arquivo_path'] %}
+                  <a href="{{ url_for('rh.baixar_atestado', id_atestado=a['id']) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Ver anexo">
+                    <i class="bi bi-paperclip"></i>
+                  </a>
+                  {% endif %}
+                  <button type="button" class="btn btn-sm btn-outline-primary edit-atestado"
+                          data-id="{{ a['id'] }}"
+                          data-inicio="{{ a['data_inicio_iso'] }}"
+                          data-dias="{{ a['dias'] }}"
+                          data-cid="{{ a['cid'] or '' }}"
+                          data-medico="{{ a['medico'] or '' }}"
+                          data-obs="{{ a['observacoes'] or '' }}"
+                          title="Editar">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <form method="POST" action="{{ url_for('rh.excluir_atestado', id_atestado=a['id']) }}"
+                        style="display:inline" onsubmit="return confirm('Remover este atestado?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="bi bi-trash3"></i></button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center py-5 text-muted">
+              <i class="bi bi-file-medical fs-1 opacity-25 d-block mb-2"></i>Nenhum atestado em {{ MESES_PT[mes-1] }}/{{ ano }}.
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Adicionar -->
+<div class="modal fade" id="modalAddAtestado" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-success text-white border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-file-medical me-2"></i>Novo Atestado</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('rh.add_atestado') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body bg-light p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Colaborador</label>
+            <select name="id_colaborador" class="form-select border-0 shadow-sm js-autocomplete" required>
+              <option value="">Selecione...</option>
+              {% for c in colaboradores %}<option value="{{ c['id'] }}">{{ c['nome'] }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="row g-3 mb-2">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Início</label>
+              <input type="date" name="data_inicio" id="at_inicio" class="form-control border-0 shadow-sm" required onchange="calcFim()">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Dias</label>
+              <input type="number" name="dias" id="at_dias" class="form-control border-0 shadow-sm" min="1" max="180" value="1" required onchange="calcFim()" oninput="calcFim()">
+            </div>
+          </div>
+          <div class="form-text small text-success fw-semibold mb-3" id="at_resumo" style="display:none;">
+            <i class="bi bi-calendar-check me-1"></i><span></span>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">CID <span class="text-muted">(opcional)</span></label>
+              <input type="text" name="cid" class="form-control border-0 shadow-sm" placeholder="Ex: J11">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Médico <span class="text-muted">(opcional)</span></label>
+              <input type="text" name="medico" class="form-control border-0 shadow-sm" placeholder="Nome / CRM">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Anexo do atestado <span class="text-muted">(opcional)</span></label>
+            <input type="file" name="arquivo" class="form-control border-0 shadow-sm" accept=".pdf,.jpg,.jpeg,.png">
+          </div>
+          <div class="mb-1">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Observações</label>
+            <textarea name="observacoes" class="form-control border-0 shadow-sm" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success fw-bold px-4 shadow-sm">Registrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar -->
+<div class="modal fade" id="modalEditAtestado" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-pencil me-2"></i>Editar Atestado</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="{{ url_for('rh.editar_atestado') }}" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="id_atestado" id="ed_id">
+        <div class="modal-body bg-light p-4">
+          <div class="row g-3 mb-2">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Início</label>
+              <input type="date" name="data_inicio" id="ed_inicio" class="form-control border-0 shadow-sm" required onchange="calcFimEdit()">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Dias</label>
+              <input type="number" name="dias" id="ed_dias" class="form-control border-0 shadow-sm" min="1" max="180" required onchange="calcFimEdit()" oninput="calcFimEdit()">
+            </div>
+          </div>
+          <div class="form-text small text-success fw-semibold mb-3" id="ed_resumo" style="display:none;">
+            <i class="bi bi-calendar-check me-1"></i><span></span>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">CID</label>
+              <input type="text" name="cid" id="ed_cid" class="form-control border-0 shadow-sm">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-bold text-uppercase text-secondary">Médico</label>
+              <input type="text" name="medico" id="ed_medico" class="form-control border-0 shadow-sm">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold text-uppercase text-secondary">Substituir anexo <span class="text-muted">(opcional)</span></label>
+            <input type="file" name="arquivo" class="form-control border-0 shadow-sm" accept=".pdf,.jpg,.jpeg,.png">
+          </div>
+          <div>
+            <label class="form-label small fw-bold text-uppercase text-secondary">Observações</label>
+            <textarea name="observacoes" id="ed_obs" class="form-control border-0 shadow-sm" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary fw-bold px-4 shadow-sm">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// Helpers de data (horário local, sem -1 dia de fuso)
+function _parseISO(s){ if(!s) return null; const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
+function _fmtBR(dt){ return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear(); }
+
+function _resumoPeriodo(iniId, diasId, boxId){
+  const ini=_parseISO(document.getElementById(iniId).value);
+  const dias=parseInt(document.getElementById(diasId).value,10);
+  const box=document.getElementById(boxId);
+  if(!ini||!dias||dias<1){ box.style.display='none'; return; }
+  const fim=new Date(ini); fim.setDate(fim.getDate()+dias-1);
+  const ret=new Date(fim); ret.setDate(ret.getDate()+1);
+  box.querySelector('span').textContent='Até '+_fmtBR(fim)+' · retorna em '+_fmtBR(ret)+' ('+dias+' dia(s))';
+  box.style.display='block';
+}
+function calcFim(){ _resumoPeriodo('at_inicio','at_dias','at_resumo'); }
+function calcFimEdit(){ _resumoPeriodo('ed_inicio','ed_dias','ed_resumo'); }
+
+// Abre o modal de edição preenchido (via data-* do botão)
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('.edit-atestado');
+  if(!btn) return;
+  document.getElementById('ed_id').value = btn.dataset.id;
+  document.getElementById('ed_inicio').value = btn.dataset.inicio || '';
+  document.getElementById('ed_dias').value = btn.dataset.dias || '1';
+  document.getElementById('ed_cid').value = btn.dataset.cid || '';
+  document.getElementById('ed_medico').value = btn.dataset.medico || '';
+  document.getElementById('ed_obs').value = btn.dataset.obs || '';
+  calcFimEdit();
+  new bootstrap.Modal(document.getElementById('modalEditAtestado')).show();
+});
+</script>
+{% endblock %}

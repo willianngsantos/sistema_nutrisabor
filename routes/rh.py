@@ -1,5 +1,5 @@
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from calendar import monthrange
 from werkzeug.utils import secure_filename
 from flask import (Blueprint, render_template, request, redirect,
@@ -304,6 +304,19 @@ def hub():
     except Exception:
         docs_vencendo = docs_vencidos = 0
 
+    # Atestados do mês corrente (qtd e dias acumulados)
+    try:
+        cursor.execute("""
+            SELECT COUNT(*) AS qtd, COALESCE(SUM(dias), 0) AS dias
+            FROM rh_atestados
+            WHERE MONTH(data_inicio) = %s AND YEAR(data_inicio) = %s
+        """, (hoje.month, hoje.year))
+        _at = cursor.fetchone()
+        atestados_qtd = _at['qtd']
+        atestados_dias = _at['dias']
+    except Exception:
+        atestados_qtd = atestados_dias = 0
+
     return render_template('rh_hub.html',
         total_ativos=total_ativos,
         total_ferias=total_ferias,
@@ -314,6 +327,8 @@ def hub():
         ferias_ativas=ferias_ativas,
         docs_vencendo=docs_vencendo,
         docs_vencidos=docs_vencidos,
+        atestados_qtd=atestados_qtd,
+        atestados_dias=atestados_dias,
         mes_atual=MESES_PT[hoje.month - 1]
     )
 
@@ -454,6 +469,228 @@ def excluir_exame(id_exame):
                descricao=f"Excluiu exame '{info.get('tipo') or '—'}' de '{info.get('colaborador') or '—'}'")
     flash("Exame removido.", "success")
     return redirect(url_for('rh.exames'))
+
+
+# ══════════════════════════════════════════════════════════════════
+# ATESTADOS MÉDICOS
+# ══════════════════════════════════════════════════════════════════
+def _calcular_data_fim(data_inicio_str, dias):
+    """data_fim = data_inicio + (dias - 1). Retorna (data_fim_str, datetime_inicio)
+    ou (None, None) se inválido."""
+    try:
+        di = datetime.strptime(data_inicio_str, '%Y-%m-%d')
+        df = di + timedelta(days=max(1, dias) - 1)
+        return df.strftime('%Y-%m-%d'), di
+    except (ValueError, TypeError):
+        return None, None
+
+
+def _salvar_anexo_atestado(arquivo):
+    """Salva o anexo do atestado (opcional) e devolve o caminho relativo,
+    ou None. Reaproveita a validação de extensão de documentos."""
+    if not arquivo or not arquivo.filename or not _allowed_file(arquivo.filename):
+        return None
+    pasta = os.path.join(current_app.root_path, 'static', 'uploads', 'rh_atestados')
+    os.makedirs(pasta, exist_ok=True)
+    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(arquivo.filename)}"
+    arquivo.save(os.path.join(pasta, filename))
+    return f"uploads/rh_atestados/{filename}"
+
+
+@rh_bp.route("/rh/atestados")
+@login_required
+@rh_access
+def atestados():
+    hoje = date.today()
+    try:
+        mes = int(request.args.get('mes', hoje.month))
+        ano = int(request.args.get('ano', hoje.year))
+        if not 1 <= mes <= 12:
+            mes = hoje.month
+    except ValueError:
+        mes, ano = hoje.month, hoje.year
+    filtro_colab = request.args.get('colab_id', '')
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+
+    # Resumo do mês por colaborador (qtd de atestados + dias acumulados).
+    # Atribuímos o atestado ao mês da data de INÍCIO.
+    cursor.execute("""
+        SELECT col.id, col.nome, col.funcao,
+               COUNT(*) AS qtd, COALESCE(SUM(a.dias), 0) AS total_dias
+        FROM rh_atestados a
+        JOIN colaboradores col ON col.id = a.id_colaborador
+        WHERE MONTH(a.data_inicio) = %s AND YEAR(a.data_inicio) = %s
+        GROUP BY col.id, col.nome, col.funcao
+        ORDER BY total_dias DESC, qtd DESC, col.nome
+    """, (mes, ano))
+    resumo = cursor.fetchall()
+    total_mes_qtd = sum(r['qtd'] for r in resumo)
+    total_mes_dias = sum(r['total_dias'] for r in resumo)
+
+    # Lista detalhada do mês (com filtro opcional por colaborador)
+    sql = """
+        SELECT a.*, col.nome AS nome_colaborador, col.funcao
+        FROM rh_atestados a
+        JOIN colaboradores col ON col.id = a.id_colaborador
+        WHERE MONTH(a.data_inicio) = %s AND YEAR(a.data_inicio) = %s
+    """
+    params = [mes, ano]
+    if filtro_colab:
+        sql += " AND a.id_colaborador = %s"
+        params.append(filtro_colab)
+    sql += " ORDER BY a.data_inicio DESC, col.nome"
+    cursor.execute(sql, tuple(params))
+    lista = cursor.fetchall()
+    for a in lista:
+        a['inicio_fmt'] = _fmt_date(a.get('data_inicio'))
+        a['fim_fmt'] = _fmt_date(a.get('data_fim'))
+        a['retorno_fmt'] = _fmt_date(a['data_fim'] + timedelta(days=1)) if a.get('data_fim') else ''
+        a['data_inicio_iso'] = a['data_inicio'].strftime('%Y-%m-%d') if a.get('data_inicio') else ''
+
+    cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
+    colaboradores = cursor.fetchall()
+
+    return render_template('rh_atestados.html',
+        resumo=resumo, atestados=lista, colaboradores=colaboradores,
+        mes=mes, ano=ano, MESES_PT=MESES_PT, filtro_colab=filtro_colab,
+        total_mes_qtd=total_mes_qtd, total_mes_dias=total_mes_dias)
+
+
+@rh_bp.route("/rh/atestados/add", methods=["POST"])
+@login_required
+@rh_access
+def add_atestado():
+    id_colab = request.form.get('id_colaborador')
+    data_inicio = request.form.get('data_inicio')
+    try:
+        dias = int(request.form.get('dias', 1))
+    except (ValueError, TypeError):
+        dias = 0
+    if not id_colab or not data_inicio or dias < 1:
+        flash("Informe o colaborador, a data de início e os dias (mínimo 1).", "warning")
+        return redirect(url_for('rh.atestados'))
+
+    data_fim, di = _calcular_data_fim(data_inicio, dias)
+    if not data_fim:
+        flash("Data de início inválida.", "danger")
+        return redirect(url_for('rh.atestados'))
+
+    cid = (request.form.get('cid') or '').strip() or None
+    medico = (request.form.get('medico') or '').strip() or None
+    obs = (request.form.get('observacoes') or '').strip() or None
+    arquivo_path = _salvar_anexo_atestado(request.files.get('arquivo'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        INSERT INTO rh_atestados
+            (id_colaborador, data_inicio, dias, data_fim, cid, medico, observacoes, arquivo_path, criado_por)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (id_colab, data_inicio, dias, data_fim, cid, medico, obs, arquivo_path, current_user.nome))
+    novo_id = cursor.lastrowid
+    cursor.execute("SELECT nome FROM colaboradores WHERE id=%s", (id_colab,))
+    colab = cursor.fetchone()
+    conn.commit()
+    log_action('create', entity_type='rh_atestado', entity_id=novo_id,
+               descricao=f"Atestado de '{colab['nome'] if colab else id_colab}': "
+                         f"{dias} dia(s) ({data_inicio} a {data_fim})"
+                         + (f", CID {cid}" if cid else ""))
+    flash(f"Atestado de {dias} dia(s) registrado!", "success")
+    return redirect(url_for('rh.atestados', mes=di.month, ano=di.year))
+
+
+@rh_bp.route("/rh/atestados/editar", methods=["POST"])
+@login_required
+@rh_access
+def editar_atestado():
+    id_atestado = request.form.get('id_atestado')
+    data_inicio = request.form.get('data_inicio')
+    try:
+        dias = int(request.form.get('dias', 1))
+    except (ValueError, TypeError):
+        dias = 0
+    if not id_atestado or not data_inicio or dias < 1:
+        flash("Dados inválidos.", "warning")
+        return redirect(url_for('rh.atestados'))
+
+    data_fim, di = _calcular_data_fim(data_inicio, dias)
+    if not data_fim:
+        flash("Data de início inválida.", "danger")
+        return redirect(url_for('rh.atestados'))
+
+    cid = (request.form.get('cid') or '').strip() or None
+    medico = (request.form.get('medico') or '').strip() or None
+    obs = (request.form.get('observacoes') or '').strip() or None
+
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    # Anexo: troca apenas se um novo arquivo for enviado
+    novo_anexo = _salvar_anexo_atestado(request.files.get('arquivo'))
+    if novo_anexo:
+        cursor.execute("SELECT arquivo_path FROM rh_atestados WHERE id=%s", (id_atestado,))
+        antigo = cursor.fetchone()
+        if antigo and antigo.get('arquivo_path'):
+            full = os.path.join(current_app.root_path, 'static', antigo['arquivo_path'])
+            if os.path.exists(full):
+                os.remove(full)
+        cursor.execute("""
+            UPDATE rh_atestados SET data_inicio=%s, dias=%s, data_fim=%s, cid=%s,
+                   medico=%s, observacoes=%s, arquivo_path=%s WHERE id=%s
+        """, (data_inicio, dias, data_fim, cid, medico, obs, novo_anexo, id_atestado))
+    else:
+        cursor.execute("""
+            UPDATE rh_atestados SET data_inicio=%s, dias=%s, data_fim=%s, cid=%s,
+                   medico=%s, observacoes=%s WHERE id=%s
+        """, (data_inicio, dias, data_fim, cid, medico, obs, id_atestado))
+    conn.commit()
+    log_action('update', entity_type='rh_atestado', entity_id=int(id_atestado),
+               descricao=f"Editou atestado #{id_atestado}: {dias} dia(s) ({data_inicio} a {data_fim})")
+    flash("Atestado atualizado!", "success")
+    return redirect(url_for('rh.atestados', mes=di.month, ano=di.year))
+
+
+@rh_bp.route("/rh/atestados/excluir/<int:id_atestado>", methods=["POST"])
+@login_required
+@rh_access
+def excluir_atestado(id_atestado):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""
+        SELECT a.arquivo_path, a.data_inicio, c.nome
+        FROM rh_atestados a LEFT JOIN colaboradores c ON c.id = a.id_colaborador
+        WHERE a.id = %s
+    """, (id_atestado,))
+    info = cursor.fetchone() or {}
+    if info.get('arquivo_path'):
+        full = os.path.join(current_app.root_path, 'static', info['arquivo_path'])
+        if os.path.exists(full):
+            os.remove(full)
+    cursor.execute("DELETE FROM rh_atestados WHERE id = %s", (id_atestado,))
+    conn.commit()
+    log_action('delete', entity_type='rh_atestado', entity_id=int(id_atestado),
+               descricao=f"Excluiu atestado de '{info.get('nome') or '—'}'")
+    flash("Atestado removido.", "success")
+    di = info.get('data_inicio')
+    if di:
+        return redirect(url_for('rh.atestados', mes=di.month, ano=di.year))
+    return redirect(url_for('rh.atestados'))
+
+
+@rh_bp.route("/rh/atestados/<int:id_atestado>/arquivo")
+@login_required
+@rh_access
+def baixar_atestado(id_atestado):
+    """Serve o anexo do atestado de forma AUTENTICADA (não por /static)."""
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT arquivo_path FROM rh_atestados WHERE id = %s", (id_atestado,))
+    a = cursor.fetchone()
+    if not a or not a.get('arquivo_path'):
+        abort(404)
+    diretorio = os.path.join(current_app.root_path, 'static', 'uploads', 'rh_atestados')
+    return send_from_directory(diretorio, os.path.basename(a['arquivo_path']))
 
 
 # ══════════════════════════════════════════════════════════════════

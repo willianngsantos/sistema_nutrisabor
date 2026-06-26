@@ -60,9 +60,11 @@ app.teardown_appcontext(close_db_connection)
 # static/uploads/rh_docs por conveniência de armazenamento, mas /static é
 # público. Bloqueamos o acesso direto e forçamos o uso da rota autenticada
 # rh.baixar_documento. (Em produção, idealmente também negar no nginx.)
+_UPLOADS_PROTEGIDOS = ('/static/uploads/rh_docs/', '/static/uploads/rh_atestados/')
+
 @app.before_request
-def _bloquear_rh_docs_publico():
-    if request.path.startswith('/static/uploads/rh_docs/'):
+def _bloquear_uploads_sensiveis():
+    if request.path.startswith(_UPLOADS_PROTEGIDOS):
         abort(404)
 
 

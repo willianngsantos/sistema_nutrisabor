@@ -65,6 +65,17 @@
       </div>
     </div>
   </div>
+  <div class="col-6 col-md">
+    <a href="/rh/atestados" class="card border-0 shadow-sm h-100 text-decoration-none {% if atestados_dias >= 15 %}border-danger{% elif atestados_dias > 0 %}border-warning{% endif %}">
+      <div class="card-body text-center py-3">
+        <div class="fw-bold {% if atestados_dias >= 15 %}text-danger{% elif atestados_dias > 0 %}text-warning{% else %}text-dark{% endif %}" style="font-size:2rem;">
+          {{ atestados_dias }}
+        </div>
+        <div class="small text-muted fw-semibold text-uppercase">Dias de Atestado</div>
+        <div class="badge bg-light text-dark border" style="font-size:.7rem;">{{ atestados_qtd }} no mês</div>
+      </div>
+    </a>
+  </div>
 </div>
 
 <div class="row g-4">

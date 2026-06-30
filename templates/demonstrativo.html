@@ -67,6 +67,8 @@
 
     /* Blocos de assinatura (proprietário + contador) */
     .assinaturas { display: flex; gap: 50px; margin-top: 50px; }
+    .assinaturas.single { justify-content: center; }
+    .assinaturas.single .assina { flex: 0 0 60%; max-width: 60%; }
     .assina { flex: 1; text-align: center; }
     .assina .linha { border-top: 1px solid #000; margin-bottom: 5px; }
     .assina .nome { font-weight: 700; font-size: .9rem; text-transform: uppercase; line-height: 1.2; }
@@ -105,8 +107,9 @@
       {% for a in anos %}<option value="{{ a }}" {% if modo_sel == a|string %}selected{% endif %}>Ano {{ a }}</option>{% endfor %}
     </select>
     <select class="form-select form-select-sm w-auto" onchange="navega({socio: this.value})" title="Proprietário que assina">
-      <option value="1" {% if socio_sel == '1' %}selected{% endif %}>{{ empresa['socio1_nome'] or 'Sócio 1' }}</option>
-      <option value="2" {% if socio_sel == '2' %}selected{% endif %}>{{ empresa['socio2_nome'] or 'Sócio 2' }}</option>
+      {% if empresa['socio1_nome'] %}<option value="1" {% if socio_sel == '1' %}selected{% endif %}>{{ empresa['socio1_nome'] }}</option>{% endif %}
+      {% if empresa['socio2_nome'] %}<option value="2" {% if socio_sel == '2' %}selected{% endif %}>{{ empresa['socio2_nome'] }}</option>{% endif %}
+      <option value="0" {% if socio_sel == '0' %}selected{% endif %}>Sem proprietário (só contador)</option>
     </select>
     <button id="btnImprimir" onclick="imprimirSeguro()" class="btn btn-sm btn-light rounded-pill px-4 ms-auto fw-bold">
       <i class="bi bi-printer-fill me-1"></i> Imprimir / Salvar PDF
@@ -171,13 +174,15 @@
       </div>
     </div>
 
-    <div class="assinaturas">
+    <div class="assinaturas {% if not socio_nome %}single{% endif %}">
+      {% if socio_nome %}
       <div class="assina">
         <div class="linha"></div>
-        <div class="nome">{{ socio_nome or '—' }}</div>
+        <div class="nome">{{ socio_nome }}</div>
         {% if socio_cpf %}<div class="ident">CPF: {{ socio_cpf | cpf_cnpj }}</div>{% endif %}
         <div class="cargo">Proprietário</div>
       </div>
+      {% endif %}
       <div class="assina">
         <div class="linha"></div>
         <div class="nome">{{ empresa['contador_nome'] or '—' }}</div>

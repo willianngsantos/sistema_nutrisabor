@@ -598,7 +598,7 @@ def demonstrativo_faturamento():
     hoje = datetime.now()
     ano_param = request.args.get('ano')
     socio_sel = request.args.get('socio', '1')
-    if socio_sel not in ('1', '2'):
+    if socio_sel not in ('0', '1', '2'):  # 0 = sem proprietário (só contador)
         socio_sel = '1'
 
     conn = get_db_connection()
@@ -659,10 +659,13 @@ def demonstrativo_faturamento():
     cursor.execute("SELECT * FROM empresa WHERE id = 1")
     empresa = cursor.fetchone() or {}
 
-    # Proprietário que assina (1 ou 2), conforme cadastro em Minha Empresa
+    # Proprietário que assina (0 = nenhum, 1 ou 2), conforme cadastro em Minha Empresa
     if socio_sel == '2':
         socio_nome = empresa.get('socio2_nome') or ''
         socio_cpf = empresa.get('socio2_cpf') or ''
+    elif socio_sel == '0':
+        socio_nome = ''
+        socio_cpf = ''
     else:
         socio_nome = empresa.get('socio1_nome') or ''
         socio_cpf = empresa.get('socio1_cpf') or ''

@@ -66,7 +66,7 @@
     .resumo .box .val { font-size: 1.15rem; font-weight: 800; color: #000; }
 
     /* Blocos de assinatura (proprietário + contador) */
-    .assinaturas { display: flex; gap: 50px; margin-top: 50px; }
+    .assinaturas { display: flex; gap: 50px; margin-top: 120px; }
     .assinaturas.single { justify-content: center; }
     .assinaturas.single .assina { flex: 0 0 60%; max-width: 60%; }
     .assina { flex: 1; text-align: center; }
@@ -74,11 +74,6 @@
     .assina .nome { font-weight: 700; font-size: .9rem; text-transform: uppercase; line-height: 1.2; }
     .assina .ident { font-size: .78rem; color: #222; }
     .assina .cargo { font-size: .72rem; color: #555; text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
-
-    .doc-footer {
-      margin-top: 26px; padding-top: 8px; border-top: 1px solid #999;
-      font-size: .72rem; color: #555; display: flex; justify-content: space-between;
-    }
 
     @page { size: A4 portrait; margin: 0; }
     @media print {
@@ -189,11 +184,6 @@
         {% if empresa['contador_crc'] %}<div class="ident">CRC: {{ empresa['contador_crc'] }}</div>{% endif %}
         <div class="cargo">Contador(a) Responsável</div>
       </div>
-    </div>
-
-    <div class="doc-footer">
-      <span>Valores por competência (data de fechamento da fatura).</span>
-      <span>Gerado em {{ gerado_em }} · Sistema NutriSabor</span>
     </div>
   </div>
 

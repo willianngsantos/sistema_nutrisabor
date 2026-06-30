@@ -87,6 +87,35 @@
                     </div>
                 </div>
 
+                <h5 class="text-primary border-bottom pb-2 mb-3 mt-5">Assinaturas do Demonstrativo (Banco)</h5>
+                <p class="text-muted small mb-3"><i class="bi bi-info-circle me-1"></i>Usado nos blocos de assinatura do Demonstrativo de Faturamento. Informe os CPFs (o nome e o CRC já vêm preenchidos).</p>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Proprietário 1 — Nome</label>
+                        <input type="text" name="socio1_nome" class="form-control" value="{{ empresa['socio1_nome'] or '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Proprietário 1 — CPF</label>
+                        <input type="text" name="socio1_cpf" class="form-control" value="{{ empresa['socio1_cpf'] or '' }}" placeholder="000.000.000-00">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Proprietário 2 — Nome</label>
+                        <input type="text" name="socio2_nome" class="form-control" value="{{ empresa['socio2_nome'] or '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Proprietário 2 — CPF</label>
+                        <input type="text" name="socio2_cpf" class="form-control" value="{{ empresa['socio2_cpf'] or '' }}" placeholder="000.000.000-00">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Contador — Nome</label>
+                        <input type="text" name="contador_nome" class="form-control" value="{{ empresa['contador_nome'] or '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Contador — CRC</label>
+                        <input type="text" name="contador_crc" class="form-control" value="{{ empresa['contador_crc'] or '' }}" placeholder="1SP000000/O-0">
+                    </div>
+                </div>
+
                 <hr class="my-4">
                 <div class="d-flex justify-content-end gap-2">
                     <a href="/" class="btn btn-outline-secondary">Cancelar</a>

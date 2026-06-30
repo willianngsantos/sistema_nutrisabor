@@ -597,6 +597,9 @@ def demonstrativo_faturamento():
     """
     hoje = datetime.now()
     ano_param = request.args.get('ano')
+    socio_sel = request.args.get('socio', '1')
+    if socio_sel not in ('1', '2'):
+        socio_sel = '1'
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -654,7 +657,15 @@ def demonstrativo_faturamento():
     cursor.execute("SELECT DISTINCT YEAR(data_fim) AS ano FROM pedidos WHERE data_fim IS NOT NULL ORDER BY ano DESC")
     anos = [r['ano'] for r in cursor.fetchall()] or [hoje.year]
     cursor.execute("SELECT * FROM empresa WHERE id = 1")
-    empresa = cursor.fetchone()
+    empresa = cursor.fetchone() or {}
+
+    # Proprietário que assina (1 ou 2), conforme cadastro em Minha Empresa
+    if socio_sel == '2':
+        socio_nome = empresa.get('socio2_nome') or ''
+        socio_cpf = empresa.get('socio2_cpf') or ''
+    else:
+        socio_nome = empresa.get('socio1_nome') or ''
+        socio_cpf = empresa.get('socio1_cpf') or ''
 
     log_action('view', entity_type='demonstrativo',
                descricao=f"Gerou demonstrativo de faturamento ({periodo_label}, total R${total:.2f})")
@@ -662,4 +673,5 @@ def demonstrativo_faturamento():
                            linhas=linhas, total=total, anos=anos, modo_sel=modo_sel,
                            empresa=empresa, periodo_label=periodo_label,
                            media=(total / len(linhas)) if linhas else 0,
+                           socio_sel=socio_sel, socio_nome=socio_nome, socio_cpf=socio_cpf,
                            gerado_em=hoje.strftime('%d/%m/%Y às %H:%M'))

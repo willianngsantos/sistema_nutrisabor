@@ -65,6 +65,14 @@
     .resumo .box .lbl { font-size: .68rem; text-transform: uppercase; letter-spacing: .5px; color: #444; }
     .resumo .box .val { font-size: 1.15rem; font-weight: 800; color: #000; }
 
+    /* Blocos de assinatura (proprietário + contador) */
+    .assinaturas { display: flex; gap: 50px; margin-top: 50px; }
+    .assina { flex: 1; text-align: center; }
+    .assina .linha { border-top: 1px solid #000; margin-bottom: 5px; }
+    .assina .nome { font-weight: 700; font-size: .9rem; text-transform: uppercase; line-height: 1.2; }
+    .assina .ident { font-size: .78rem; color: #222; }
+    .assina .cargo { font-size: .72rem; color: #555; text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+
     .doc-footer {
       margin-top: 26px; padding-top: 8px; border-top: 1px solid #999;
       font-size: .72rem; color: #555; display: flex; justify-content: space-between;
@@ -92,9 +100,13 @@
     <button onclick="voltar()" class="btn btn-sm btn-outline-light rounded-circle" title="Voltar"><i class="bi bi-arrow-left"></i></button>
     <span class="text-white-50 small border-start ps-3"><i class="bi bi-bank me-1"></i>Demonstrativo de Faturamento</span>
     <select class="form-select form-select-sm w-auto ms-2"
-            onchange="location.href = this.value === '12m' ? '{{ url_for('vendas.demonstrativo_faturamento') }}' : '?ano=' + this.value">
+            onchange="navega({ano: this.value === '12m' ? null : this.value})" title="Período">
       <option value="12m" {% if modo_sel == '12m' %}selected{% endif %}>Últimos 12 meses</option>
       {% for a in anos %}<option value="{{ a }}" {% if modo_sel == a|string %}selected{% endif %}>Ano {{ a }}</option>{% endfor %}
+    </select>
+    <select class="form-select form-select-sm w-auto" onchange="navega({socio: this.value})" title="Proprietário que assina">
+      <option value="1" {% if socio_sel == '1' %}selected{% endif %}>{{ empresa['socio1_nome'] or 'Sócio 1' }}</option>
+      <option value="2" {% if socio_sel == '2' %}selected{% endif %}>{{ empresa['socio2_nome'] or 'Sócio 2' }}</option>
     </select>
     <button id="btnImprimir" onclick="imprimirSeguro()" class="btn btn-sm btn-light rounded-pill px-4 ms-auto fw-bold">
       <i class="bi bi-printer-fill me-1"></i> Imprimir / Salvar PDF
@@ -159,6 +171,21 @@
       </div>
     </div>
 
+    <div class="assinaturas">
+      <div class="assina">
+        <div class="linha"></div>
+        <div class="nome">{{ socio_nome or '—' }}</div>
+        {% if socio_cpf %}<div class="ident">CPF: {{ socio_cpf | cpf_cnpj }}</div>{% endif %}
+        <div class="cargo">Proprietário</div>
+      </div>
+      <div class="assina">
+        <div class="linha"></div>
+        <div class="nome">{{ empresa['contador_nome'] or '—' }}</div>
+        {% if empresa['contador_crc'] %}<div class="ident">CRC: {{ empresa['contador_crc'] }}</div>{% endif %}
+        <div class="cargo">Contador(a) Responsável</div>
+      </div>
+    </div>
+
     <div class="doc-footer">
       <span>Valores por competência (data de fechamento da fatura).</span>
       <span>Gerado em {{ gerado_em }} · Sistema NutriSabor</span>
@@ -166,6 +193,15 @@
   </div>
 
   <script>
+    // Navega preservando os outros parâmetros (período + proprietário)
+    function navega(extra){
+      const u = new URL(window.location.href);
+      for (const k in extra){
+        if (extra[k] === null || extra[k] === undefined) u.searchParams.delete(k);
+        else u.searchParams.set(k, extra[k]);
+      }
+      window.location.href = u.toString();
+    }
     function voltar(){ if (window.history.length > 1) window.history.back(); else window.location.href='/relatorios'; }
     async function imprimirSeguro(){
       const btn = document.getElementById('btnImprimir');

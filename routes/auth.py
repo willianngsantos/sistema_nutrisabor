@@ -379,7 +379,9 @@ def configuracao_empresa():
         # Carrega estado anterior para diff
         cursor.execute("""
             SELECT razao_social, cnpj, cep, endereco, cidade, estado,
-                   telefone, email, banco_nome, agencia, conta, pix_chave
+                   telefone, email, banco_nome, agencia, conta, pix_chave,
+                   socio1_nome, socio1_cpf, socio2_nome, socio2_cpf,
+                   contador_nome, contador_crc
             FROM empresa WHERE id=1
         """)
         antes = cursor.fetchone() or {}
@@ -396,17 +398,29 @@ def configuracao_empresa():
             'agencia': request.form["agencia"],
             'conta': request.form["conta"],
             'pix_chave': request.form["pix_chave"],
+            # Assinaturas do Demonstrativo (banco)
+            'socio1_nome': request.form.get("socio1_nome", "").strip() or None,
+            'socio1_cpf': request.form.get("socio1_cpf", "").strip() or None,
+            'socio2_nome': request.form.get("socio2_nome", "").strip() or None,
+            'socio2_cpf': request.form.get("socio2_cpf", "").strip() or None,
+            'contador_nome': request.form.get("contador_nome", "").strip() or None,
+            'contador_crc': request.form.get("contador_crc", "").strip() or None,
         }
         dados = (
             depois['razao_social'], depois['cnpj'], depois['cep'],
             depois['endereco'], depois['cidade'], depois['estado'],
             depois['telefone'], depois['email'], depois['banco_nome'],
-            depois['agencia'], depois['conta'], depois['pix_chave']
+            depois['agencia'], depois['conta'], depois['pix_chave'],
+            depois['socio1_nome'], depois['socio1_cpf'],
+            depois['socio2_nome'], depois['socio2_cpf'],
+            depois['contador_nome'], depois['contador_crc']
         )
         cursor.execute("""
             UPDATE empresa
             SET razao_social=%s, cnpj=%s, cep=%s, endereco=%s, cidade=%s, estado=%s,
-                telefone=%s, email=%s, banco_nome=%s, agencia=%s, conta=%s, pix_chave=%s
+                telefone=%s, email=%s, banco_nome=%s, agencia=%s, conta=%s, pix_chave=%s,
+                socio1_nome=%s, socio1_cpf=%s, socio2_nome=%s, socio2_cpf=%s,
+                contador_nome=%s, contador_crc=%s
             WHERE id=1
         """, dados)
         conn.commit()

@@ -5,7 +5,7 @@
   <title>Folha de Ponto Geral — {{ MESES_PT[mes-1] }}/{{ ano }}</title>
   <!-- Pre-carrega a logo: garante cache antes do dialogo de impressao,
        evitando re-render tardio que deixa o preview branco no Safari -->
-  <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo_preto.png') }}">
+  <!-- Logo preta embutida (data URI) no corpo — não depende de arquivo externo -->
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -246,7 +246,7 @@
   <!-- Cabeçalho (mesmo layout da Folha Individual) -->
   <div class="header">
     <div class="header-left">
-      <img src="/static/img/logo_preto.png" alt="Logo" class="header-logo">
+      {% include '_logo_preto_img.html' %}
       <div>
         <div class="header-title">Folha de Ponto</div>
         <div class="header-sub">Controle de frequência mensal — preenchimento manual</div>

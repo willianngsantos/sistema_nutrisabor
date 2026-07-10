@@ -88,6 +88,7 @@
     .st-afastado { background:#fef9c3; color:#854d0e; border:1px solid #fde68a; }
     .st-ferias   { background:#dbeafe; color:#1e40af; border:1px solid #bfdbfe; }
     .st-inativo-badge { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+    .st-demitido { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; }
 
     /* Badge função */
     .badge-funcao {
@@ -214,6 +215,8 @@
                                     <span class="st-badge st-afastado" style="font-size:.64rem;padding:2px 7px;"><i class="bi bi-bandaid-fill me-1"></i>Afastado</span>
                                 {% elif c.status == 'ferias' %}
                                     <span class="st-badge st-ferias" style="font-size:.64rem;padding:2px 7px;"><i class="bi bi-umbrella-fill me-1"></i>Férias</span>
+                                {% elif c.status == 'demitido' %}
+                                    <span class="st-badge st-demitido" style="font-size:.64rem;padding:2px 7px;" title="Demitido em {{ c.data_demissao_fmt or '—' }}"><i class="bi bi-person-dash-fill me-1"></i>Demitido{% if c.data_demissao_fmt %} · {{ c.data_demissao_fmt }}{% endif %}</span>
                                 {% else %}
                                     <span class="st-badge st-inativo-badge" style="font-size:.64rem;padding:2px 7px;"><i class="bi bi-x-circle me-1"></i>Inativo</span>
                                 {% endif %}
@@ -273,6 +276,9 @@
                         <span class="st-badge st-afastado"><i class="bi bi-bandaid-fill"></i>Afastado</span>
                     {% elif c.status == 'ferias' %}
                         <span class="st-badge st-ferias"><i class="bi bi-umbrella-fill"></i>Férias</span>
+                    {% elif c.status == 'demitido' %}
+                        <span class="st-badge st-demitido"><i class="bi bi-person-dash-fill"></i>Demitido</span>
+                        {% if c.data_demissao_fmt %}<div class="text-muted" style="font-size:.65rem;">em {{ c.data_demissao_fmt }}</div>{% endif %}
                     {% else %}
                         <span class="st-badge st-inativo-badge"><i class="bi bi-x-circle"></i>Inativo</span>
                     {% endif %}
@@ -294,6 +300,7 @@
                                 data-vr="{{ '%.2f'|format(c.vale_refeicao or 0) }}"
                                 data-diversos="{{ '%.2f'|format(c.diversos or 0) }}"
                                 data-admissao="{{ c.data_admissao.strftime('%Y-%m-%d') if c.data_admissao else '' }}"
+                                data-demissao="{{ c.data_demissao_iso }}"
                                 data-unidades="{{ c.unidades_ids or '' }}"
                                 data-recebe_vt="{{ c.recebe_vt if c.recebe_vt is not none else 1 }}"
                                 data-rg="{{ c.rg or '' }}"
@@ -357,6 +364,13 @@
                                             <i class="bi bi-x-circle text-secondary me-2"></i>Inativo
                                         </button>
                                     </form>
+                                </li>
+                                <li>
+                                    <button type="button"
+                                            class="dropdown-item btn-demitir {% if c.status == 'demitido' %}fw-bold text-danger{% endif %}"
+                                            data-id="{{ c.id }}" data-nome="{{ c.nome }}" data-data="{{ c.data_demissao_iso }}">
+                                        <i class="bi bi-person-dash-fill text-danger me-2"></i>Demitido…
+                                    </button>
                                 </li>
                             </ul>
                         </div>
@@ -747,12 +761,17 @@
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label fw-semibold small text-secondary mb-1">Status</label>
-                                        <select name="status" id="edit_status" class="form-select border-0 bg-light">
+                                        <select name="status" id="edit_status" class="form-select border-0 bg-light" onchange="toggleDemissao()">
                                             <option value="ativo">✅ Ativo</option>
                                             <option value="ferias">☂️ Férias</option>
                                             <option value="afastado">🩹 Afastado</option>
                                             <option value="inativo">⚫ Inativo</option>
+                                            <option value="demitido">🚪 Demitido</option>
                                         </select>
+                                    </div>
+                                    <div class="col-md-4" id="wrap_edit_demissao" style="display:none;">
+                                        <label class="form-label fw-semibold small text-danger mb-1">Data da Demissão</label>
+                                        <input type="date" name="data_demissao" id="edit_demissao" class="form-control border-0 bg-light">
                                     </div>
                                     <div class="col-md-6 d-none" id="edit_crn3_wrapper">
                                         <label class="form-label fw-semibold small text-secondary mb-1">
@@ -990,6 +1009,8 @@
         document.getElementById('edit_funcao').value   = btn.getAttribute('data-funcao');
         document.getElementById('edit_admissao').value = btn.getAttribute('data-admissao');
         document.getElementById('edit_status').value   = btn.getAttribute('data-status');
+        document.getElementById('edit_demissao').value = btn.getAttribute('data-demissao') || '';
+        toggleDemissao();
         document.getElementById('edit_salario').value  = fmt(btn.getAttribute('data-salario'));
         document.getElementById('edit_vt').value       = fmt(btn.getAttribute('data-vt'));
         document.getElementById('edit_vr').value       = fmt(btn.getAttribute('data-vr'));
@@ -1117,5 +1138,55 @@
             row.style.display = row.innerText.toUpperCase().includes(f) ? '' : 'none';
         });
     });
+
+    // ── DEMISSÃO ──────────────────────────────────────────────
+    // No form de edição: mostra a data só quando o status é "demitido".
+    function toggleDemissao() {
+        var sel = document.getElementById('edit_status');
+        var wrap = document.getElementById('wrap_edit_demissao');
+        var input = document.getElementById('edit_demissao');
+        if (!sel || !wrap) return;
+        var ehDemitido = sel.value === 'demitido';
+        wrap.style.display = ehDemitido ? '' : 'none';
+        input.required = ehDemitido;
+        if (!ehDemitido) input.value = '';
+    }
+
+    // Atalho "Demitido…" do dropdown: abre o modal pedindo a data
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.btn-demitir');
+        if (!btn) return;
+        var form = document.getElementById('formDemissao');
+        form.action = '/status_colaborador/' + btn.dataset.id + '/demitido';
+        document.getElementById('dem_nome').textContent = btn.dataset.nome;
+        var input = document.getElementById('dem_data');
+        input.value = btn.dataset.data || new Date().toISOString().slice(0, 10);
+        new bootstrap.Modal(document.getElementById('modalDemissao')).show();
+    });
 </script>
+
+<!-- Modal: registrar demissão (pede a data) -->
+<div class="modal fade" id="modalDemissao" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-danger text-white border-0">
+        <h6 class="modal-title fw-bold"><i class="bi bi-person-dash-fill me-2"></i>Registrar Demissão</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" id="formDemissao">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body bg-light p-4">
+          <p class="small text-muted mb-3">Desligando <strong id="dem_nome" class="text-dark"></strong>.</p>
+          <label class="form-label small fw-bold text-uppercase text-secondary">Data da demissão</label>
+          <input type="date" name="data_demissao" id="dem_data" class="form-control border-0 shadow-sm" required>
+          <div class="form-text small">O colaborador sai das listas de ponto, férias, exames, VT e reajuste.</div>
+        </div>
+        <div class="modal-footer border-0 bg-light">
+          <button type="button" class="btn btn-link text-muted text-decoration-none" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger fw-bold px-4 shadow-sm">Confirmar Demissão</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}

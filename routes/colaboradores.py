@@ -9,7 +9,11 @@ from utils.constants import MESES_PT
 
 colaboradores_bp = Blueprint('colaboradores', __name__)
 
-STATUS_VALIDOS = {'ativo', 'afastado', 'ferias', 'inativo'}
+# 'demitido' = desligado com data (data_demissao). 'inativo' segue existindo
+# para quem apenas não está mais em atividade sem ser uma demissão formal.
+STATUS_VALIDOS = {'ativo', 'afastado', 'ferias', 'inativo', 'demitido'}
+# Status que tiram o colaborador do quadro (não entram em listas operacionais)
+STATUS_FORA_DO_QUADRO = ('inativo', 'demitido')
 FUNCOES_VALIDAS = ['Auxiliar de Cozinha', 'Cozinheira(o)', 'Nutricionista']
 
 # Principais bancos do Brasil (códigos COMPE). Usado no dropdown de
@@ -104,7 +108,7 @@ def listar():
             col.id, col.nome, col.funcao, col.status,
             col.salario_bruto, col.vale_transporte,
             col.vale_refeicao, col.diversos,
-            col.data_admissao,
+            col.data_admissao, col.data_demissao,
             col.rg, col.cpf,
             col.endereco_cep, col.endereco_logradouro, col.endereco_numero,
             col.endereco_complemento, col.endereco_bairro,
@@ -118,7 +122,7 @@ def listar():
         LEFT JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
         LEFT JOIN clientes c ON cu.id_cliente = c.id
         GROUP BY col.id
-        ORDER BY FIELD(col.status, 'ativo', 'ferias', 'afastado', 'inativo'), col.nome
+        ORDER BY FIELD(col.status, 'ativo', 'ferias', 'afastado', 'inativo', 'demitido'), col.nome
     """)
     colaboradores = cursor.fetchall()
 
@@ -127,6 +131,8 @@ def listar():
         c['unidades_ids_set'] = set(c['unidades_ids'].split(',')) if c['unidades_ids'] else set()
         # Formata data em Python (evita bug com DATE_FORMAT + %% no mysql-connector)
         c['data_admissao_fmt'] = c['data_admissao'].strftime('%d/%m/%Y') if c.get('data_admissao') else ''
+        c['data_demissao_fmt'] = c['data_demissao'].strftime('%d/%m/%Y') if c.get('data_demissao') else ''
+        c['data_demissao_iso'] = c['data_demissao'].strftime('%Y-%m-%d') if c.get('data_demissao') else ''
 
     # Apenas clientes marcados como unidade de trabalho
     cursor.execute("""
@@ -191,6 +197,7 @@ def ficha(id_colab):
 
     colab['unidades_lista'] = colab['unidades_nomes'].split('||') if colab.get('unidades_nomes') else []
     colab['data_admissao_fmt'] = colab['data_admissao'].strftime('%d/%m/%Y') if colab.get('data_admissao') else ''
+    colab['data_demissao_fmt'] = colab['data_demissao'].strftime('%d/%m/%Y') if colab.get('data_demissao') else ''
 
     return render_template("colaborador_ficha.html", c=colab)
 
@@ -211,6 +218,7 @@ def add_colaborador():
     vr            = _parse_moeda(request.form.get("vale_refeicao", ""))
     diversos      = _parse_moeda(request.form.get("diversos", ""))
     data_admissao = request.form.get("data_admissao") or None
+    data_demissao = request.form.get("data_demissao") or None
     ids_unidades  = request.form.getlist("unidades")
     recebe_vt     = 1 if request.form.get("recebe_vt") else 0
     pessoais      = _coletar_dados_pessoais()
@@ -220,6 +228,13 @@ def add_colaborador():
     # Função: aceita só valores da lista oficial (preserva NULL se vazio)
     if funcao and funcao not in FUNCOES_VALIDAS:
         funcao = None
+
+    # Data de demissão só faz sentido no status 'demitido' (e é obrigatória nele)
+    if status == 'demitido' and not data_demissao:
+        flash("Informe a data da demissão.", "warning")
+        return redirect(url_for('colaboradores.listar'))
+    if status != 'demitido':
+        data_demissao = None
 
     # CPF é opcional, mas se informado tem que ser válido
     if pessoais['cpf'] and not cpf_valido(pessoais['cpf']):
@@ -232,16 +247,16 @@ def add_colaborador():
         cursor.execute("""
             INSERT INTO colaboradores
                 (nome, funcao, status, salario_bruto, vale_transporte, vale_refeicao,
-                 diversos, data_admissao, recebe_vt,
+                 diversos, data_admissao, data_demissao, recebe_vt,
                  rg, cpf, endereco_cep, endereco_logradouro, endereco_numero,
                  endereco_complemento, endereco_bairro, endereco_cidade, endereco_uf, crn3,
                  agencia, conta, banco,
                  cbo, ctps, id_jornada)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s,
                     %s, %s, %s)
-        """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt,
+        """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, data_demissao, recebe_vt,
               pessoais['rg'], pessoais['cpf'], pessoais['endereco_cep'],
               pessoais['endereco_logradouro'], pessoais['endereco_numero'],
               pessoais['endereco_complemento'], pessoais['endereco_bairro'],
@@ -278,6 +293,7 @@ def editar_colaborador():
     vr            = _parse_moeda(request.form.get("vale_refeicao", ""))
     diversos      = _parse_moeda(request.form.get("diversos", ""))
     data_admissao = request.form.get("data_admissao") or None
+    data_demissao = request.form.get("data_demissao") or None
     ids_unidades  = request.form.getlist("unidades")
     recebe_vt     = 1 if request.form.get("recebe_vt") else 0
     pessoais      = _coletar_dados_pessoais()
@@ -286,6 +302,13 @@ def editar_colaborador():
         status = 'ativo'
     if funcao and funcao not in FUNCOES_VALIDAS:
         funcao = None
+
+    # Data de demissão só existe no status 'demitido' (e é obrigatória nele)
+    if status == 'demitido' and not data_demissao:
+        flash("Informe a data da demissão.", "warning")
+        return redirect(url_for('colaboradores.listar'))
+    if status != 'demitido':
+        data_demissao = None
 
     # CPF é opcional, mas se informado tem que ser válido
     if pessoais['cpf'] and not cpf_valido(pessoais['cpf']):
@@ -297,7 +320,7 @@ def editar_colaborador():
     try:
         cursor.execute("""
             SELECT nome, funcao, status, salario_bruto, vale_transporte,
-                   vale_refeicao, diversos, data_admissao, recebe_vt,
+                   vale_refeicao, diversos, data_admissao, data_demissao, recebe_vt,
                    rg, cpf, endereco_cep, endereco_logradouro, endereco_numero,
                    endereco_complemento, endereco_bairro, endereco_cidade,
                    endereco_uf, crn3, agencia, conta, banco,
@@ -309,28 +332,30 @@ def editar_colaborador():
         for k in ('salario_bruto', 'vale_transporte', 'vale_refeicao', 'diversos'):
             if antes.get(k) is not None:
                 antes[k] = float(antes[k])
-        # data_admissao vem como date, depois vem como string; normaliza
-        if antes.get('data_admissao') is not None:
-            antes['data_admissao'] = antes['data_admissao'].strftime('%Y-%m-%d')
+        # datas vêm como date, depois vêm como string; normaliza
+        for k in ('data_admissao', 'data_demissao'):
+            if antes.get(k) is not None:
+                antes[k] = antes[k].strftime('%Y-%m-%d')
         depois = {
             'nome': nome, 'funcao': funcao, 'status': status,
             'salario_bruto': salario, 'vale_transporte': vt,
             'vale_refeicao': vr, 'diversos': diversos,
-            'data_admissao': data_admissao, 'recebe_vt': recebe_vt,
+            'data_admissao': data_admissao, 'data_demissao': data_demissao,
+            'recebe_vt': recebe_vt,
             **pessoais,
         }
         cursor.execute("""
             UPDATE colaboradores
             SET nome=%s, funcao=%s, status=%s,
                 salario_bruto=%s, vale_transporte=%s, vale_refeicao=%s, diversos=%s,
-                data_admissao=%s, recebe_vt=%s,
+                data_admissao=%s, data_demissao=%s, recebe_vt=%s,
                 rg=%s, cpf=%s, endereco_cep=%s, endereco_logradouro=%s,
                 endereco_numero=%s, endereco_complemento=%s, endereco_bairro=%s,
                 endereco_cidade=%s, endereco_uf=%s, crn3=%s,
                 agencia=%s, conta=%s, banco=%s,
                 cbo=%s, ctps=%s, id_jornada=%s
             WHERE id=%s
-        """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, recebe_vt,
+        """, (nome, funcao, status, salario, vt, vr, diversos, data_admissao, data_demissao, recebe_vt,
               pessoais['rg'], pessoais['cpf'], pessoais['endereco_cep'],
               pessoais['endereco_logradouro'], pessoais['endereco_numero'],
               pessoais['endereco_complemento'], pessoais['endereco_bairro'],
@@ -362,6 +387,12 @@ def mudar_status(id_colab, novo_status):
         flash("Status inválido.", "danger")
         return redirect(url_for('colaboradores.listar'))
 
+    # Demissão exige a data do desligamento
+    data_demissao = (request.form.get('data_demissao') or '').strip() or None
+    if novo_status == 'demitido' and not data_demissao:
+        flash("Informe a data da demissão.", "warning")
+        return redirect(url_for('colaboradores.listar'))
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT nome, status FROM colaboradores WHERE id = %s", (id_colab,))
@@ -370,11 +401,21 @@ def mudar_status(id_colab, novo_status):
     if colab:
         status_antigo = colab['status']
         cursor2 = conn.cursor(dictionary=True)
-        cursor2.execute("UPDATE colaboradores SET status = %s WHERE id = %s", (novo_status, id_colab))
+        if novo_status == 'demitido':
+            cursor2.execute(
+                "UPDATE colaboradores SET status = %s, data_demissao = %s WHERE id = %s",
+                (novo_status, data_demissao, id_colab))
+        else:
+            # Sair de 'demitido' (recontratação/correção) limpa a data
+            cursor2.execute(
+                "UPDATE colaboradores SET status = %s, data_demissao = NULL WHERE id = %s",
+                (novo_status, id_colab))
         conn.commit()
-        labels = {'ativo': 'Ativo', 'afastado': 'Afastado', 'ferias': 'Férias', 'inativo': 'Inativo'}
+        labels = {'ativo': 'Ativo', 'afastado': 'Afastado', 'ferias': 'Férias',
+                  'inativo': 'Inativo', 'demitido': 'Demitido'}
+        extra = f" (demissão em {data_demissao})" if novo_status == 'demitido' else ""
         log_action('update', entity_type='colaborador', entity_id=int(id_colab),
-                   descricao=f"Colaborador '{colab['nome']}': status {status_antigo}→{novo_status}")
+                   descricao=f"Colaborador '{colab['nome']}': status {status_antigo}→{novo_status}{extra}")
         flash(f"{colab['nome']} → {labels.get(novo_status, novo_status)}.", "info")
 
     return redirect(url_for('colaboradores.listar'))

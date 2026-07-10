@@ -363,7 +363,7 @@ def exames():
         ex['data_realizado_fmt']   = _fmt_date(ex.get('data_realizado'))
         ex['data_vencimento_fmt']  = _fmt_date(ex.get('data_vencimento'))
 
-    cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
+    cursor.execute("SELECT id, nome FROM colaboradores WHERE status NOT IN ('inativo', 'demitido') ORDER BY nome")
     colaboradores = cursor.fetchall()
 
     return render_template('rh_exames.html',
@@ -388,7 +388,7 @@ def add_exame():
 
     if id_colab == 'todos':
         # Insere o exame para TODOS os colaboradores ativos
-        cursor.execute("SELECT id FROM colaboradores WHERE status != 'inativo'")
+        cursor.execute("SELECT id FROM colaboradores WHERE status NOT IN ('inativo', 'demitido')")
         ids = [row['id'] for row in cursor.fetchall()]
         for cid in ids:
             cursor.execute("""
@@ -551,7 +551,7 @@ def atestados():
         a['data_inicio_iso'] = a['data_inicio'].strftime('%Y-%m-%d') if a.get('data_inicio') else ''
         a['cid_desc'] = descricao_cid(a.get('cid'))
 
-    cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
+    cursor.execute("SELECT id, nome FROM colaboradores WHERE status NOT IN ('inativo', 'demitido') ORDER BY nome")
     colaboradores = cursor.fetchall()
 
     return render_template('rh_atestados.html',
@@ -733,7 +733,7 @@ def reajuste():
                GROUP_CONCAT(cu.id_cliente) AS unidades_ids
         FROM colaboradores col
         LEFT JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
-        WHERE col.status != 'inativo'
+        WHERE col.status NOT IN ('inativo', 'demitido')
         GROUP BY col.id
         ORDER BY col.nome
     """)
@@ -802,11 +802,11 @@ def aplicar_reajuste():
             SELECT col.id, col.{beneficio} AS atual
             FROM colaboradores col
             JOIN colaborador_unidades cu ON col.id = cu.id_colaborador
-            WHERE cu.id_cliente = %s AND col.status != 'inativo'
+            WHERE cu.id_cliente = %s AND col.status NOT IN ('inativo', 'demitido')
         """, (unidade_id,))
     else:
         # Nenhum marcado e sem unidade → todos os ativos
-        cursor.execute(f"SELECT id, {beneficio} AS atual FROM colaboradores WHERE status != 'inativo'")
+        cursor.execute(f"SELECT id, {beneficio} AS atual FROM colaboradores WHERE status NOT IN ('inativo', 'demitido')")
     colaboradores = cursor.fetchall()
 
     cursor2 = conn.cursor(dictionary=True)
@@ -1114,7 +1114,7 @@ def ferias():
     for f in lista:
         f['inicio_fmt'] = _fmt_date(f.get('data_inicio'))
         f['fim_fmt']    = _fmt_date(f.get('data_fim'))
-    cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
+    cursor.execute("SELECT id, nome FROM colaboradores WHERE status NOT IN ('inativo', 'demitido') ORDER BY nome")
     colaboradores = cursor.fetchall()
     return render_template('rh_ferias.html', ferias=lista, colaboradores=colaboradores)
 
@@ -1250,11 +1250,11 @@ def ponto():
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     # Dropdown de colaborador (individual): mostra todos exceto inativos
-    cursor.execute("SELECT id, nome FROM colaboradores WHERE status != 'inativo' ORDER BY nome")
+    cursor.execute("SELECT id, nome FROM colaboradores WHERE status NOT IN ('inativo', 'demitido') ORDER BY nome")
     colaboradores = cursor.fetchall()
     # Contagem para o card "Folha Geral" reflete o filtro selecionado.
     # Nutricionista não registra ponto, então fica fora da folha geral.
-    where_geral = "status = 'ativo'" if status_filtro == 'ativos' else "status != 'inativo'"
+    where_geral = "status = 'ativo'" if status_filtro == 'ativos' else "status NOT IN ('inativo', 'demitido')"
     cursor.execute(
         f"SELECT COUNT(*) AS qt FROM colaboradores "
         f"WHERE {where_geral} AND COALESCE(funcao,'') <> 'Nutricionista'"
@@ -1376,7 +1376,7 @@ def imprimir_ponto_geral():
     # incluir todos exceto inativos (comportamento antigo).
     status_filtro = (request.args.get('status_filtro') or 'ativos').strip()
     if status_filtro == 'nao_inativos':
-        where_status = "status != 'inativo'"
+        where_status = "status NOT IN ('inativo', 'demitido')"
     else:
         # "ativos" (default) e qualquer outro valor desconhecido
         where_status = "status = 'ativo'"
@@ -1470,7 +1470,7 @@ def admissao_conta_salario_seletor():
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT id, nome, funcao FROM colaboradores
-        WHERE status != 'inativo'
+        WHERE status NOT IN ('inativo', 'demitido')
           AND (agencia IS NULL OR agencia = '' OR conta IS NULL OR conta = '')
         ORDER BY nome
     """)
@@ -1529,7 +1529,7 @@ def admissao_documentos_seletor():
     cursor = conn.cursor(dictionary=True)
     cursor.execute("""
         SELECT id, nome, funcao FROM colaboradores
-        WHERE status != 'inativo'
+        WHERE status NOT IN ('inativo', 'demitido')
         ORDER BY nome
     """)
     colaboradores = cursor.fetchall()

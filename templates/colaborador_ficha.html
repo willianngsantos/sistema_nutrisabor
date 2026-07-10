@@ -110,6 +110,10 @@
                     <span class="badge-status bs-ferias"><i class="bi bi-umbrella-fill"></i>Férias</span>
                 {% elif c.status == 'afastado' %}
                     <span class="badge-status bs-afastado"><i class="bi bi-bandaid-fill"></i>Afastado</span>
+                {% elif c.status == 'demitido' %}
+                    <span class="badge-status bs-inativo" style="background:#fee2e2;color:#991b1b;border-color:#fecaca;">
+                        <i class="bi bi-person-dash-fill"></i>Demitido{% if c.data_demissao_fmt %} · {{ c.data_demissao_fmt }}{% endif %}
+                    </span>
                 {% else %}
                     <span class="badge-status bs-inativo"><i class="bi bi-x-circle"></i>Inativo</span>
                 {% endif %}
@@ -134,6 +138,12 @@
             <div class="info-label">Data de Admissão</div>
             <div class="info-value">{{ c.data_admissao_fmt or '<span class="info-empty">Não informada</span>'|safe }}</div>
         </div>
+        {% if c.data_demissao_fmt %}
+        <div class="info-row">
+            <div class="info-label">Data de Demissão</div>
+            <div class="info-value text-danger fw-semibold">{{ c.data_demissao_fmt }}</div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Documentos -->

@@ -1,11 +1,16 @@
 import mysql.connector
 
 # Configuração do Banco (Sua senha padrão)
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+# Credenciais via ambiente (.env) — nunca hardcoded/versionadas.
 db_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'Wgs010203', 
-    'database': 'cozinha_industrial'
+    'host':     os.environ.get('DB_HOST', 'localhost'),
+    'user':     os.environ.get('DB_USER', 'root'),
+    'password': os.environ.get('DB_PASSWORD', ''),
+    'database': os.environ.get('DB_NAME', 'cozinha_industrial'),
 }
 
 try:

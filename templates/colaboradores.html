@@ -1092,11 +1092,11 @@
                 var el = document.getElementById(id);
                 if (el && !el.value && val) el.value = val;
             };
-            // Aqui sempre sobrescreve para refletir o CEP digitado
-            document.getElementById(prefix + '_logradouro').value = data.logradouro || '';
-            document.getElementById(prefix + '_bairro').value     = data.bairro || '';
-            document.getElementById(prefix + '_cidade').value     = data.localidade || '';
-            document.getElementById(prefix + '_uf').value         = (data.uf || '').toUpperCase();
+            // Só preenche o que estiver vazio — não apaga endereço editado à mão
+            setIfEmpty(prefix + '_logradouro', data.logradouro);
+            setIfEmpty(prefix + '_bairro',     data.bairro);
+            setIfEmpty(prefix + '_cidade',     data.localidade);
+            setIfEmpty(prefix + '_uf',         (data.uf || '').toUpperCase());
             // Foco direto no número (próximo campo a preencher)
             var num = document.querySelector('#modal' + (prefix === 'add' ? 'AddColab' : 'EditarColab') + ' input[name="endereco_numero"]');
             if (num) num.focus();
@@ -1126,6 +1126,7 @@
 
     function mascaraMoeda(el) {
         var v = el.value.replace(/\D/g, '');
+        if (!v) { el.value = ''; return; }   // sem dígitos → limpa (evita "NaN")
         v = (parseInt(v, 10) / 100).toFixed(2);
         v = v.replace('.', ',').replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
         el.value = v === '0,00' ? '' : v;
@@ -1160,7 +1161,10 @@
         form.action = '/status_colaborador/' + btn.dataset.id + '/demitido';
         document.getElementById('dem_nome').textContent = btn.dataset.nome;
         var input = document.getElementById('dem_data');
-        input.value = btn.dataset.data || new Date().toISOString().slice(0, 10);
+        // Data LOCAL (não toISOString/UTC — senão à noite no Brasil viraria o dia seguinte)
+        var hoje = new Date();
+        var hojeLocal = new Date(hoje.getTime() - hoje.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+        input.value = btn.dataset.data || hojeLocal;
         new bootstrap.Modal(document.getElementById('modalDemissao')).show();
     });
 </script>

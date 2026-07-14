@@ -195,8 +195,9 @@
             </button>
 
             {% if cliente['celular'] %}
-                {% set mensagem = "Olá " ~ (cliente['apelido'] if cliente['apelido'] else cliente['nome_empresa']) ~ "! 😃%0A%0ASegue o *" ~ nome_documento|lower ~ "* Ref: *" ~ pedido['codigo_fatura'] ~ "* referente ao período " ~ pedido['inicio'] ~ " a " ~ pedido['fim'] ~ ".%0A%0AValor: *" ~ total_whatsapp ~ "*%0A%0AEstou enviando o PDF em anexo." %}
-                <a href="https://wa.me/55{{ cliente['celular']|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}?text={{ mensagem }}"
+                {% set nl = "\n" %}
+                {% set mensagem = "Olá " ~ (cliente['apelido'] if cliente['apelido'] else cliente['nome_empresa']) ~ "! 😃" ~ nl ~ nl ~ "Segue o *" ~ nome_documento|lower ~ "* Ref: *" ~ pedido['codigo_fatura'] ~ "* referente ao período " ~ pedido['inicio'] ~ " a " ~ pedido['fim'] ~ "." ~ nl ~ nl ~ "Valor: *" ~ total_whatsapp ~ "*" ~ nl ~ nl ~ "Estou enviando o PDF em anexo." %}
+                <a href="https://wa.me/55{{ cliente['celular']|replace(' ','')|replace('-','')|replace('(','')|replace(')','') }}?text={{ mensagem|urlencode }}"
                    target="_blank" class="btn btn-sm btn-success text-white rounded-circle" title="Enviar WhatsApp">
                     <i class="bi bi-whatsapp"></i>
                 </a>
@@ -238,6 +239,7 @@
                         {{ pedido['emissao'] }}{% if status_pedido == 'Pago' and pedido['pagamento'] %} <span class="text-success" style="font-weight:600;">• <i class="bi bi-check2-circle"></i> Pago em {{ pedido['pagamento'] }}</span>{% endif %}
                     </div>
                 </div>
+            </div><!-- /.header-section -->
 
             <div class="client-box">
                 <div class="invoice-label text-warning">
@@ -274,7 +276,7 @@
                             <div style="font-size: 0.75rem; color: #999;">Unitário: {{ item['preco_praticado'] | real }}</div>
                         </td>
                         <td class="col-center">{{ item['unidade'] }}</td>
-                        <td class="col-center fw-bold">{{ item['quantidade']|int }}</td>
+                        <td class="col-center fw-bold">{{ item['quantidade']|int if item['quantidade'] == item['quantidade']|int else item['quantidade']|string|replace('.', ',') }}</td>
                         <td class="col-money fw-bold">{{ item['subtotal'] | real }}</td>
                     </tr>
                     {% endfor %}

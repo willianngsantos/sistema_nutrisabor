@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from database import get_db_connection
 from datetime import datetime, timedelta, date
+from utils.permissions import rh_access  # admin, gerencial ou nutricionista
 
 cardapios_bp = Blueprint('cardapios', __name__)
 
@@ -46,6 +47,7 @@ def index():
 
 @cardapios_bp.route("/cardapios/novo", methods=["POST"])
 @login_required
+@rh_access
 def novo_cardapio():
     id_cliente = request.form.get("id_cliente")
     data_inicio_str = request.form.get("data_inicio")
@@ -90,6 +92,7 @@ def novo_cardapio():
 
 @cardapios_bp.route("/cardapios/montar/<int:id_cardapio>")
 @login_required
+@rh_access
 def montar_cardapio(id_cardapio):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -100,6 +103,9 @@ def montar_cardapio(id_cardapio):
         WHERE ca.id = %s
     """, (id_cardapio,))
     cardapio = cursor.fetchone()
+    if not cardapio:
+        flash("Cardápio não encontrado.", "warning")
+        return redirect(url_for('cardapios.index'))
 
     cursor.execute("SELECT * FROM itens_cardapio WHERE id_cardapio = %s ORDER BY data_dia", (id_cardapio,))
     itens = cursor.fetchall()
@@ -119,6 +125,7 @@ def montar_cardapio(id_cardapio):
 
 @cardapios_bp.route("/cardapios/salvar_itens/<int:id_cardapio>", methods=["POST"])
 @login_required
+@rh_access
 def salvar_itens(id_cardapio):
     observacoes = request.form.get("observacoes", "")
     
@@ -159,6 +166,7 @@ def salvar_itens(id_cardapio):
 
 @cardapios_bp.route("/cardapios/imprimir/<int:id_cardapio>")
 @login_required
+@rh_access
 def imprimir_cardapio(id_cardapio):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -169,6 +177,9 @@ def imprimir_cardapio(id_cardapio):
         WHERE ca.id = %s
     """, (id_cardapio,))
     cardapio = cursor.fetchone()
+    if not cardapio:
+        flash("Cardápio não encontrado.", "warning")
+        return redirect(url_for('cardapios.index'))
 
     cursor.execute("SELECT * FROM itens_cardapio WHERE id_cardapio = %s ORDER BY data_dia", (id_cardapio,))
     itens = cursor.fetchall()

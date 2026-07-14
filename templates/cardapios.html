@@ -88,7 +88,7 @@
                             </a>
                             {% if current_user.tipo == 'admin' %}
                             <button type="button" class="btn btn-sm btn-outline-danger fw-bold"
-                                    onclick="confirmarExclusao({{ c['id'] }}, '{{ c['nome_empresa'] }}', '{{ c['inicio'] }} → {{ c['fim'] }}')">
+                                    onclick="confirmarExclusao({{ c['id']|tojson }}, {{ c['nome_empresa']|tojson }}, {{ (c['inicio'] ~ ' → ' ~ c['fim'])|tojson }})">
                                 <i class="bi bi-trash3"></i>
                             </button>
                             {% endif %}
@@ -167,7 +167,7 @@
                                     </a>
                                     {% if current_user.tipo == 'admin' %}
                                     <button type="button" class="btn btn-sm btn-outline-danger fw-bold"
-                                            onclick="confirmarExclusao({{ c['id'] }}, '{{ c['nome_empresa'] }}', '{{ c['inicio'] }} → {{ c['fim'] }}')">
+                                            onclick="confirmarExclusao({{ c['id']|tojson }}, {{ c['nome_empresa']|tojson }}, {{ (c['inicio'] ~ ' → ' ~ c['fim'])|tojson }})">
                                         <i class="bi bi-trash3"></i>
                                     </button>
                                     {% endif %}

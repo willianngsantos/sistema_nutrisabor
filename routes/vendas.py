@@ -631,6 +631,7 @@ def exportar_relatorio_csv():
 
 @vendas_bp.route("/relatorios/demonstrativo")
 @login_required
+@admin_only
 def demonstrativo_faturamento():
     """Demonstrativo de Faturamento (mês a mês, por competência/data_fim) —
     documento de impressão para enviar ao banco.

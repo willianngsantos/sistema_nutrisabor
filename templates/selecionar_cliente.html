@@ -146,7 +146,7 @@
 // Base de clientes para filtro dinâmico
 const CLIENTES_DB = [
     {% for c in clientes %}
-    { id: {{ c['id'] }}, nome: "{{ c['nome_empresa']|replace('"', '\\"')|replace('\n','') }}" }{% if not loop.last %},{% endif %}
+    { id: {{ c['id']|tojson }}, nome: {{ c['nome_empresa']|tojson }} }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
 

@@ -55,6 +55,18 @@ limiter.init_app(app)
 app.teardown_appcontext(close_db_connection)
 
 
+# --- HEADERS DE SEGURANÇA ---
+# Defesa em profundidade barata: impede o site de ser embutido em iframe
+# (clickjacking), desliga o MIME-sniffing e limita o vazamento de Referer.
+# CSP fica de fora por ora porque o app usa <script> inline em várias telas.
+@app.after_request
+def _headers_seguranca(resp):
+    resp.headers.setdefault('X-Frame-Options', 'DENY')
+    resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    return resp
+
+
 # --- PROTEÇÃO DE UPLOADS SENSÍVEIS ---
 # Documentos de RH contêm PII (CPF, RG, dados bancários). Eles ficam em
 # static/uploads/rh_docs por conveniência de armazenamento, mas /static é

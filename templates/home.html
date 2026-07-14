@@ -239,12 +239,14 @@
                                         <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}" title="Informar Nota Fiscal">
                                             <i class="bi bi-file-earmark-text"></i> NF
                                         </button>
+                                        {% if current_user.tipo == 'admin' %}
                                         <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pago') }}" style="display:inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-sm btn-success" title="Marcar como Pago">
                                                 <i class="bi bi-currency-dollar"></i> Receber
                                             </button>
                                         </form>
+                                        {% endif %}
                                         <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pendente') }}" style="display:inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-sm btn-outline-secondary" title="Voltar para Rascunho">
@@ -292,12 +294,14 @@
                                         {% elif ped.status == 'Aprovado' %}
                                         <li><hr class="dropdown-divider my-1"></li>
                                         <li><a class="dropdown-item small" href="#" data-bs-toggle="modal" data-bs-target="#modalNF" data-id="{{ ped.id }}" data-nf="{{ ped.numero_nf or '' }}"><i class="bi bi-file-earmark-text me-2"></i>Nota Fiscal</a></li>
+                                        {% if current_user.tipo == 'admin' %}
                                         <li>
                                             <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pago') }}">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                 <button type="submit" class="dropdown-item small text-success"><i class="bi bi-currency-dollar me-2"></i>Receber</button>
                                             </form>
                                         </li>
+                                        {% endif %}
                                         <li>
                                             <form method="POST" action="{{ url_for('vendas.mudar_status', id_pedido=ped.id, novo_status='Pendente') }}">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

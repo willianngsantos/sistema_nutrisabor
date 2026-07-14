@@ -293,14 +293,17 @@ def mudar_status(id_pedido, novo_status):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Carrega o status atual para aplicar a regra de reversão:
-    # sair de 'Pago' para qualquer outro status (estornar recebimento) é
-    # restrito a admin. Outras transições continuam liberadas para qualquer
-    # usuário autenticado.
+    # Regras de autorização por transição:
+    #  - Marcar como 'Pago' (baixa de recebimento) é restrito a admin.
+    #  - Estornar uma fatura já paga (sair de 'Pago') também é restrito a admin.
+    # As demais transições (Pendente↔Aprovado) seguem liberadas para vendedores.
     cursor.execute("SELECT status, codigo_fatura FROM pedidos WHERE id = %s", (id_pedido,))
     atual = cursor.fetchone()
     if not atual:
         flash("Fatura não encontrada.", "danger")
+        return redirect(url_for('home'))
+    if novo_status == 'Pago' and current_user.tipo != 'admin':
+        flash("Somente administradores podem marcar uma fatura como Paga.", "warning")
         return redirect(url_for('home'))
     if atual['status'] == 'Pago' and novo_status != 'Pago' and current_user.tipo != 'admin':
         flash("Somente administradores podem estornar uma fatura já paga.", "warning")

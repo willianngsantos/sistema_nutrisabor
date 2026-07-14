@@ -49,7 +49,14 @@ def index():
 def novo_cardapio():
     id_cliente = request.form.get("id_cliente")
     data_inicio_str = request.form.get("data_inicio")
-    dias_qnt = int(request.form.get("dias_qnt", 5)) # Pode ser 5 (Seg-Sex) ou 6 (Seg-Sab)
+    # Parse seguro: um dias_qnt não-numérico não pode derrubar a página (500).
+    # Aceita só 5 ou 6 (Seg-Sex / Seg-Sáb); qualquer outra coisa cai em 5.
+    try:
+        dias_qnt = int(request.form.get("dias_qnt", 5))
+    except (ValueError, TypeError):
+        dias_qnt = 5
+    if dias_qnt not in (5, 6):
+        dias_qnt = 5
 
     try:
         data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d')

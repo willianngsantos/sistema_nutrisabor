@@ -259,12 +259,21 @@ def hub():
     total_afastados = cursor.fetchone()['total']
 
     try:
+        # Só conta exames de quem ainda está no quadro — senão o card do hub
+        # fica "vermelho" por causa de exame vencido de gente já demitida.
         cursor.execute("""
-            SELECT COUNT(*) as total FROM rh_exames
-            WHERE data_vencimento BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+            SELECT COUNT(*) as total FROM rh_exames e
+            JOIN colaboradores c ON c.id = e.id_colaborador
+            WHERE c.status NOT IN ('inativo', 'demitido')
+              AND e.data_vencimento BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
         """)
         exames_vencendo = cursor.fetchone()['total']
-        cursor.execute("SELECT COUNT(*) as total FROM rh_exames WHERE data_vencimento < CURDATE()")
+        cursor.execute("""
+            SELECT COUNT(*) as total FROM rh_exames e
+            JOIN colaboradores c ON c.id = e.id_colaborador
+            WHERE c.status NOT IN ('inativo', 'demitido')
+              AND e.data_vencimento < CURDATE()
+        """)
         exames_vencidos = cursor.fetchone()['total']
     except Exception:
         exames_vencendo = exames_vencidos = 0
@@ -795,7 +804,10 @@ def aplicar_reajuste():
     if selecionados:
         # Colaboradores explicitamente marcados (têm prioridade sobre o filtro)
         fmt = ','.join(['%s'] * len(selecionados))
-        cursor.execute(f"SELECT id, {beneficio} AS atual FROM colaboradores WHERE id IN ({fmt})", selecionados)
+        # Mesmo marcado à mão, um demitido/inativo não recebe reajuste.
+        cursor.execute(
+            f"SELECT id, {beneficio} AS atual FROM colaboradores "
+            f"WHERE id IN ({fmt}) AND status NOT IN ('inativo', 'demitido')", selecionados)
     elif unidade_id.isdigit():
         # Nenhum marcado + unidade filtrada → todos os ativos daquela unidade
         cursor.execute(f"""

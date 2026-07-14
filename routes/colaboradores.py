@@ -405,10 +405,20 @@ def mudar_status(id_colab, novo_status):
             cursor2.execute(
                 "UPDATE colaboradores SET status = %s, data_demissao = %s WHERE id = %s",
                 (novo_status, data_demissao, id_colab))
-        else:
-            # Sair de 'demitido' (recontratação/correção) limpa a data
+            # Demissão cancela férias agendadas/em andamento (senão o cron
+            # "conclui" férias que nunca vão acontecer e o card do hub mente).
+            cursor2.execute(
+                "UPDATE rh_ferias SET status='cancelado' "
+                "WHERE id_colaborador = %s AND status IN ('agendado','em_andamento')",
+                (id_colab,))
+        elif novo_status in ('ativo', 'ferias', 'afastado'):
+            # Voltar ao quadro (recontratação/correção) limpa a data de demissão
             cursor2.execute(
                 "UPDATE colaboradores SET status = %s, data_demissao = NULL WHERE id = %s",
+                (novo_status, id_colab))
+        else:  # inativo: arquiva mantendo a data de demissão histórica
+            cursor2.execute(
+                "UPDATE colaboradores SET status = %s WHERE id = %s",
                 (novo_status, id_colab))
         conn.commit()
         labels = {'ativo': 'Ativo', 'afastado': 'Afastado', 'ferias': 'Férias',
@@ -444,7 +454,7 @@ def recibo_vt(id_colab):
 
     cursor.execute("""
         SELECT
-            col.id, col.nome, col.funcao, col.recebe_vt,
+            col.id, col.nome, col.funcao, col.recebe_vt, col.status,
             col.vale_transporte, col.vale_refeicao, col.diversos,
             GROUP_CONCAT(c.nome_empresa ORDER BY c.nome_empresa SEPARATOR ', ') AS unidades
         FROM colaboradores col
@@ -457,6 +467,10 @@ def recibo_vt(id_colab):
 
     if not colab:
         flash("Colaborador não encontrado.", "danger")
+        return redirect(url_for('colaboradores.listar'))
+
+    if colab.get('status') in ('inativo', 'demitido'):
+        flash(f"{colab['nome']} está fora do quadro ({colab['status']}); não é possível emitir recibo de VT.", "warning")
         return redirect(url_for('colaboradores.listar'))
 
     if not colab.get('recebe_vt'):

@@ -6,8 +6,12 @@ from datetime import datetime
 from utils.permissions import admin_only
 from utils.audit import log_action
 from utils.constants import MESES_PT
+from utils.validators import parse_moeda_br
 
 logger = logging.getLogger(__name__)
+
+# Status válidos de uma fatura (whitelist — evita gravar lixo via URL)
+STATUS_FATURA = ('Pendente', 'Aprovado', 'Pago')
 vendas_bp = Blueprint('vendas', __name__)
 
 def gerar_codigo_quinzena(data_str):
@@ -160,9 +164,14 @@ def fazer_pedido(id_cliente=None, id_pedido=None):
             return redirect(url_for('home'))
         id_cliente = pedido_atual['id_cliente']
         
-        cursor.execute("SELECT id_produto, quantidade FROM itens_pedido WHERE id_pedido=%s", (id_pedido,))
+        cursor.execute("SELECT id_produto, quantidade, preco_praticado FROM itens_pedido WHERE id_pedido=%s", (id_pedido,))
         for row in cursor.fetchall():
-            itens_atuais[row['id_produto']] = row['quantidade']
+            # Guarda qtd E o preço praticado salvo, para a edição preservar o
+            # que foi cobrado (antes o form re-precificava tudo pela tabela atual).
+            itens_atuais[row['id_produto']] = {
+                'qtd': row['quantidade'],
+                'preco': float(row['preco_praticado'] or 0),
+            }
             
     cursor.execute("SELECT id, nome_empresa, cnpj, email, celular, id_grupo FROM clientes WHERE id = %s", (id_cliente,))
     cliente = cursor.fetchone()
@@ -196,14 +205,37 @@ def fazer_pedido(id_cliente=None, id_pedido=None):
 @vendas_bp.route("/salvar_pedido", methods=["POST"])
 @login_required
 def salvar_pedido():
-    id_cliente = request.form["id_cliente"]
+    id_cliente = request.form.get("id_cliente")
     id_pedido = request.form.get("id_pedido")
-    data_inicio = request.form["data_inicio"]
-    data_fim = request.form["data_fim"]
+    data_inicio = (request.form.get("data_inicio") or "").strip()
+    data_fim = (request.form.get("data_fim") or "").strip()
+
+    # Validação de datas (antes eram obrigatórias só no HTML → data_fim vazia
+    # gerava código vazio + 500)
+    if not id_cliente or not data_inicio or not data_fim:
+        flash("Informe o cliente e o período (início e fim).", "warning")
+        return redirect(url_for('vendas.fazer_pedido', id_cliente=id_cliente or 0))
+    if data_fim < data_inicio:
+        flash("A data de fim não pode ser anterior ao início.", "danger")
+        return redirect(url_for('vendas.fazer_pedido', id_pedido=id_pedido) if id_pedido
+                        else url_for('vendas.fazer_pedido', id_cliente=id_cliente))
     codigo_fatura = gerar_codigo_quinzena(data_fim)
-    
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+
+    is_update = bool(id_pedido)
+    # Na edição, revalida que a fatura ainda está 'Pendente' (uma fatura já
+    # Aprovada/Paga não pode ser reescrita por um form/aba antigo).
+    if is_update:
+        cursor.execute("SELECT status FROM pedidos WHERE id=%s", (id_pedido,))
+        ped = cursor.fetchone()
+        if not ped:
+            flash("Fatura não encontrada.", "danger")
+            return redirect(url_for('home'))
+        if ped['status'] != 'Pendente':
+            flash("Esta fatura não está mais Pendente e não pode ser editada.", "warning")
+            return redirect(url_for('home'))
 
     itens_para_salvar = []
     total_pedido = 0
@@ -213,22 +245,22 @@ def salvar_pedido():
             id_prod = key.split("_")[1]
             try:
                 qtd = int(float(valor)) if valor else 0
-                if qtd > 0:
-                    preco_str = request.form.get(f"preco_{id_prod}") or "0"
-                    preco_str = preco_str.replace(".", "").replace(",", ".")
-                    preco = float(preco_str)
-                    
-                    total_pedido += (qtd * preco)
-                    itens_para_salvar.append((id_prod, qtd, preco))
-            except (ValueError, TypeError) as e:
-                logger.warning("Erro ao processar item %s no pedido: %s", id_prod, e)
+            except (ValueError, TypeError):
                 continue
+            if qtd <= 0:
+                continue
+            # Parse robusto (não confunde "5.50" com 550) e ignora preço <= 0
+            # (mesma regra do resto do sistema: preço 0 = sem preço).
+            preco = parse_moeda_br(request.form.get(f"preco_{id_prod}"))
+            if preco <= 0:
+                continue
+            total_pedido += (qtd * preco)
+            itens_para_salvar.append((id_prod, qtd, preco))
 
     if total_pedido <= 0:
-        flash("❌ Erro: Fatura com valor zero.", "danger")
+        flash("❌ Erro: informe ao menos um item com quantidade e preço.", "danger")
         return redirect(url_for('vendas.fazer_pedido', id_cliente=id_cliente))
 
-    is_update = bool(id_pedido)
     if is_update:
         cursor.execute("UPDATE pedidos SET data_inicio=%s, data_fim=%s, codigo_fatura=%s WHERE id=%s", (data_inicio, data_fim, codigo_fatura, id_pedido))
         cursor.execute("DELETE FROM itens_pedido WHERE id_pedido=%s", (id_pedido,))
@@ -262,8 +294,12 @@ def editar_data_pagamento(id_pedido):
     como Pago (ex: usuario lembrou de marcar como paga depois da data real
     do recebimento)."""
     nova_data = request.form.get('data_pagamento', '').strip()
-    if not nova_data:
-        flash("Informe uma data válida.", "danger")
+    # Valida o formato ISO (yyyy-mm-dd) antes de mandar pro MySQL — um valor
+    # em formato BR ('31/12/2025') ou lixo geraria erro 1292 / 500.
+    try:
+        datetime.strptime(nova_data, '%Y-%m-%d')
+    except ValueError:
+        flash("Data de pagamento inválida.", "danger")
         return redirect(url_for('home'))
 
     conn = get_db_connection()
@@ -290,6 +326,12 @@ def editar_data_pagamento(id_pedido):
 @vendas_bp.route("/mudar_status/<int:id_pedido>/<string:novo_status>", methods=["POST"])
 @login_required
 def mudar_status(id_pedido, novo_status):
+    # Whitelist: sem isso, /mudar_status/5/QualquerCoisa gravava lixo em
+    # pedidos.status (varchar) e sumia dos filtros/agregados financeiros.
+    if novo_status not in STATUS_FATURA:
+        flash("Status de fatura inválido.", "danger")
+        return redirect(url_for('home'))
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 

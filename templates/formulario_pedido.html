@@ -88,7 +88,11 @@
 
             <div class="products-grid-container" id="listaProdutos">
                 {% for p in produtos %}
-                    {% set qtd = itens_atuais[p['id']] if p['id'] in itens_atuais else 0 %}
+                    {# Na edição, itens_atuais[id] = {qtd, preco salvo}. Preserva o
+                       preço praticado do item; senão usa o preço atual da tabela. #}
+                    {% set item_atual = itens_atuais.get(p['id']) %}
+                    {% set qtd = item_atual['qtd'] if item_atual else 0 %}
+                    {% set preco_exibir = item_atual['preco'] if (item_atual and item_atual['preco'] > 0) else p['preco_final'] %}
                     
                     <div class="product-card p-3 d-flex flex-column justify-content-between item-container {% if qtd > 0 %}active-item{% endif %}" 
                          data-nome="{{ p['nome']|upper }}" 
@@ -101,8 +105,8 @@
 
                         <div class="editable-price-badge" title="Clique para editar o valor unitário">
                             R$ <input type="text" class="price-input-magic preco-unit ms-1" 
-                                      name="preco_{{ p['id'] }}" 
-                                      value="{{ '{:,.2f}'.format(p['preco_final']).replace(',', 'X').replace('.', ',').replace('X', '.') }}" 
+                                      name="preco_{{ p['id'] }}"
+                                      value="{{ '{:,.2f}'.format(preco_exibir).replace(',', 'X').replace('.', ',').replace('X', '.') }}"
                                       oninput="calcular()">
                         </div>
 

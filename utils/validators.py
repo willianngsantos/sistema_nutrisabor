@@ -36,6 +36,26 @@ def cpf_valido(cpf) -> bool:
     return True
 
 
+def parse_moeda_br(valor) -> float:
+    """Converte texto de valor monetário em float, tolerando formatos BR e US.
+
+    Regra: se houver vírgula, ela é o decimal e o ponto é separador de milhar
+    ('1.234,56' -> 1234.56; '5,50' -> 5.5). Se NÃO houver vírgula, o ponto é
+    tratado como decimal ('5.50' -> 5.5) — corrige o bug em que '5.50' virava
+    550. Entrada inválida/negativa vira 0.0.
+    """
+    s = str(valor or '').strip().replace('R$', '').replace(' ', '')
+    if not s:
+        return 0.0
+    if ',' in s:
+        s = s.replace('.', '').replace(',', '.')
+    try:
+        v = float(s)
+    except ValueError:
+        return 0.0
+    return v if v > 0 else 0.0
+
+
 def cnpj_valido(cnpj) -> bool:
     """Valida CNPJ pelos dígitos verificadores."""
     n = so_digitos(cnpj)

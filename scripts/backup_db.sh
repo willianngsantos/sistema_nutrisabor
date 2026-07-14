@@ -50,9 +50,13 @@ DB_HOST="$(get_env DB_HOST)"; DB_HOST="${DB_HOST:-localhost}"
 
 mkdir -p "$BACKUP_DIR"
 
-# Arquivo de credenciais temporário (evita senha no ps/histórico)
+# Arquivo de credenciais temporário (evita senha no ps/histórico).
+# TMP_ARQ guarda o dump em andamento: se o mysqldump falhar (set -e aborta
+# antes da validação), o trap remove o parcial e nunca fica um .gz truncado
+# com o nome final.
 CNF="$(mktemp)"
-cleanup() { rm -f "$CNF"; }
+TMP_ARQ=""
+cleanup() { rm -f "$CNF"; [ -n "$TMP_ARQ" ] && rm -f "$TMP_ARQ"; }
 trap cleanup EXIT
 chmod 600 "$CNF"
 cat > "$CNF" <<EOF
@@ -64,19 +68,25 @@ EOF
 
 STAMP="$(date +%Y%m%d_%H%M%S)"
 ARQ="$BACKUP_DIR/nutrisabor_${DB_NAME}_${STAMP}.sql.gz"
+TMP_ARQ="$ARQ.tmp"
 
 echo "🗄️  Gerando backup de '$DB_NAME'..."
+# Escreve no .tmp; só vira o arquivo final após validar. Se o mysqldump falhar,
+# pipefail+set -e abortam e o trap remove o .tmp (nunca sobra dump parcial).
 mysqldump --defaults-extra-file="$CNF" \
   --single-transaction --quick --routines --triggers --events \
   --default-character-set=utf8mb4 \
-  "$DB_NAME" | gzip > "$ARQ"
+  "$DB_NAME" | gzip > "$TMP_ARQ"
 
 # Valida que o arquivo não ficou vazio (dump falho geraria gz minúsculo)
-if [ ! -s "$ARQ" ] || [ "$(gzip -dc "$ARQ" | head -c 1 | wc -c)" -eq 0 ]; then
+if [ ! -s "$TMP_ARQ" ] || [ "$(gzip -dc "$TMP_ARQ" | head -c 1 | wc -c)" -eq 0 ]; then
   echo "❌ Backup vazio/inválido — removendo." >&2
-  rm -f "$ARQ"
   exit 1
 fi
+
+# Publica de forma atômica e desarma a limpeza do parcial
+mv "$TMP_ARQ" "$ARQ"
+TMP_ARQ=""
 
 TAM="$(du -h "$ARQ" | cut -f1)"
 echo "✅ Backup OK: $ARQ ($TAM)"

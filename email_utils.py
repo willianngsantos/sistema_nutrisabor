@@ -4,15 +4,22 @@ Usa a variável RESEND_API_KEY do .env
 """
 import os
 import logging
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 import resend
 
 logger = logging.getLogger(__name__)
+
+# O SDK do Resend chama requests.request() SEM timeout. Se a API/conexão
+# pendura, o request web que dispara o envio (ex.: login → código) fica
+# travado até o timeout do worker. Limitamos o envio no relógio de parede.
+EMAIL_TIMEOUT_S = int(os.environ.get('EMAIL_TIMEOUT_S', '10'))
+_email_pool = ThreadPoolExecutor(max_workers=2)
 
 
 def send_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
     """
     Envia um e-mail via Resend API.
-    Retorna True em caso de sucesso, False em caso de erro.
+    Retorna True em caso de sucesso, False em caso de erro (inclusive timeout).
     """
     api_key = os.environ.get('RESEND_API_KEY', '')
     remetente = os.environ.get('MAIL_FROM', 'NutriSabor <noreply@nutrisabor.sistemaswgs.com.br>')
@@ -23,14 +30,20 @@ def send_email(destinatario: str, assunto: str, corpo_html: str) -> bool:
 
     resend.api_key = api_key
 
-    try:
+    def _enviar():
         resend.Emails.send({
             "from": remetente,
             "to": [destinatario],
             "subject": assunto,
             "html": corpo_html,
         })
+
+    try:
+        _email_pool.submit(_enviar).result(timeout=EMAIL_TIMEOUT_S)
         return True
+    except FutureTimeout:
+        logger.error("Timeout (%ss) ao enviar e-mail para %s", EMAIL_TIMEOUT_S, destinatario)
+        return False
     except Exception as e:
         logger.error("Erro ao enviar e-mail para %s: %s", destinatario, e)
         return False

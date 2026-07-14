@@ -1,4 +1,5 @@
 from datetime import date, datetime
+import mysql.connector
 from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, jsonify)
 from flask_login import login_required, current_user
@@ -168,15 +169,28 @@ def nova():
             return render_template('proposta_form.html', clientes=clientes,
                                    unidades=UNIDADES, proposta=None)
 
-        numero = _gerar_numero()
-        cur.execute("""
-            INSERT INTO propostas
-                (numero, id_cliente, data_proposta, validade,
-                 condicoes_pagamento, observacoes, status)
-            VALUES (%s,%s,%s,%s,%s,%s,'Rascunho')
-        """, (numero, id_cliente, data_proposta, validade,
-              condicoes_pagamento, observacoes))
-        id_proposta = cur.lastrowid
+        # Gera o número e insere; se dois cadastros simultâneos colidirem no
+        # mesmo sequencial, o índice UNIQUE (uq_propostas_numero) rejeita e a
+        # gente tenta o próximo número. Backstop de 5 tentativas.
+        id_proposta = None
+        for _ in range(5):
+            numero = _gerar_numero()
+            try:
+                cur.execute("""
+                    INSERT INTO propostas
+                        (numero, id_cliente, data_proposta, validade,
+                         condicoes_pagamento, observacoes, status)
+                    VALUES (%s,%s,%s,%s,%s,%s,'Rascunho')
+                """, (numero, id_cliente, data_proposta, validade,
+                      condicoes_pagamento, observacoes))
+                id_proposta = cur.lastrowid
+                break
+            except mysql.connector.IntegrityError:
+                conn.rollback()
+                continue
+        if id_proposta is None:
+            flash("Não foi possível gerar o número da proposta. Tente novamente.", "danger")
+            return redirect(url_for('propostas.listar'))
 
         for desc, qtd, und, vunit in zip(descricoes, quantidades, unids, valores):
             desc = desc.strip()
@@ -298,7 +312,9 @@ def atualizar_status(id_proposta):
     conn = get_db_connection()
     cur  = conn.cursor(dictionary=True)
     cur.execute("SELECT numero, status FROM propostas WHERE id=%s", (id_proposta,))
-    p = cur.fetchone() or {}
+    p = cur.fetchone()
+    if not p:
+        return jsonify({'ok': False, 'msg': 'Proposta não encontrada'}), 404
     cur.execute("UPDATE propostas SET status=%s WHERE id=%s", (novo_status, id_proposta))
     conn.commit()
     log_action('update', entity_type='proposta', entity_id=int(id_proposta),
@@ -317,12 +333,21 @@ def deletar(id_proposta):
     cur  = conn.cursor(dictionary=True)
     cur.execute("SELECT numero, status FROM propostas WHERE id=%s", (id_proposta,))
     row = cur.fetchone()
-    if row:
-        cur.execute("DELETE FROM propostas WHERE id=%s", (id_proposta,))
-        conn.commit()
-        log_action('delete', entity_type='proposta', entity_id=int(id_proposta),
-                   descricao=f"Excluiu proposta {row['numero']} (status {row.get('status') or '—'})")
-        flash(f"Proposta {row['numero']} excluída.", "success")
+    if not row:
+        flash("Proposta não encontrada.", "warning")
+        return redirect(url_for('propostas.listar'))
+    # Proposta Aceita é registro de negócio fechado: não pode ser apagada
+    # (evita sumir com o histórico do que virou contrato).
+    if row.get('status') == 'Aceita':
+        flash(f"Proposta {row['numero']} está Aceita e não pode ser excluída. "
+              "Mude o status antes, se realmente precisar.", "warning")
+        return redirect(url_for('propostas.listar'))
+    cur.execute("DELETE FROM proposta_itens WHERE id_proposta=%s", (id_proposta,))
+    cur.execute("DELETE FROM propostas WHERE id=%s", (id_proposta,))
+    conn.commit()
+    log_action('delete', entity_type='proposta', entity_id=int(id_proposta),
+               descricao=f"Excluiu proposta {row['numero']} (status {row.get('status') or '—'})")
+    flash(f"Proposta {row['numero']} excluída.", "success")
     return redirect(url_for('propostas.listar'))
 
 

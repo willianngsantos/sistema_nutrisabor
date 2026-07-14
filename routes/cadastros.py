@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only
 from utils.audit import log_action, format_field_diff
-from utils.validators import cnpj_valido, cpf_valido, email_valido
+from utils.validators import cnpj_valido, cpf_valido, email_valido, parse_moeda_br
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -482,18 +482,16 @@ def salvar_precos_grupo(id_grupo):
     qtd_salvos = 0
     for p in produtos:
         prod_id = p['id']
-        preco_str = request.form.get(f"preco_{prod_id}", "").strip()
-
-        if preco_str:
-            try:
-                preco_venda = float(preco_str.replace(",", "."))
-                cursor.execute("""
-                    INSERT INTO tabela_precos_grupos (id_grupo, id_produto, preco_venda)
-                    VALUES (%s, %s, %s)
-                """, (id_grupo, prod_id, preco_venda))
-                qtd_salvos += 1
-            except ValueError:
-                pass
+        # Parse robusto (trata "1.234,56") e ignora vazio/0/negativo — antes um
+        # valor ilegível caía em ValueError silencioso e, como a tabela já tinha
+        # sido apagada, o preço simplesmente sumia.
+        preco_venda = parse_moeda_br(request.form.get(f"preco_{prod_id}", ""))
+        if preco_venda > 0:
+            cursor.execute("""
+                INSERT INTO tabela_precos_grupos (id_grupo, id_produto, preco_venda)
+                VALUES (%s, %s, %s)
+            """, (id_grupo, prod_id, preco_venda))
+            qtd_salvos += 1
 
     conn.commit()
 

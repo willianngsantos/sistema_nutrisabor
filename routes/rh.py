@@ -217,11 +217,17 @@ def sincronizar_status_ferias(cursor):
     """)
     afetadas += cursor.rowcount
 
-    # 4) Colaborador em FÉRIAS sem nenhuma férias vigente hoje → volta a ativo
+    # 4) Colaborador em FÉRIAS sem nenhuma férias vigente hoje → volta a ativo.
+    #    MAS só reverte quem tem algum lançamento em rh_ferias (status dirigido
+    #    pelo sistema). Uma Férias marcada à mão, sem lançamento, é decisão
+    #    manual e NÃO deve ser revertida pelo cron.
     cursor.execute("""
         UPDATE colaboradores c
         SET c.status = 'ativo'
         WHERE c.status = 'ferias'
+          AND EXISTS (
+              SELECT 1 FROM rh_ferias f WHERE f.id_colaborador = c.id
+          )
           AND NOT EXISTS (
               SELECT 1 FROM rh_ferias f
               WHERE f.id_colaborador = c.id

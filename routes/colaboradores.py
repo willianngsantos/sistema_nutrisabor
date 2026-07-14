@@ -4,7 +4,7 @@ from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only, admin_or_gerencial
 from utils.audit import log_action, format_field_diff
-from utils.validators import cpf_valido
+from utils.validators import cpf_valido, parse_moeda_br
 from utils.constants import MESES_PT
 
 colaboradores_bp = Blueprint('colaboradores', __name__)
@@ -76,10 +76,9 @@ def _coletar_dados_pessoais():
 
 
 def _parse_moeda(valor_str):
-    try:
-        return float(str(valor_str).replace(".", "").replace(",", ".")) if valor_str else 0.0
-    except ValueError:
-        return 0.0
+    # Delega ao parser único (trata "5.50"→5.50, "1.234,56"→1234.56,
+    # negativo/inválido→0). Salário/benefícios nunca são negativos.
+    return parse_moeda_br(valor_str)
 
 
 def _salvar_unidades(cursor, id_colaborador, ids_clientes):

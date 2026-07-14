@@ -517,7 +517,9 @@ def atestados():
         ano = int(request.args.get('ano', hoje.year))
         if not 1 <= mes <= 12:
             mes = hoje.month
-    except ValueError:
+        if not 2000 <= ano <= 2100:   # ano fora da faixa quebraria monthrange/calendário
+            ano = hoje.year
+    except (ValueError, TypeError):
         mes, ano = hoje.month, hoje.year
     filtro_colab = request.args.get('colab_id', '')
 
@@ -1247,7 +1249,9 @@ def ponto():
         ano = int(request.args.get('ano', hoje.year))
         if not 1 <= mes <= 12:
             mes = hoje.month
-    except ValueError:
+        if not 2000 <= ano <= 2100:   # ano fora da faixa quebraria monthrange/calendário
+            ano = hoje.year
+    except (ValueError, TypeError):
         mes, ano = hoje.month, hoje.year
 
     colab_id = request.args.get('colab_id', '')
@@ -1287,17 +1291,31 @@ def ponto():
 @login_required
 @rh_access
 def registrar_ponto():
-    id_colaborador = request.form.get('id_colaborador')
-    mes = request.form.get('mes', date.today().month)
-    ano = request.form.get('ano', date.today().year)
+    hoje = date.today()
+    # Entradas numéricas validadas: valores fora do intervalo não podem
+    # montar uma data inválida nem derrubar a página (500).
+    if not (request.form.get('id_colaborador') or '').isdigit():
+        flash("Colaborador inválido.", "danger")
+        return redirect(url_for('rh.ponto'))
+    id_colaborador = int(request.form.get('id_colaborador'))
+    try:
+        mes = int(request.form.get('mes', hoje.month))
+        ano = int(request.form.get('ano', hoje.year))
+    except (ValueError, TypeError):
+        mes, ano = hoje.month, hoje.year
+    if not (1 <= mes <= 12) or not (2000 <= ano <= 2100):
+        mes, ano = hoje.month, hoje.year
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    _, dias_no_mes = monthrange(ano, mes)
     qtd_dias = 0
     # Processa cada dia enviado no form
     for key, value in request.form.items():
         if key.startswith('tipo_'):
             dia = key.replace('tipo_', '')
+            if not dia.isdigit() or not (1 <= int(dia) <= dias_no_mes):
+                continue  # dia inválido/forjado no form → ignora
             tipo = value
             hora_entrada       = request.form.get(f'entrada_{dia}')        or None
             hora_saida_almoco  = request.form.get(f'saida_almoco_{dia}')   or None
@@ -1337,7 +1355,9 @@ def imprimir_ponto():
         ano = int(request.args.get('ano', hoje.year))
         if not 1 <= mes <= 12:
             mes = hoje.month
-    except ValueError:
+        if not 2000 <= ano <= 2100:   # ano fora da faixa quebraria monthrange/calendário
+            ano = hoje.year
+    except (ValueError, TypeError):
         mes, ano = hoje.month, hoje.year
 
     colab_id = request.args.get('colab_id', '')
@@ -1380,7 +1400,9 @@ def imprimir_ponto_geral():
         ano = int(request.args.get('ano', hoje.year))
         if not 1 <= mes <= 12:
             mes = hoje.month
-    except ValueError:
+        if not 2000 <= ano <= 2100:   # ano fora da faixa quebraria monthrange/calendário
+            ano = hoje.year
+    except (ValueError, TypeError):
         mes, ano = hoje.month, hoje.year
 
     # Filtro de status: por padrao "ativos" para excluir colaboradores

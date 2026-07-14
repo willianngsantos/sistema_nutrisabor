@@ -43,11 +43,15 @@ def log_atividade():
     if f_acao and f_acao in ACTION_TYPES:
         where_sql += " AND action_type = %s"
         params.append(f_acao)
+    # Comparação direta na coluna (sargável, usa idx_time). DATE(timestamp)
+    # aplicaria função à coluna indexada e forçaria full scan conforme o log
+    # cresce. '2026-07-14' compara como meia-noite; o fim usa < dia+1 para
+    # incluir o dia inteiro.
     if f_inicio:
-        where_sql += " AND DATE(timestamp) >= %s"
+        where_sql += " AND timestamp >= %s"
         params.append(f_inicio)
     if f_fim:
-        where_sql += " AND DATE(timestamp) <= %s"
+        where_sql += " AND timestamp < DATE_ADD(%s, INTERVAL 1 DAY)"
         params.append(f_fim)
     if f_busca:
         where_sql += " AND (descricao LIKE %s OR entity_type LIKE %s)"

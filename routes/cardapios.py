@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from database import get_db_connection
 from datetime import datetime, timedelta, date
 from utils.permissions import rh_access  # admin, gerencial ou nutricionista
+from utils.audit import log_action
 
 cardapios_bp = Blueprint('cardapios', __name__)
 
@@ -83,7 +84,9 @@ def novo_cardapio():
             """, (id_cardapio, nome_dia, data_dia.strftime('%Y-%m-%d')))
             
         conn.commit()
-        
+        log_action('create', entity_type='cardapio', entity_id=id_cardapio,
+                   descricao=f"Criou cardápio (cliente {id_cliente}, {data_inicio.strftime('%d/%m/%Y')} a {data_fim.strftime('%d/%m/%Y')}, {dias_qnt} dias)")
+
         flash("Estrutura do cardápio gerada! Agora preencha os pratos.", "success")
         return redirect(url_for('cardapios.montar_cardapio', id_cardapio=id_cardapio))
     except Exception as e:
@@ -161,6 +164,8 @@ def salvar_itens(id_cardapio):
         """, (base, p1, p2, guarnicao, salada, sobremesa, bebida, feriado, dia_id))
         
     conn.commit()
+    log_action('update', entity_type='cardapio', entity_id=id_cardapio,
+               descricao=f"Editou pratos do cardápio #{id_cardapio} ({len(dias)} dia(s))")
     flash("Cardápio salvo com sucesso!", "success")
     return redirect(url_for('cardapios.index'))
 
@@ -202,6 +207,8 @@ def excluir_cardapio(id_cardapio):
     cursor.execute("DELETE FROM itens_cardapio WHERE id_cardapio = %s", (id_cardapio,))
     cursor.execute("DELETE FROM cardapios WHERE id = %s", (id_cardapio,))
     conn.commit()
+    log_action('delete', entity_type='cardapio', entity_id=id_cardapio,
+               descricao=f"Excluiu cardápio #{id_cardapio}")
 
     flash("Cardápio excluído com sucesso.", "success")
     return redirect(url_for('cardapios.index'))

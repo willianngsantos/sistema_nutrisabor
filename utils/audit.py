@@ -12,9 +12,12 @@ dois caminhos:
 Falhas de log não derrubam a operação original — capturamos e silenciamos
 qualquer exceção para evitar quebrar fluxos críticos por conta do log.
 """
+import logging
 from flask import request
 from flask_login import current_user
 from database import get_db_connection
+
+_logger = logging.getLogger('nutrisabor.audit')
 
 
 def _client_ip():
@@ -107,7 +110,8 @@ def log_action(action_type, entity_type=None, entity_id=None, descricao=None):
         ))
         conn.commit()
     except Exception:
-        # Audit log nunca deve derrubar a operação chamadora.
-        # Em produção seria bom mandar para um logger estruturado;
-        # por ora silenciamos para não vazar erros no flash do usuário.
-        pass
+        # Audit log nunca deve derrubar a operação chamadora — mas também não
+        # pode falhar em silêncio total (senão uma auditoria quebrada passa
+        # despercebida). Registra no logger e segue sem propagar a exceção.
+        _logger.warning("Falha ao gravar audit_log (action=%s, entity=%s)",
+                        action_type, entity_type, exc_info=True)

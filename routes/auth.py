@@ -71,6 +71,10 @@ def login():
                 email=usuario_db['email'],
                 tipo=usuario_db.get('tipo', 'vendedor')
             )
+            # Higiene de sessão: descarta qualquer estado pré-login (ex.: chaves
+            # do fluxo de código de verificação) antes de elevar o privilégio,
+            # para não carregar valores plantados para dentro da sessão logada.
+            session.clear()
             # permanent=True para que PERMANENT_SESSION_LIFETIME (30 min) seja
             # aplicado como timeout de inatividade (renovado a cada request).
             session.permanent = True

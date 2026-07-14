@@ -599,12 +599,13 @@ def add_atestado():
     cid = (request.form.get('cid') or '').strip() or None
     medico = (request.form.get('medico') or '').strip() or None
     obs = (request.form.get('observacoes') or '').strip() or None
-    arquivo_path = _salvar_anexo_atestado(request.files.get('arquivo'))
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     # Impede atestados sobrepostos para o mesmo colaborador (dupla contagem de
     # afastamento). Dois períodos colidem se um começa antes de o outro acabar.
+    # Checa ANTES de gravar o anexo — senão um atestado recusado deixaria o
+    # arquivo órfão no disco.
     cursor.execute("""
         SELECT data_inicio, data_fim FROM rh_atestados
         WHERE id_colaborador = %s AND data_inicio <= %s AND data_fim >= %s
@@ -615,6 +616,8 @@ def add_atestado():
         flash(f"Já existe atestado para esse colaborador no período "
               f"({conflito['data_inicio']:%d/%m/%Y} a {conflito['data_fim']:%d/%m/%Y}).", "warning")
         return redirect(url_for('rh.atestados', mes=di.month, ano=di.year))
+
+    arquivo_path = _salvar_anexo_atestado(request.files.get('arquivo'))
     cursor.execute("""
         INSERT INTO rh_atestados
             (id_colaborador, data_inicio, dias, data_fim, cid, medico, observacoes, arquivo_path, criado_por)

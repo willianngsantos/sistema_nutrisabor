@@ -597,6 +597,18 @@ def add_atestado():
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    # Impede atestados sobrepostos para o mesmo colaborador (dupla contagem de
+    # afastamento). Dois períodos colidem se um começa antes de o outro acabar.
+    cursor.execute("""
+        SELECT data_inicio, data_fim FROM rh_atestados
+        WHERE id_colaborador = %s AND data_inicio <= %s AND data_fim >= %s
+        LIMIT 1
+    """, (id_colab, data_fim, data_inicio))
+    conflito = cursor.fetchone()
+    if conflito:
+        flash(f"Já existe atestado para esse colaborador no período "
+              f"({conflito['data_inicio']:%d/%m/%Y} a {conflito['data_fim']:%d/%m/%Y}).", "warning")
+        return redirect(url_for('rh.atestados', mes=di.month, ano=di.year))
     cursor.execute("""
         INSERT INTO rh_atestados
             (id_colaborador, data_inicio, dias, data_fim, cid, medico, observacoes, arquivo_path, criado_por)
@@ -1021,6 +1033,8 @@ def _coletar_dias_do_form():
         try:
             intervalo = int(request.form.get(f'intervalo_{dia}', 0) or 0)
         except ValueError:
+            intervalo = 0
+        if intervalo < 0:   # intervalo negativo infla a carga horária
             intervalo = 0
         coletados.append((dia, entrada, saida, intervalo))
     return coletados

@@ -35,6 +35,7 @@ MIGRACOES = [
     "add_colab_demissao.py",
     "add_empresa_assinaturas.py",
     "add_proposta_numero_unique.py",
+    "add_tabela_precos_unique.py",
     "limpar_precos_zerados.py",  # rotina de limpeza idempotente (não é schema)
 ]
 

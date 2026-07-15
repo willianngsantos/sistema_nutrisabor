@@ -281,13 +281,26 @@
                 linhas.forEach(linha => {
                     // Pega apenas o texto da coluna com a classe 'nome-produto' para a busca ser mais precisa
                     let nomeProduto = linha.querySelector(".nome-produto").innerText.toUpperCase();
-                    
+
                     if (nomeProduto.includes(filtro)) {
                         linha.style.display = "";
                     } else {
                         linha.style.display = "none";
                     }
                 });
+            });
+
+            // Enter → abre a edição do 1º produto visível
+            inputBusca.addEventListener("keydown", function(e) {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                let linhas = document.querySelectorAll(".linha-produto");
+                for (let l of linhas) {
+                    if (l.style.display === "none") continue;
+                    let btn = l.querySelector('[data-bs-target="#modalEditarProduto"]');
+                    if (btn) btn.click();
+                    break;
+                }
             });
         }
     });

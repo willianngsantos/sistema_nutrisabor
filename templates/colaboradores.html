@@ -1140,6 +1140,20 @@
         });
     });
 
+    // Enter → abre a ficha do 1º colaborador visível
+    document.getElementById('buscaColab').addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        var linhas = document.querySelectorAll('.table-colab tbody tr');
+        for (var k = 0; k < linhas.length; k++) {
+            var row = linhas[k];
+            if (row.cells.length === 1 || row.style.display === 'none') continue;
+            var link = row.querySelector('a[title="Ver ficha completa"]');
+            if (link) window.location.href = link.href;
+            break;
+        }
+    });
+
     // ── DEMISSÃO ──────────────────────────────────────────────
     // No form de edição: mostra a data só quando o status é "demitido".
     function toggleDemissao() {

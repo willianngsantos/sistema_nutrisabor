@@ -457,16 +457,29 @@
 
                 linhas.forEach(linha => {
                     // Se for a linha vazia de "Nenhum cliente", não faz nada
-                    if (linha.cells.length === 1) return; 
+                    if (linha.cells.length === 1) return;
 
                     let texto = linha.innerText.toUpperCase();
-                    
+
                     if (texto.includes(filtro)) {
                         linha.style.display = "";
                     } else {
                         linha.style.display = "none";
                     }
                 });
+            });
+
+            // Enter → abre a edição do 1º cliente visível
+            inputBusca.addEventListener("keydown", function(e) {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                let linhas = document.querySelectorAll(".table-clients tbody tr");
+                for (let l of linhas) {
+                    if (l.cells.length === 1 || l.style.display === "none") continue;
+                    let btn = l.querySelector('[data-bs-target="#modalEditarCliente"]');
+                    if (btn) btn.click();
+                    break;
+                }
             });
         }
     });

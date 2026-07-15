@@ -405,6 +405,18 @@
                 };
                 input.addEventListener('focus', function () { render(''); panel.classList.add('show'); });
                 input.addEventListener('input', function () { sel.value = ''; render(input.value); panel.classList.add('show'); });
+                // Enter com o painel aberto: escolhe o 1º resultado filtrado e
+                // fecha o painel (não submete o form — há outros campos). Com o
+                // painel já fechado (opção escolhida), o Enter segue o fluxo
+                // normal do form.
+                input.addEventListener('keydown', function (e) {
+                    if (e.key !== 'Enter' || !panel.classList.contains('show')) return;
+                    var f = norm(input.value);
+                    var primeiro = options.find(function (o) {
+                        return !o.placeholder && norm(o.label).indexOf(f) !== -1;
+                    });
+                    if (primeiro) { e.preventDefault(); setVal(primeiro); panel.classList.remove('show'); }
+                });
                 document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) panel.classList.remove('show'); });
 
                 if (required && sel.form) {

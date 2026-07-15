@@ -233,6 +233,25 @@
         }
     }
 
+    // Enter na busca de produto → pula direto para a quantidade do 1º produto
+    // visível (agiliza o lançamento: digita o nome, Enter, digita a qtd).
+    (function () {
+        var busca = document.getElementById("searchInput");
+        if (!busca) return;
+        busca.addEventListener("keydown", function (e) {
+            if (e.key !== "Enter") return;
+            e.preventDefault();  // não submete a fatura pela busca
+            var itens = document.getElementsByClassName("item-container");
+            for (var i = 0; i < itens.length; i++) {
+                if (!itens[i].classList.contains("d-none")) {
+                    var qtd = itens[i].querySelector(".qty-input");
+                    if (qtd) { qtd.focus(); qtd.select(); }
+                    break;
+                }
+            }
+        });
+    })();
+
     function calcular() {
         let total = 0;
         let inputs = document.getElementsByClassName("qty-input");

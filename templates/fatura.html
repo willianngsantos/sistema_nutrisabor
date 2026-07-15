@@ -95,7 +95,7 @@
 
         body.mono .page-footer { color: #444 !important; }
 
-        /* Status "Pago em ..." e icones verdes → preto */
+        /* Selo "PAGO" e icones verdes → preto na impressão P&B */
         body.mono .text-success { color: #000 !important; }
         body.mono .text-warning { color: #000 !important; }
 
@@ -236,7 +236,7 @@
 
                     <div class="invoice-label">Emissão</div>
                     <div class="text-dark fw-bold mb-3 small">
-                        {{ pedido['emissao'] }}{% if status_pedido == 'Pago' and pedido['pagamento'] %} <span class="text-success" style="font-weight:600;">• <i class="bi bi-check2-circle"></i> Pago em {{ pedido['pagamento'] }}</span>{% endif %}
+                        {{ pedido['emissao'] }}{% if status_pedido == 'Pago' %} <span class="text-success" style="font-weight:600;">• <i class="bi bi-check2-circle"></i> PAGO</span>{% endif %}
                     </div>
                 </div>
             </div><!-- /.header-section -->

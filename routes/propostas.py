@@ -27,6 +27,26 @@ UNIDADES = [
     ('serviço',   'Serviço'),
 ]
 
+# A unidade do produto é cadastrada livre ('UN', 'LT', ...) e precisa casar com
+# um dos valores do select acima. O que não estiver no mapa cai em 'un'.
+_MAPA_UNIDADES = {
+    'UN': 'un', 'UND': 'un', 'UNID': 'un', 'UNIDADE': 'un', 'PC': 'un',
+    'KG': 'kg', 'QUILO': 'kg', 'G': 'g', 'GR': 'g', 'GRAMA': 'g',
+    'L': 'L', 'LT': 'L', 'LITRO': 'L', 'ML': 'ml',
+    'H': 'h', 'HR': 'h', 'HORA': 'h',
+    'MES': 'mês', 'MÊS': 'mês',
+    'REFEICAO': 'refeição', 'REFEIÇÃO': 'refeição', 'REF': 'refeição',
+    'PORCAO': 'porção', 'PORÇÃO': 'porção',
+    'PACOTE': 'pacote', 'PCT': 'pacote',
+    'CAIXA': 'caixa', 'CX': 'caixa',
+    'DIARIA': 'diária', 'DIÁRIA': 'diária',
+    'SERVICO': 'serviço', 'SERVIÇO': 'serviço',
+}
+
+
+def _unidade_proposta(unidade_produto):
+    return _MAPA_UNIDADES.get((unidade_produto or '').strip().upper(), 'un')
+
 # ── Gera número automático PROP-YYYY-NNN ──────────────────────────────────────
 def _gerar_numero():
     ano = date.today().year
@@ -138,6 +158,52 @@ def listar():
                            filtro_ano=filtro_ano,
                            today=date.today(),
                            unidades=UNIDADES)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ITENS JÁ NEGOCIADOS COM O CLIENTE (base da proposta de reajuste)
+# ─────────────────────────────────────────────────────────────────────────────
+@propostas_bp.route('/propostas/itens_cliente/<int:id_cliente>')
+@login_required
+@admin_only
+def itens_cliente(id_cliente):
+    """Itens 'favoritos' do cliente com o valor praticado HOJE.
+
+    Favorito = produto que já tem preço negociado para esse cliente (tabela
+    individual dele) ou para o grupo dele — a mesma definição do filtro
+    "Mostrar apenas itens com preço negociado" da tela de lançamento, com a
+    mesma prioridade de preço (cliente > grupo) e o mesmo NULLIF(...,0), que
+    trata preço zerado como "sem preço".
+
+    Serve para pré-preencher a Nova Proposta quando ela é de reajuste: parte-se
+    do que o cliente paga hoje em vez de redigitar item por item.
+    """
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT id_grupo FROM clientes WHERE id = %s", (id_cliente,))
+    cliente = cur.fetchone()
+    if not cliente:
+        return jsonify({'itens': []}), 404
+
+    cur.execute("""
+        SELECT p.nome, p.unidade,
+               COALESCE(NULLIF(tc.preco_venda, 0), NULLIF(tg.preco_venda, 0)) AS preco
+        FROM produtos p
+        LEFT JOIN tabela_precos tc
+               ON p.id = tc.id_produto AND tc.id_cliente = %s
+        LEFT JOIN tabela_precos_grupos tg
+               ON p.id = tg.id_produto AND tg.id_grupo = %s
+        WHERE COALESCE(NULLIF(tc.preco_venda, 0), NULLIF(tg.preco_venda, 0)) IS NOT NULL
+        ORDER BY p.nome
+    """, (id_cliente, cliente['id_grupo']))
+
+    itens = [{
+        'descricao':      r['nome'],
+        'quantidade':     1,
+        'unidade':        _unidade_proposta(r['unidade']),
+        'valor_unitario': float(r['preco']),
+    } for r in cur.fetchall()]
+    return jsonify({'itens': itens})
 
 
 # ─────────────────────────────────────────────────────────────────────────────

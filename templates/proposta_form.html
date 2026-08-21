@@ -126,7 +126,7 @@
                 <div class="row g-3">
                     <div class="col-md-12">
                         <label class="form-label">Cliente *</label>
-                        <select name="id_cliente" class="form-select" required>
+                        <select name="id_cliente" id="selCliente" class="form-select" required>
                             <option value="">Selecione o cliente...</option>
                             {% for c in clientes %}
                             <option value="{{ c.id }}"
@@ -169,6 +169,11 @@
                 </button>
             </div>
             <div class="section-body p-0">
+                <!-- Aviso quando os itens vêm da tabela negociada do cliente -->
+                <div id="avisoFavoritos" class="d-none mx-3 mt-3 px-3 py-2 rounded-3"
+                     style="background:#e8f5e9;border:1px solid #c8e6c9;font-size:.82rem;color:#1b5e20;">
+                    <i class="bi bi-stars me-1"></i><span id="avisoFavoritosTexto"></span>
+                </div>
                 <div class="table-responsive px-3 pt-3">
                     <table class="items-table" id="tabelaItens">
                         <thead>
@@ -346,6 +351,49 @@ function atualizarTotal() {
 // ── Formatação BRL ──────────────────────────────────────────────────────────
 function formatBRL(v) {
     return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// ── Itens já negociados com o cliente (proposta de reajuste) ────────────────
+// Ao escolher o cliente, traz os itens que ele já tem com preço negociado, com
+// o valor praticado HOJE. Nunca descarta o que já foi digitado sem confirmar.
+function temItemPreenchido() {
+    return [...document.querySelectorAll('#corpoItens [name="descricao[]"]')]
+        .some(i => i.value.trim() !== '');
+}
+
+function mostrarAvisoFavoritos(qtd) {
+    document.getElementById('avisoFavoritosTexto').textContent = (qtd === 1)
+        ? '1 item já negociado com este cliente foi carregado com o valor atual.'
+        : qtd + ' itens já negociados com este cliente foram carregados com os valores atuais.';
+    document.getElementById('avisoFavoritos').classList.remove('d-none');
+}
+
+const selCliente = document.getElementById('selCliente');
+if (selCliente) {
+    selCliente.addEventListener('change', async function () {
+        document.getElementById('avisoFavoritos').classList.add('d-none');
+        const id = this.value;
+        if (!id) return;
+
+        let itens = [];
+        try {
+            const resp = await fetch('/propostas/itens_cliente/' + encodeURIComponent(id));
+            if (!resp.ok) return;
+            itens = (await resp.json()).itens || [];
+        } catch (e) { return; }      // falha de rede → segue preenchendo à mão
+        if (!itens.length) return;   // cliente sem itens negociados → não mexe
+
+        if (temItemPreenchido() && !confirm(
+                'Este cliente tem ' + itens.length + ' item(ns) já negociado(s).\n\n' +
+                'Substituir os itens da proposta pelos valores atuais dele?')) {
+            return;
+        }
+
+        document.getElementById('corpoItens').innerHTML = '';
+        itens.forEach(i => adicionarItem(i));
+        atualizarTotal();
+        mostrarAvisoFavoritos(itens.length);
+    });
 }
 </script>
 

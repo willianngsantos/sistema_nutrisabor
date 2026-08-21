@@ -67,6 +67,35 @@
 }
 .btn-remove-item:hover { color: #dc3545; background: #fee2e2; }
 
+/* ── Campo de dinheiro (R$ fixo à esquerda) ────────────────── */
+.campo-moeda { position: relative; }
+.campo-moeda .prefixo-moeda {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-size: .78rem; font-weight: 600; color: #94a3b8; pointer-events: none;
+}
+.item-row .campo-moeda input { padding-left: 30px; text-align: right; }
+
+/* ── Barra de reajuste ─────────────────────────────────────── */
+.reajuste-bar {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+    margin: 14px 12px 0; padding: 10px 14px;
+    background: #f8fafc; border: 1px solid #e9ecef; border-radius: 10px;
+}
+.reajuste-bar .rotulo {
+    font-size: .78rem; font-weight: 700; text-transform: uppercase;
+    color: #475569; letter-spacing: .3px;
+}
+.reajuste-bar select, .reajuste-bar input {
+    font-size: .85rem; padding: 6px 10px;
+    border: 1px solid #e2e8f0; border-radius: 8px;
+}
+.reajuste-bar select { width: 150px; }
+.reajuste-bar input  { width: 110px; text-align: right; }
+.reajuste-bar select:focus, .reajuste-bar input:focus {
+    border-color: #27ae60; box-shadow: 0 0 0 3px rgba(39,174,96,.1); outline: none;
+}
+.reajuste-feedback { font-size: .8rem; font-weight: 600; color: #1b5e20; }
+
 /* ── Total ─────────────────────────────────────────────────── */
 .total-row {
     display: flex; justify-content: flex-end; align-items: center;
@@ -174,6 +203,24 @@
                      style="background:#e8f5e9;border:1px solid #c8e6c9;font-size:.82rem;color:#1b5e20;">
                     <i class="bi bi-stars me-1"></i><span id="avisoFavoritosTexto"></span>
                 </div>
+
+                <!-- Reajuste em massa: aplica sobre o valor unitário de todos
+                     os itens preenchidos. Aceita valor negativo (redução). -->
+                <div class="reajuste-bar">
+                    <span class="rotulo"><i class="bi bi-graph-up-arrow me-1"></i>Reajuste</span>
+                    <select id="reajusteTipo">
+                        <option value="percentual">Percentual (%)</option>
+                        <option value="valor">Valor (R$)</option>
+                    </select>
+                    <input type="text" id="reajusteValor" inputmode="decimal"
+                           placeholder="Ex: 10" autocomplete="off"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarReajuste();}">
+                    <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3"
+                            onclick="aplicarReajuste()">
+                        <i class="bi bi-check2 me-1"></i>Aplicar a todos
+                    </button>
+                    <span id="reajusteFeedback" class="reajuste-feedback"></span>
+                </div>
                 <div class="table-responsive px-3 pt-3">
                     <table class="items-table" id="tabelaItens">
                         <thead>
@@ -266,7 +313,13 @@
                 {% endfor %}
             </select>
         </td>
-        <td><input type="number" name="valor_unitario[]"  value="0" min="0" step="0.01" oninput="calcSubtotal(this)"></td>
+        <td>
+            <div class="campo-moeda">
+                <span class="prefixo-moeda">R$</span>
+                <input type="text" name="valor_unitario[]" value="0,00" inputmode="decimal"
+                       autocomplete="off" oninput="mascaraMoedaBR(this); calcSubtotal(this)">
+            </div>
+        </td>
         <td><span class="subtotal">R$ 0,00</span></td>
         <td>
             <button type="button" class="btn-remove-item" onclick="removerItem(this)" title="Remover">
@@ -301,7 +354,8 @@ function adicionarItem(dados) {
     if (dados) {
         tr.querySelector('[name="descricao[]"]').value       = dados.descricao      || '';
         tr.querySelector('[name="quantidade[]"]').value      = dados.quantidade     || 1;
-        tr.querySelector('[name="valor_unitario[]"]').value  = dados.valor_unitario || 0;
+        // Valor sempre exibido em Real (o back pode mandar número ou string)
+        tr.querySelector('[name="valor_unitario[]"]').value  = formatarNumeroBR(paraNumero(dados.valor_unitario));
         // Seleciona unidade correta
         const sel = tr.querySelector('[name="unidade[]"]');
         [...sel.options].forEach(o => { if (o.value === dados.unidade) o.selected = true; });
@@ -330,8 +384,8 @@ function calcSubtotal(input) {
 }
 
 function atualizarSubtotalRow(tr) {
-    const qtd   = parseFloat(tr.querySelector('[name="quantidade[]"]').value)      || 0;
-    const vunit = parseFloat(tr.querySelector('[name="valor_unitario[]"]').value)  || 0;
+    const qtd   = paraNumero(tr.querySelector('[name="quantidade[]"]').value);
+    const vunit = paraNumero(tr.querySelector('[name="valor_unitario[]"]').value);
     const sub   = qtd * vunit;
     tr.querySelector('.subtotal').textContent = formatBRL(sub);
     tr.dataset.subtotal = sub;
@@ -341,16 +395,86 @@ function atualizarSubtotalRow(tr) {
 function atualizarTotal() {
     let total = 0;
     document.querySelectorAll('#corpoItens tr').forEach(tr => {
-        const qtd   = parseFloat(tr.querySelector('[name="quantidade[]"]')?.value)     || 0;
-        const vunit = parseFloat(tr.querySelector('[name="valor_unitario[]"]')?.value) || 0;
+        const qtd   = paraNumero(tr.querySelector('[name="quantidade[]"]')?.value);
+        const vunit = paraNumero(tr.querySelector('[name="valor_unitario[]"]')?.value);
         total += qtd * vunit;
     });
     document.getElementById('totalGeral').textContent = formatBRL(total);
 }
 
-// ── Formatação BRL ──────────────────────────────────────────────────────────
+// ── Formatação / leitura em Real ────────────────────────────────────────────
 function formatBRL(v) {
     return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+// Só o número, no padrão pt-BR: 24.3 → "24,30"
+function formatarNumeroBR(v) {
+    return (Number(v) || 0).toLocaleString('pt-BR',
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Lê número em qualquer formato que possa chegar: 24.3 (número), "24,30"
+// (digitado), "1.234,56" (com milhar) ou "24.30" (vindo do banco como string).
+function paraNumero(v) {
+    if (typeof v === 'number') return isFinite(v) ? v : 0;
+    const s = String(v == null ? '' : v).trim().replace(/R\$/g, '').replace(/\s/g, '');
+    if (!s) return 0;
+    const norm = s.indexOf(',') >= 0
+        ? s.replace(/\./g, '').replace(',', '.')   // "1.234,56" → "1234.56"
+        : s;                                       // "24.30" já serve
+    const n = parseFloat(norm);
+    return isFinite(n) ? n : 0;
+}
+
+// Máscara de digitação: os dígitos entram como centavos (2430 → "24,30"),
+// mesmo padrão já usado no cadastro de colaboradores.
+function mascaraMoedaBR(el) {
+    const digitos = el.value.replace(/\D/g, '');
+    if (!digitos) { el.value = ''; return; }
+    el.value = formatarNumeroBR(parseInt(digitos, 10) / 100);
+}
+
+// ── Reajuste em massa ───────────────────────────────────────────────────────
+// Aplica percentual ou valor fixo sobre o valor unitário de todos os itens já
+// preenchidos. Aceita negativo (redução) e nunca deixa o preço abaixo de zero.
+function aplicarReajuste() {
+    const tipo  = document.getElementById('reajusteTipo').value;
+    const campo = document.getElementById('reajusteValor');
+    const aviso = document.getElementById('reajusteFeedback');
+
+    // aqui o sinal importa, então paraNumero() sozinho não basta
+    const bruto = campo.value.trim().replace(',', '.');
+    const valor = parseFloat(bruto);
+    if (!isFinite(valor) || valor === 0) {
+        aviso.style.color = '#b45309';
+        aviso.textContent = 'Informe o valor do reajuste.';
+        campo.focus();
+        return;
+    }
+
+    let alterados = 0;
+    document.querySelectorAll('#corpoItens tr').forEach(tr => {
+        const desc  = tr.querySelector('[name="descricao[]"]');
+        const preco = tr.querySelector('[name="valor_unitario[]"]');
+        if (!desc || !preco || !desc.value.trim()) return;   // pula linha vazia
+        const atual = paraNumero(preco.value);
+        const novo  = (tipo === 'percentual') ? atual * (1 + valor / 100)
+                                              : atual + valor;
+        preco.value = formatarNumeroBR(Math.max(0, Math.round(novo * 100) / 100));
+        atualizarSubtotalRow(tr);
+        alterados++;
+    });
+    atualizarTotal();
+
+    aviso.style.color = alterados ? '#1b5e20' : '#b45309';
+    if (!alterados) {
+        aviso.textContent = 'Nenhum item preenchido para reajustar.';
+    } else {
+        const rotulo = (tipo === 'percentual')
+            ? formatarNumeroBR(valor).replace(',00', '') + '%'
+            : formatBRL(valor);
+        aviso.textContent = `${rotulo} aplicado a ${alterados} item(ns).`;
+    }
 }
 
 // ── Itens já negociados com o cliente (proposta de reajuste) ────────────────

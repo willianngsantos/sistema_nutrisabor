@@ -6,6 +6,7 @@ from flask_login import login_required, current_user
 from database import get_db_connection
 from utils.permissions import admin_only
 from utils.audit import log_action, format_field_diff
+from utils.validators import parse_moeda_br
 
 # ── Blueprint ─────────────────────────────────────────────────────────────────
 propostas_bp = Blueprint('propostas', __name__)
@@ -262,12 +263,11 @@ def nova():
             desc = desc.strip()
             if not desc:
                 continue
-            try:
-                qtd   = float(str(qtd).replace(',', '.'))
-                vunit = float(str(vunit).replace(',', '.'))
-            except Exception:
-                qtd   = 1.0
-                vunit = 0.0
+            # Parser único do sistema: entende "1.234,56" (Real) e "24.30".
+            # Antes, um valor com milhar caía no except e o preço ia para 0
+            # sem ninguém perceber.
+            qtd   = parse_moeda_br(qtd) or 1.0
+            vunit = parse_moeda_br(vunit)
             cur.execute("""
                 INSERT INTO proposta_itens
                     (id_proposta, descricao, quantidade, unidade, valor_unitario)
@@ -334,12 +334,11 @@ def editar(id_proposta):
             desc = desc.strip()
             if not desc:
                 continue
-            try:
-                qtd   = float(str(qtd).replace(',', '.'))
-                vunit = float(str(vunit).replace(',', '.'))
-            except Exception:
-                qtd   = 1.0
-                vunit = 0.0
+            # Parser único do sistema: entende "1.234,56" (Real) e "24.30".
+            # Antes, um valor com milhar caía no except e o preço ia para 0
+            # sem ninguém perceber.
+            qtd   = parse_moeda_br(qtd) or 1.0
+            vunit = parse_moeda_br(vunit)
             cur.execute("""
                 INSERT INTO proposta_itens
                     (id_proposta, descricao, quantidade, unidade, valor_unitario)

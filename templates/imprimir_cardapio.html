@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Cardápio - {{ cardapio['nome_empresa'] }}</title>
-    <!-- Pre-carrega a logo: garante que esteja em cache antes do dialogo
-         de impressao, evitando re-render tardio que deixa o preview branco -->
-    <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
-    {% if cardapio['logo_path'] %}
-    <link rel="preload" as="image" href="{{ url_for('static', filename=cardapio['logo_path']) }}">
-    {% endif %}
+    <!-- As logos vão embutidas no HTML (data URI), então não há o que
+         pré-carregar: chegam junto com o documento e não dependem de uma
+         segunda requisição na hora de imprimir. -->
+
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -481,7 +479,7 @@
         <!-- Cabeçalho -->
         <div class="page-header">
             <div class="logo-box">
-                <img src="/static/img/logo.png" alt="NutriSabor">
+                <img src="{{ img_embutida('img/logo_print.png') }}" alt="NutriSabor">
             </div>
 
             <div class="header-center">
@@ -493,8 +491,11 @@
             </div>
 
             <div class="logo-box">
-                {% if cardapio['logo_path'] %}
-                    <img src="/static/{{ cardapio['logo_path'] }}" alt="{{ cardapio['nome_empresa'] }}">
+                {# Embutida: se o arquivo sumiu, cai no placeholder em vez de
+                   deixar um ícone de imagem quebrada no documento. #}
+                {% set logo_cliente = img_embutida(cardapio['logo_path']) %}
+                {% if logo_cliente %}
+                    <img src="{{ logo_cliente }}" alt="{{ cardapio['nome_empresa'] }}">
                 {% else %}
                     <div class="logo-placeholder">Logo do<br>Cliente</div>
                 {% endif %}

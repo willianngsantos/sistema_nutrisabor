@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <title>Documentos para Admissão{% if colab %} — {{ colab.nome }}{% endif %}</title>
-    <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -193,7 +192,7 @@
 
 <div class="page">
     <div class="topo">
-        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="NutriSabor">
+        <img src="{{ img_embutida('img/logo_print.png') }}" alt="NutriSabor">
     </div>
 
     <div class="titulo">Documentos Necessários para Admissão</div>

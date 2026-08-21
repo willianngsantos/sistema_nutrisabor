@@ -14,6 +14,7 @@ from routes.vendas import vendas_bp
 from routes.colaboradores import colaboradores_bp
 from routes.propostas import propostas_bp
 from utils.audit import log_action
+from utils.imagens import imagem_data_uri
 import logging
 import re
 
@@ -109,6 +110,12 @@ def _audit_page_view():
     if request.query_string:
         descricao = f"{path}?{request.query_string.decode('utf-8', errors='replace')}"
     log_action('view', entity_type='page', descricao=descricao[:500])
+
+
+# --- IMAGEM EMBUTIDA NOS IMPRESSOS ---
+# img_embutida('img/logo_print.png') devolve a imagem como data URI, para o
+# documento não depender de uma segunda requisição na hora de imprimir.
+app.jinja_env.globals['img_embutida'] = imagem_data_uri
 
 
 # --- FILTROS ---

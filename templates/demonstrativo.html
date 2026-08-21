@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Demonstrativo de Faturamento — {{ periodo_label }}</title>
-  <link rel="preload" as="image" href="{{ url_for('static', filename='img/logo.png') }}">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   <style>
@@ -114,7 +113,7 @@
   <div class="page">
     <!-- Cabeçalho da empresa -->
     <div class="doc-header">
-      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
+      <img src="{{ img_embutida('img/logo_print.png') }}" alt="Logo">
       <div>
         <div class="empresa-nome">{{ empresa['razao_social'] if empresa and empresa['razao_social'] else 'NutriSabor' }}</div>
         <div class="empresa-meta">

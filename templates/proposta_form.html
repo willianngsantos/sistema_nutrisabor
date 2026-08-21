@@ -75,6 +75,12 @@
 }
 .item-row .campo-moeda input { padding-left: 30px; text-align: right; }
 
+/* Valor atual = referência (discreto). Valor proposto = o que vale (destaque) */
+.item-row .valor-atual { color: #64748b; background: #f8fafc; }
+.items-table th.th-novo { color: #27ae60; }
+.item-row .campo-novo input { font-weight: 700; color: #1e293b; }
+.item-row .campo-novo input:not(:focus) { border-color: #cfe9d8; }
+
 /* ── Barra de reajuste ─────────────────────────────────────── */
 .reajuste-bar {
     display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
@@ -104,6 +110,9 @@
 }
 .total-label { font-size: .88rem; color: #64748b; font-weight: 600; }
 .total-value { font-size: 1.5rem; font-weight: 800; color: #e67e22; }
+.total-atual { font-size: 1.1rem; font-weight: 700; color: #94a3b8; text-decoration: line-through; }
+.total-seta  { color: #cbd5e1; }
+.total-variacao { font-size: .82rem; font-weight: 700; color: #1b5e20; }
 
 /* ── Label input ──────────────────────────────────────────── */
 .form-label { font-size: .82rem; font-weight: 600; color: #374151; margin-bottom: 5px; }
@@ -225,11 +234,12 @@
                     <table class="items-table" id="tabelaItens">
                         <thead>
                             <tr>
-                                <th style="width:40%">Descrição</th>
-                                <th style="width:10%">Qtd</th>
-                                <th style="width:15%">Unidade</th>
-                                <th style="width:16%">Valor Unit.</th>
-                                <th style="width:14%">Subtotal</th>
+                                <th style="width:30%">Descrição</th>
+                                <th style="width:8%">Qtd</th>
+                                <th style="width:13%">Unidade</th>
+                                <th style="width:15%">Valor atual</th>
+                                <th style="width:16%" class="th-novo">Valor proposto</th>
+                                <th style="width:13%">Subtotal</th>
                                 <th style="width:5%"></th>
                             </tr>
                         </thead>
@@ -238,10 +248,14 @@
                         </tbody>
                     </table>
                 </div>
-                <!-- Totais -->
+                <!-- Totais: atual → proposto, para ver o salto de uma vez -->
                 <div class="total-row px-3 pb-4">
+                    <span class="total-label">TOTAL ATUAL</span>
+                    <span class="total-atual" id="totalAtual">R$ 0,00</span>
+                    <span class="total-seta"><i class="bi bi-arrow-right"></i></span>
                     <span class="total-label">TOTAL DA PROPOSTA</span>
                     <span class="total-value" id="totalGeral">R$ 0,00</span>
+                    <span class="total-variacao" id="totalVariacao"></span>
                 </div>
             </div>
         </div>
@@ -313,8 +327,18 @@
                 {% endfor %}
             </select>
         </td>
+        {# Valor ATUAL: referência do que o cliente paga hoje. Não vai no POST
+           (sem name) — serve de base para o reajuste e para a comparação. #}
         <td>
             <div class="campo-moeda">
+                <span class="prefixo-moeda">R$</span>
+                <input type="text" class="valor-atual" value="0,00" inputmode="decimal"
+                       autocomplete="off" oninput="mascaraMoedaBR(this); mudouValorAtual(this)">
+            </div>
+        </td>
+        {# Valor PROPOSTO: é o que a proposta grava. #}
+        <td>
+            <div class="campo-moeda campo-novo">
                 <span class="prefixo-moeda">R$</span>
                 <input type="text" name="valor_unitario[]" value="0,00" inputmode="decimal"
                        autocomplete="off" oninput="mascaraMoedaBR(this); calcSubtotal(this)">
@@ -352,10 +376,13 @@ function adicionarItem(dados) {
     const tr    = tmpl.querySelector('tr');
 
     if (dados) {
-        tr.querySelector('[name="descricao[]"]').value       = dados.descricao      || '';
-        tr.querySelector('[name="quantidade[]"]').value      = dados.quantidade     || 1;
-        // Valor sempre exibido em Real (o back pode mandar número ou string)
-        tr.querySelector('[name="valor_unitario[]"]').value  = formatarNumeroBR(paraNumero(dados.valor_unitario));
+        tr.querySelector('[name="descricao[]"]').value  = dados.descricao  || '';
+        tr.querySelector('[name="quantidade[]"]').value = dados.quantidade || 1;
+        // Valor sempre exibido em Real (o back pode mandar número ou string).
+        // Atual e proposto começam iguais: o reajuste é que cria a diferença.
+        const v = formatarNumeroBR(paraNumero(dados.valor_unitario));
+        tr.querySelector('.valor-atual').value               = v;
+        tr.querySelector('[name="valor_unitario[]"]').value  = v;
         // Seleciona unidade correta
         const sel = tr.querySelector('[name="unidade[]"]');
         [...sel.options].forEach(o => { if (o.value === dados.unidade) o.selected = true; });
@@ -393,13 +420,35 @@ function atualizarSubtotalRow(tr) {
 
 // ── Total geral ─────────────────────────────────────────────────────────────
 function atualizarTotal() {
-    let total = 0;
+    let total = 0, totalAtual = 0;
     document.querySelectorAll('#corpoItens tr').forEach(tr => {
         const qtd   = paraNumero(tr.querySelector('[name="quantidade[]"]')?.value);
         const vunit = paraNumero(tr.querySelector('[name="valor_unitario[]"]')?.value);
-        total += qtd * vunit;
+        const vatual= paraNumero(tr.querySelector('.valor-atual')?.value);
+        total      += qtd * vunit;
+        totalAtual += qtd * vatual;
     });
     document.getElementById('totalGeral').textContent = formatBRL(total);
+
+    // "Total atual" e a variação só aparecem quando há de fato uma diferença
+    const elAtual = document.getElementById('totalAtual');
+    const elSeta  = document.querySelector('.total-seta');
+    const elVar   = document.getElementById('totalVariacao');
+    const houveMudanca = totalAtual > 0 && Math.abs(total - totalAtual) >= 0.005;
+
+    elAtual.textContent  = formatBRL(totalAtual);
+    elAtual.style.display = houveMudanca ? '' : 'none';
+    elSeta.style.display  = houveMudanca ? '' : 'none';
+    elAtual.previousElementSibling.style.display = houveMudanca ? '' : 'none';  // rótulo "TOTAL ATUAL"
+
+    if (houveMudanca) {
+        const pct = ((total - totalAtual) / totalAtual) * 100;
+        const sinal = pct >= 0 ? '+' : '−';
+        elVar.textContent = `${sinal}${formatarNumeroBR(Math.abs(pct))}% (${sinal}${formatBRL(Math.abs(total - totalAtual))})`;
+        elVar.style.color = pct >= 0 ? '#1b5e20' : '#b45309';
+    } else {
+        elVar.textContent = '';
+    }
 }
 
 // ── Formatação / leitura em Real ────────────────────────────────────────────
@@ -435,8 +484,28 @@ function mascaraMoedaBR(el) {
 }
 
 // ── Reajuste em massa ───────────────────────────────────────────────────────
-// Aplica percentual ou valor fixo sobre o valor unitário de todos os itens já
-// preenchidos. Aceita negativo (redução) e nunca deixa o preço abaixo de zero.
+// O reajuste SEMPRE parte do "valor atual", nunca do valor já reajustado.
+// Assim dá para testar 10%, depois 12%, sem acumular um sobre o outro.
+let reajusteAplicado = null;   // {tipo, valor} enquanto houver reajuste ativo
+
+function calcularNovo(atual, tipo, valor) {
+    const novo = (tipo === 'percentual') ? atual * (1 + valor / 100) : atual + valor;
+    return Math.max(0, Math.round(novo * 100) / 100);
+}
+
+// Editar o valor atual reflete no proposto: repete o reajuste ativo ou,
+// se não houver, mantém os dois iguais.
+function mudouValorAtual(el) {
+    const tr = el.closest('tr');
+    const preco = tr.querySelector('[name="valor_unitario[]"]');
+    const atual = paraNumero(el.value);
+    preco.value = formatarNumeroBR(
+        reajusteAplicado ? calcularNovo(atual, reajusteAplicado.tipo, reajusteAplicado.valor)
+                         : atual);
+    atualizarSubtotalRow(tr);
+    atualizarTotal();
+}
+
 function aplicarReajuste() {
     const tipo  = document.getElementById('reajusteTipo').value;
     const campo = document.getElementById('reajusteValor');
@@ -452,15 +521,14 @@ function aplicarReajuste() {
         return;
     }
 
+    reajusteAplicado = { tipo: tipo, valor: valor };
     let alterados = 0;
     document.querySelectorAll('#corpoItens tr').forEach(tr => {
         const desc  = tr.querySelector('[name="descricao[]"]');
         const preco = tr.querySelector('[name="valor_unitario[]"]');
-        if (!desc || !preco || !desc.value.trim()) return;   // pula linha vazia
-        const atual = paraNumero(preco.value);
-        const novo  = (tipo === 'percentual') ? atual * (1 + valor / 100)
-                                              : atual + valor;
-        preco.value = formatarNumeroBR(Math.max(0, Math.round(novo * 100) / 100));
+        const base  = tr.querySelector('.valor-atual');
+        if (!desc || !preco || !base || !desc.value.trim()) return;   // pula linha vazia
+        preco.value = formatarNumeroBR(calcularNovo(paraNumero(base.value), tipo, valor));
         atualizarSubtotalRow(tr);
         alterados++;
     });
@@ -513,6 +581,9 @@ if (selCliente) {
             return;
         }
 
+        // Itens novos → o reajuste anterior não vale mais
+        reajusteAplicado = null;
+        document.getElementById('reajusteFeedback').textContent = '';
         document.getElementById('corpoItens').innerHTML = '';
         itens.forEach(i => adicionarItem(i));
         atualizarTotal();

@@ -60,11 +60,31 @@ app.teardown_appcontext(close_db_connection)
 # Defesa em profundidade barata: impede o site de ser embutido em iframe
 # (clickjacking), desliga o MIME-sniffing e limita o vazamento de Referer.
 # CSP fica de fora por ora porque o app usa <script> inline em várias telas.
+# Documentos que vão para o papel/PDF nunca podem sair do cache do navegador:
+# uma cópia antiga é impressa com dado desatualizado (preço, cardápio, valores
+# do recibo) sem ninguém perceber. Foi o que fez a correção da logo demorar a
+# aparecer para quem já tinha a página guardada.
+_DOCS_SEM_CACHE = (
+    '/cardapios/imprimir/',
+    '/fatura/',
+    '/recibo_vt/',
+    '/recibos_vt/',
+    '/propostas/ver/',
+    '/relatorios/demonstrativo',
+    '/rh/ponto/imprimir',
+    '/rh/admissao/',
+)
+
+
 @app.after_request
 def _headers_seguranca(resp):
     resp.headers.setdefault('X-Frame-Options', 'DENY')
     resp.headers.setdefault('X-Content-Type-Options', 'nosniff')
     resp.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    if request.path.startswith(_DOCS_SEM_CACHE):
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        resp.headers['Pragma'] = 'no-cache'
+        resp.headers['Expires'] = '0'
     return resp
 
 

@@ -67,6 +67,16 @@
 }
 .btn-remove-item:hover { color: #dc3545; background: #fee2e2; }
 
+/* ── Opção: orçamento com totais x tabela de preços ─────────── */
+.opcao-totais {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: #f8fafc; border: 1px solid #e9ecef;
+    border-radius: 10px; padding: 12px 14px;
+}
+.opcao-totais .form-check-input { margin-top: 2px; flex-shrink: 0; }
+.opcao-totais .titulo { display: block; font-size: .88rem; font-weight: 600; color: #1e293b; }
+.opcao-totais .ajuda  { display: block; font-size: .76rem; color: #64748b; line-height: 1.5; margin-top: 2px; }
+
 /* ── Campo de dinheiro (R$ fixo à esquerda) ────────────────── */
 .campo-moeda { position: relative; }
 .campo-moeda .prefixo-moeda {
@@ -189,6 +199,23 @@
                         <input type="text" name="condicoes_pagamento" class="form-control"
                                placeholder="Ex: 50% no ato, 50% na entrega"
                                value="{{ proposta.condicoes_pagamento or '' if proposta else '' }}">
+                    </div>
+                    {# Proposta de reajuste / serviço novo é uma TABELA DE PREÇOS:
+                       só o valor unitário interessa. Orçamento (ex.: "600 L de
+                       café") é que precisa de quantidade e total. #}
+                    <div class="col-md-12">
+                        <div class="opcao-totais">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   id="mostrarTotais" name="mostrar_totais" value="1"
+                                   {% if proposta and proposta.mostrar_totais %}checked{% endif %}>
+                            <label class="form-check-label" for="mostrarTotais">
+                                <span class="titulo">Orçamento com totais</span>
+                                <span class="ajuda">
+                                    Marcado: o PDF mostra Qtd, Subtotal e Total — para orçamento fechado.<br>
+                                    Desmarcado: mostra <strong>só o valor unitário</strong> — para reajuste ou oferta de serviço.
+                                </span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -36,6 +36,7 @@ MIGRACOES = [
     "add_empresa_assinaturas.py",
     "add_proposta_numero_unique.py",
     "add_tabela_precos_unique.py",
+    "add_proposta_mostrar_totais.py",
     "limpar_precos_zerados.py",  # rotina de limpeza idempotente (não é schema)
 ]
 

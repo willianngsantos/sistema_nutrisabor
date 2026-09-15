@@ -337,10 +337,10 @@ body {
                 <tr>
                     <th>#</th>
                     <th>Descrição</th>
-                    <th class="col-c">Qtd</th>
+                    {% if proposta.mostrar_totais %}<th class="col-c">Qtd</th>{% endif %}
                     <th class="col-c">Unid.</th>
                     <th class="col-r">Valor Unit.</th>
-                    <th class="col-r">Subtotal</th>
+                    {% if proposta.mostrar_totais %}<th class="col-r">Subtotal</th>{% endif %}
                 </tr>
             </thead>
             <tbody>
@@ -348,14 +348,14 @@ body {
             <tr>
                 <td style="color:#94a3b8; font-size:.75rem; font-weight:700;">{{ loop.index }}</td>
                 <td class="desc-cell">{{ item.descricao }}</td>
-                <td class="col-c">{{ '%g' % item.quantidade }}</td>
+                {% if proposta.mostrar_totais %}<td class="col-c">{{ '%g' % item.quantidade }}</td>{% endif %}
                 <td class="col-c"><span class="unit-badge">{{ item.unidade }}</span></td>
-                <td class="col-r">{{ item.valor_unitario | real }}</td>
-                <td class="col-r" style="font-weight:700;">{{ item.subtotal | real }}</td>
+                <td class="col-r" style="font-weight:700;">{{ item.valor_unitario | real }}</td>
+                {% if proposta.mostrar_totais %}<td class="col-r" style="font-weight:700;">{{ item.subtotal | real }}</td>{% endif %}
             </tr>
             {% else %}
             <tr>
-                <td colspan="6" style="text-align:center; color:#94a3b8; padding:20px;">
+                <td colspan="{{ 6 if proposta.mostrar_totais else 4 }}" style="text-align:center; color:#94a3b8; padding:20px;">
                     Nenhum item nesta proposta.
                 </td>
             </tr>
@@ -364,6 +364,10 @@ body {
         </table>
 
         <!-- TOTAL ──────────────────────────────────────────────────────── -->
+        {# Tabela de preços (reajuste / serviço novo) não leva total: somar
+           itens distintos — café + marmita + almoço — dá um número que não
+           significa nada comercialmente. #}
+        {% if proposta.mostrar_totais %}
         <div class="totals-block">
             <div class="totals-inner">
                 <div class="subtotal-row">
@@ -376,6 +380,7 @@ body {
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- CONDIÇÕES + OBSERVAÇÕES ────────────────────────────────────── -->
         {% if proposta.condicoes_pagamento or proposta.observacoes %}

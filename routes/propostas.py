@@ -230,6 +230,9 @@ def nova():
         quantidades = request.form.getlist('quantidade[]')
         unids       = request.form.getlist('unidade[]')
         valores     = request.form.getlist('valor_unitario[]')
+        # Marcado = orçamento (Qtd/Subtotal/Total no PDF). Desmarcado = tabela
+        # de preços, onde somar itens distintos não significa nada.
+        mostrar_totais = 1 if request.form.get('mostrar_totais') else 0
 
         if not id_cliente or not data_proposta:
             flash("Cliente e data são obrigatórios.", "warning")
@@ -246,10 +249,10 @@ def nova():
                 cur.execute("""
                     INSERT INTO propostas
                         (numero, id_cliente, data_proposta, validade,
-                         condicoes_pagamento, observacoes, status)
-                    VALUES (%s,%s,%s,%s,%s,%s,'Rascunho')
+                         condicoes_pagamento, observacoes, status, mostrar_totais)
+                    VALUES (%s,%s,%s,%s,%s,%s,'Rascunho',%s)
                 """, (numero, id_cliente, data_proposta, validade,
-                      condicoes_pagamento, observacoes))
+                      condicoes_pagamento, observacoes, mostrar_totais))
                 id_proposta = cur.lastrowid
                 break
             except mysql.connector.IntegrityError:
@@ -313,14 +316,16 @@ def editar(id_proposta):
         condicoes_pagamento = request.form.get('condicoes_pagamento', '').strip()
         observacoes         = request.form.get('observacoes', '').strip()
         status              = request.form.get('status', proposta['status'])
+        mostrar_totais      = 1 if request.form.get('mostrar_totais') else 0
 
         cur.execute("""
             UPDATE propostas SET
                 id_cliente=%s, data_proposta=%s, validade=%s,
-                condicoes_pagamento=%s, observacoes=%s, status=%s
+                condicoes_pagamento=%s, observacoes=%s, status=%s,
+                mostrar_totais=%s
             WHERE id=%s
         """, (id_cliente, data_proposta, validade,
-              condicoes_pagamento, observacoes, status, id_proposta))
+              condicoes_pagamento, observacoes, status, mostrar_totais, id_proposta))
 
         # Recria itens (delete → insert)
         cur.execute("DELETE FROM proposta_itens WHERE id_proposta = %s", (id_proposta,))

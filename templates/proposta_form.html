@@ -67,6 +67,8 @@
 }
 .btn-remove-item:hover { color: #dc3545; background: #fee2e2; }
 
+.dica-texto { font-size: .76rem; color: #64748b; margin-top: 8px; line-height: 1.5; }
+
 /* ── Opção: orçamento com totais x tabela de preços ─────────── */
 .opcao-totais {
     display: flex; align-items: flex-start; gap: 10px;
@@ -217,6 +219,29 @@
                             </label>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Texto de apresentação (sai ANTES da tabela no documento) -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-icon bg-info bg-opacity-10 text-info">
+                    <i class="bi bi-chat-quote"></i>
+                </div>
+                <span class="section-title">Texto de Apresentação</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill ms-auto px-3"
+                        onclick="usarModeloReajuste()">
+                    <i class="bi bi-magic me-1"></i>Usar modelo de reajuste
+                </button>
+            </div>
+            <div class="section-body">
+                <textarea name="texto_abertura" id="textoAbertura" class="form-control" rows="7"
+                          placeholder="Aparece no documento logo acima da tabela de preços. Use para explicar o motivo do reajuste, a vigência e agradecer a parceria.">{{ proposta.texto_abertura or '' if proposta else '' }}</textarea>
+                <div class="dica-texto">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Sai <strong>antes</strong> da tabela — o cliente lê o motivo antes de ver os valores.
+                    Deixe em branco para não aparecer.
                 </div>
             </div>
         </div>
@@ -570,6 +595,25 @@ function aplicarReajuste() {
             : formatBRL(valor);
         aviso.textContent = `${rotulo} aplicado a ${alterados} item(ns).`;
     }
+}
+
+// ── Modelo de carta de reajuste ─────────────────────────────────────────────
+// Rascunho para o usuário editar — nunca vai ao cliente sem ele revisar.
+function usarModeloReajuste() {
+    const campo = document.getElementById('textoAbertura');
+    if (campo.value.trim() && !confirm('Substituir o texto que já está escrito pelo modelo?')) return;
+    const nome = (document.getElementById('selCliente')?.selectedOptions[0]?.text || '').trim();
+    campo.value =
+`Prezados${nome && nome.indexOf('Selecione') === -1 ? ' da ' + nome : ''},
+
+Agradecemos a confiança e a parceria ao longo deste período.
+
+Em razão da elevação dos custos de insumos e de mão de obra, será necessário reajustar os valores praticados. Segue abaixo a tabela atualizada, com vigência a partir de ___/___/______.
+
+Seguimos à disposição para esclarecer qualquer ponto e reforçamos o compromisso de manter a qualidade do serviço prestado.
+
+Atenciosamente,`;
+    campo.focus();
 }
 
 // ── Itens já negociados com o cliente (proposta de reajuste) ────────────────

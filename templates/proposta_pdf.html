@@ -102,6 +102,13 @@ body {
 .client-field-label { font-size: .63rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .8px; }
 .client-field-value { font-size: .83rem; color: #1e293b; font-weight: 600; margin-top: 1px; }
 
+/* ── Texto de apresentação (antes da tabela) ──────────────── */
+.texto-abertura {
+    font-size: .85rem; color: #374151; line-height: 1.6;
+    white-space: pre-line;          /* respeita as quebras que o usuário digitou */
+    margin: 4px 0 6px;
+}
+
 /* ── Tabela de itens ───────────────────────────────────────── */
 .items-table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
 .items-table thead tr {
@@ -326,6 +333,13 @@ body {
             </div>
             {% endif %}
         </div>
+
+        <!-- TEXTO DE ABERTURA ──────────────────────────────────────────── -->
+        {# Vem ANTES da tabela: numa carta de reajuste o cliente precisa ler o
+           motivo antes de bater o olho nos valores novos. #}
+        {% if proposta.texto_abertura %}
+        <div class="texto-abertura">{{ proposta.texto_abertura }}</div>
+        {% endif %}
 
         <!-- ITENS ──────────────────────────────────────────────────────── -->
         <div class="section-divider">

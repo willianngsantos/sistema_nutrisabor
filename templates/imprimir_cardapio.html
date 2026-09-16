@@ -22,6 +22,11 @@
         }
 
         /* ── Barra de ações (só na tela) ── */
+        .btn-pdf {
+            background: #c0392b; color: #fff; border: none;
+            padding: 8px 18px; border-radius: 50px; font-weight: 600;
+            font-size: .9rem; cursor: pointer; text-decoration: none;
+        }
         .action-bar {
             background: #1e293b;
             padding: 14px 32px;
@@ -411,6 +416,7 @@
 <body>
 
     <div class="action-bar">
+        <a class="btn-pdf" href="?pdf=1">📄 Baixar PDF</a>
         <button class="btn-print" id="btnImprimir" onclick="imprimirSeguro()">
             🖨️ Imprimir / Salvar PDF
         </button>
@@ -497,7 +503,7 @@
                 {% if logo_cliente %}
                     <img src="{{ logo_cliente }}" alt="{{ cardapio['nome_empresa'] }}">
                 {% else %}
-                    <div class="logo-placeholder">Logo do<br>Cliente</div>
+                    <div class="logo-placeholder">Logo do Cliente</div>
                 {% endif %}
             </div>
         </div>

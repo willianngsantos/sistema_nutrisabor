@@ -20,6 +20,15 @@ rsync -avz --progress \
   --exclude '.git/' \
   "$LOCAL_PATH/" "$SERVER:$REMOTE_PATH/"
 
+echo "📦 Garantindo bibliotecas de sistema do gerador de PDF..."
+# WeasyPrint (botão "Baixar PDF") precisa destas libs. É idempotente — se já
+# estiverem instaladas, o apt não faz nada. Falha aqui NÃO aborta o deploy: o
+# site continua no ar e apenas o PDF fica indisponível (o app degrada sozinho).
+ssh "$SERVER" "DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+  libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libcairo2 \
+  libgdk-pixbuf-2.0-0 shared-mime-info > /dev/null 2>&1" \
+  || echo "⚠️  Não instalou as libs de PDF — site segue normal, só o 'Baixar PDF' fica fora."
+
 echo "📦 Instalando/atualizando dependências Python..."
 ssh "$SERVER" "cd $REMOTE_PATH && source venv/bin/activate && pip install -r requirements.txt"
 

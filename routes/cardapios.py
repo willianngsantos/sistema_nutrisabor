@@ -4,6 +4,7 @@ from database import get_db_connection
 from datetime import datetime, timedelta, date
 from utils.permissions import rh_access  # admin, gerencial ou nutricionista
 from utils.audit import log_action
+from utils.pdf import responder_pdf
 
 cardapios_bp = Blueprint('cardapios', __name__)
 
@@ -192,7 +193,13 @@ def imprimir_cardapio(id_cardapio):
     cursor.execute("SELECT razao_social FROM empresa WHERE id = 1")
     empresa = cursor.fetchone()
 
-    return render_template("imprimir_cardapio.html", cardapio=cardapio, itens=itens, empresa=empresa)
+    html = render_template("imprimir_cardapio.html", cardapio=cardapio, itens=itens, empresa=empresa)
+    if request.args.get('pdf'):
+        resp = responder_pdf(html, f"cardapio-{cardapio['nome_empresa']}-{cardapio['data_inicio']}.pdf")
+        if resp:
+            return resp
+        flash("Não foi possível gerar o PDF neste servidor. Use Imprimir / Salvar PDF.", "warning")
+    return html
 
 
 @cardapios_bp.route("/cardapios/excluir/<int:id_cardapio>", methods=["POST"])

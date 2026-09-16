@@ -5,6 +5,7 @@ from database import get_db_connection
 from datetime import datetime
 from utils.permissions import admin_only
 from utils.audit import log_action
+from utils.pdf import responder_pdf
 from utils.constants import MESES_PT
 from utils.validators import parse_moeda_br
 
@@ -458,7 +459,15 @@ def ver_fatura(id_pedido):
     total_geral = sum(item['subtotal'] for item in itens)
     total_formatado = f"R$ {total_geral:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-    return render_template("fatura.html", pedido=pedido, cliente=cliente, itens=itens, empresa=empresa, total_geral=total_geral, total_whatsapp=total_formatado, grupo_info=grupo_info)
+    html = render_template("fatura.html", pedido=pedido, cliente=cliente, itens=itens, empresa=empresa, total_geral=total_geral, total_whatsapp=total_formatado, grupo_info=grupo_info)
+    # ?pdf=1 → arquivo pronto (o celular não consegue "salvar como PDF" pelo
+    # diálogo de impressão, e o que se precisa é anexar no WhatsApp).
+    if request.args.get('pdf'):
+        resp = responder_pdf(html, f"fatura-{pedido['codigo_fatura']}.pdf")
+        if resp:
+            return resp
+        flash("Não foi possível gerar o PDF neste servidor. Use Imprimir / Salvar PDF.", "warning")
+    return html
 
 def _filtros_relatorio(form):
     """Monta o WHERE + params do relatório a partir dos campos do formulário.

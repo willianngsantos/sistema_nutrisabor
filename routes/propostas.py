@@ -7,6 +7,7 @@ from database import get_db_connection
 from utils.permissions import admin_only
 from utils.audit import log_action, format_field_diff
 from utils.validators import parse_moeda_br
+from utils.pdf import responder_pdf
 
 # ── Blueprint ─────────────────────────────────────────────────────────────────
 propostas_bp = Blueprint('propostas', __name__)
@@ -454,10 +455,16 @@ def ver(id_proposta):
 
     total = sum(float(i['subtotal'] or 0) for i in itens)
     empresa = _get_empresa()
-    return render_template('proposta_pdf.html',
+    html = render_template('proposta_pdf.html',
                            proposta=proposta, itens=itens,
                            total=total, empresa=empresa,
                            modo='preview')
+    if request.args.get('pdf'):
+        resp = responder_pdf(html, f"proposta-{proposta['numero']}.pdf")
+        if resp:
+            return resp
+        flash("Não foi possível gerar o PDF neste servidor. Use Imprimir / Salvar PDF.", "warning")
+    return html
 
 
 # ─────────────────────────────────────────────────────────────────────────────

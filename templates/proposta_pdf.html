@@ -246,6 +246,9 @@ body {
 
     <div class="ms-auto d-flex gap-2">
         {% if modo == 'preview' %}
+        <a href="?pdf=1" class="btn btn-sm btn-danger rounded-pill px-3 me-1">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Baixar PDF
+        </a>
         <button id="btnImprimir" onclick="imprimirSeguro()"
                 class="btn btn-sm btn-success rounded-pill px-4">
             <i class="bi bi-printer me-1"></i>Imprimir / Salvar PDF

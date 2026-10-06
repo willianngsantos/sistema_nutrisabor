@@ -56,7 +56,14 @@ mkdir -p "$BACKUP_DIR"
 # com o nome final.
 CNF="$(mktemp)"
 TMP_ARQ=""
-cleanup() { rm -f "$CNF"; [ -n "$TMP_ARQ" ] && rm -f "$TMP_ARQ"; }
+# if/then, NÃO "[ -n ... ] && ...": com TMP_ARQ vazio (backup OK) o teste
+# devolve 1, e como é o último comando do trap de EXIT, o script inteiro
+# saía com código 1 mesmo tendo dado certo — o que derrubava o
+# puxar_backup.sh na etapa 1.
+cleanup() {
+  rm -f "$CNF"
+  if [ -n "$TMP_ARQ" ]; then rm -f "$TMP_ARQ"; fi
+}
 trap cleanup EXIT
 chmod 600 "$CNF"
 cat > "$CNF" <<EOF
@@ -75,6 +82,7 @@ echo "🗄️  Gerando backup de '$DB_NAME'..."
 # pipefail+set -e abortam e o trap remove o .tmp (nunca sobra dump parcial).
 mysqldump --defaults-extra-file="$CNF" \
   --single-transaction --quick --routines --triggers --events \
+  --no-tablespaces \
   --default-character-set=utf8mb4 \
   "$DB_NAME" | gzip > "$TMP_ARQ"
 

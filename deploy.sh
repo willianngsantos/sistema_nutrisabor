@@ -18,6 +18,7 @@ rsync -avz --progress \
   --exclude '.env' \
   --exclude 'static/uploads/' \
   --exclude '.git/' \
+  --exclude '.claude/' \
   "$LOCAL_PATH/" "$SERVER:$REMOTE_PATH/"
 
 echo "📦 Garantindo bibliotecas de sistema do gerador de PDF..."

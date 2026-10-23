@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.lanc-header { background: linear-gradient(135deg, #1a2942 0%, #2c3e50 60%, #1a3a2a 100%);
+  border-radius: 16px; padding: 22px 28px; margin-bottom: 22px; color: #fff; }
+.lanc-header h2 { font-size: 1.3rem; font-weight: 700; margin: 0; }
+.lanc-header p  { color: rgba(255,255,255,.6); margin: 4px 0 0; font-size: .86rem; }
+.card-lanc { background: #fff; border: 1px solid #e9ecef; border-radius: 14px; padding: 18px; }
+.tabela-padrao th { font-size: .72rem; text-transform: uppercase; color: #64748b; text-align: center; white-space: nowrap; }
+.tabela-padrao th:first-child { text-align: left; }
+.tabela-padrao td:first-child { font-weight: 600; color: #1e293b; white-space: nowrap; }
+.tabela-padrao input { width: 72px; text-align: center; margin: 0 auto; }
+.tabela-padrao .col-dom { background: #f8fafc; }
+</style>
+
+<div class="lanc-header d-flex align-items-center gap-3">
+  <a href="{{ url_for('lancamentos.lancamentos', id_cliente=cliente.id) }}" class="btn btn-sm btn-outline-light rounded-circle">
+    <i class="bi bi-arrow-left"></i></a>
+  <div>
+    <h2><i class="bi bi-sliders me-2"></i>Quantidades padrão — {{ cliente.apelido or cliente.nome_empresa }}</h2>
+    <p>Sugestão de cada dia da semana. Mudar aqui não altera os dias já lançados.</p>
+  </div>
+</div>
+
+<div class="card-lanc">
+{% if not produtos %}
+  <div class="alert alert-warning mb-0">
+    Este cliente não tem produtos com preço na tabela individual.
+    <a href="/negociar/{{ cliente.id }}">Cadastre os preços</a> primeiro — os lançamentos usam esses produtos.
+  </div>
+{% else %}
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="table-responsive">
+      <table class="table align-middle tabela-padrao mb-2">
+        <thead><tr>
+          <th>Produto</th>
+          {% for d in dias %}<th class="{{ 'col-dom' if loop.index0 == 6 }}">{{ d }}</th>{% endfor %}
+        </tr></thead>
+        <tbody>
+        {% for p in produtos %}
+          <tr>
+            <td>{{ p.nome }}
+              <button type="button" class="btn btn-link btn-sm p-0 ms-1 text-decoration-none" title="Repetir a segunda de terça a sexta"
+                      onclick="repetirSegunda({{ p.id }})"><i class="bi bi-arrow-right-square"></i></button>
+            </td>
+            {% for d in range(7) %}
+            <td class="{{ 'col-dom' if d == 6 }}">
+              <input type="number" name="q_{{ p.id }}_{{ d }}" id="q_{{ p.id }}_{{ d }}"
+                     class="form-control form-control-sm" min="0" step="1" inputmode="numeric"
+                     value="{{ padrao.get((p.id, d), 0) }}">
+            </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <small class="text-muted"><i class="bi bi-arrow-right-square me-1"></i>copia a segunda para terça–sexta. Domingo zerado = domingo não aparece nos lançamentos.</small>
+      <button class="btn btn-success rounded-pill px-4 fw-bold"><i class="bi bi-check-lg me-1"></i>Salvar padrão</button>
+    </div>
+  </form>
+{% endif %}
+</div>
+
+<script>
+function repetirSegunda(id) {
+  const seg = document.getElementById('q_' + id + '_0').value;
+  for (let d = 1; d <= 4; d++) document.getElementById('q_' + id + '_' + d).value = seg;
+}
+</script>
+{% endblock %}

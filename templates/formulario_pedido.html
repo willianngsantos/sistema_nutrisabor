@@ -153,6 +153,17 @@
                                 <input type="date" name="data_fim" class="form-control form-control-sm font-monospace" value="{{ pedido.data_fim if pedido else hoje }}">
                             </div>
                         </div>
+                        {% if current_user.tipo == 'admin' %}
+                        {# Soma os dias lançados entre as datas acima. Só mexe nos
+                           produtos sob controle diário — item avulso digitado à mão
+                           (ex.: um bolo) fica como está. #}
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary w-100" onclick="preencherComLancamentos()">
+                                <i class="bi bi-calendar-check me-1"></i> Preencher com lançamentos
+                            </button>
+                            <div id="avisoLanc" class="small mt-1" style="min-height:1em;"></div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -183,6 +194,42 @@
         input.value = newVal > 0 ? newVal : '';
         atualizarVisualCard(id, newVal);
         calcular();
+    }
+
+    // ── Quantidades vindas dos lançamentos diários ───────────────────────────
+    async function preencherComLancamentos() {
+        const aviso = document.getElementById('avisoLanc');
+        const ini = document.querySelector('[name="data_inicio"]').value;
+        const fim = document.querySelector('[name="data_fim"]').value;
+        const msg = (t, cor) => { aviso.textContent = t; aviso.style.color = cor; };
+        if (!ini || !fim || fim < ini) { msg('Informe o período (início e fim) antes.', '#b45309'); return; }
+
+        let dados;
+        try {
+            const r = await fetch(`/lancamentos/{{ cliente['id'] }}/totais?inicio=${ini}&fim=${fim}`);
+            if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) throw new Error();
+            dados = await r.json();
+        } catch (e) { msg('Não foi possível buscar os lançamentos.', '#b91c1c'); return; }
+
+        if (!dados.dias) { msg('Nenhum dia lançado nesse período.', '#b45309'); return; }
+
+        const ids = Object.keys(dados.totais);
+        const jaTem = ids.some(id => {
+            const i = document.getElementById('qtd_' + id);
+            return i && (parseInt(i.value) || 0) > 0;
+        });
+        if (jaTem && !confirm('Substituir as quantidades atuais pela soma dos dias lançados?')) return;
+
+        let faltando = 0;
+        ids.forEach(id => {
+            const inp = document.getElementById('qtd_' + id);
+            if (!inp) { if (dados.totais[id] > 0) faltando++; return; }
+            inp.value = dados.totais[id] > 0 ? dados.totais[id] : '';
+            digitouQtd(id);
+        });
+        msg(`✓ ${dados.dias} dia(s) lançado(s) somados.` +
+            (faltando ? ` ${faltando} produto(s) lançado(s) não aparecem nesta fatura.` : ''),
+            faltando ? '#b45309' : '#166534');
     }
 
     function digitouQtd(id) {

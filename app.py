@@ -387,6 +387,9 @@ app.register_blueprint(rh_bp)
 from routes.admin import admin_bp
 app.register_blueprint(admin_bp)
 
+from routes.lancamentos import lancamentos_bp
+app.register_blueprint(lancamentos_bp)
+
 if __name__ == "__main__":
     # debug controlado por env: NUNCA deixar o debugger Werkzeug (que permite
     # execução de código arbitrário) ligado em produção. Em produção a app

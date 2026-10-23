@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<style>
+.lanc-header { background: linear-gradient(135deg, #1a2942 0%, #2c3e50 60%, #1a3a2a 100%);
+  border-radius: 16px; padding: 22px 28px; margin-bottom: 18px; color: #fff; }
+.lanc-header h2 { font-size: 1.3rem; font-weight: 700; margin: 0; }
+.lanc-header p  { color: rgba(255,255,255,.6); margin: 4px 0 0; font-size: .86rem; }
+.nav-quinzena { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.1);
+  border-radius: 50px; padding: 4px 6px; }
+.nav-quinzena a { color: #fff; width: 30px; height: 30px; display: inline-flex; align-items: center;
+  justify-content: center; border-radius: 50%; text-decoration: none; }
+.nav-quinzena a:hover { background: rgba(255,255,255,.15); }
+.nav-quinzena span { font-weight: 600; font-size: .9rem; padding: 0 4px; }
+
+.card-lanc { background: #fff; border: 1px solid #e9ecef; border-radius: 14px; padding: 16px; }
+.tabela-lanc th { font-size: .7rem; text-transform: uppercase; color: #64748b; text-align: center;
+  white-space: nowrap; border-bottom: 2px solid #e2e8f0; }
+.tabela-lanc th:first-child { text-align: left; }
+.tabela-lanc td { vertical-align: middle; }
+.tabela-lanc .dia { font-weight: 600; white-space: nowrap; color: #1e293b; }
+.tabela-lanc input { width: 68px; text-align: center; margin: 0 auto; font-weight: 600; }
+
+/* Lançado = vale para a fatura. Sugestão = proposta, NÃO conta até lançar. */
+.linha-lancada { background: #f0fdf4; }
+.linha-lancada input { border-color: #bbf7d0; color: #14532d; }
+.linha-sugestao input { border-style: dashed; color: #64748b; font-weight: 400; background: #fafafa; }
+.linha-futura { opacity: .55; }
+.linha-hoje .dia::after { content: 'hoje'; margin-left: 6px; font-size: .65rem; background: #2c3e50;
+  color: #fff; padding: 1px 6px; border-radius: 10px; vertical-align: middle; }
+
+.selo { font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.selo-ok { background: #dcfce7; color: #166534; }
+.selo-zero { background: #fef3c7; color: #92400e; }
+.selo-sug { background: #f1f5f9; color: #64748b; }
+
+.linha-total td { border-top: 2px solid #e2e8f0; font-weight: 800; color: #1e293b; text-align: center; }
+.linha-total td:first-child { text-align: left; font-size: .75rem; text-transform: uppercase; color: #64748b; }
+.btn-acao { font-size: .78rem; padding: 3px 10px; }
+</style>
+
+<div class="lanc-header d-flex flex-wrap align-items-center gap-3">
+  <a href="{{ url_for('cadastros.clientes') }}" class="btn btn-sm btn-outline-light rounded-circle">
+    <i class="bi bi-arrow-left"></i></a>
+  <div class="me-auto">
+    <h2><i class="bi bi-calendar-check me-2"></i>Lançamentos — {{ cliente.apelido or cliente.nome_empresa }}</h2>
+    <p>Dia lançado entra na fatura. Dia em sugestão não conta até você lançar.</p>
+  </div>
+  <div class="nav-quinzena">
+    <a href="{{ url_for('lancamentos.lancamentos', id_cliente=cliente.id, ref=ref_anterior) }}" title="Quinzena anterior"><i class="bi bi-chevron-left"></i></a>
+    <span>{{ inicio.strftime('%d/%m') }} a {{ fim.strftime('%d/%m/%Y') }}</span>
+    <a href="{{ url_for('lancamentos.lancamentos', id_cliente=cliente.id, ref=ref_proxima) }}" title="Próxima quinzena"><i class="bi bi-chevron-right"></i></a>
+  </div>
+  <a href="{{ url_for('lancamentos.padrao', id_cliente=cliente.id) }}" class="btn btn-sm btn-light rounded-pill">
+    <i class="bi bi-sliders me-1"></i>Quantidades padrão</a>
+</div>
+
+{% if not produtos %}
+  <div class="alert alert-warning">
+    Este cliente não tem produtos com preço na tabela individual.
+    <a href="/negociar/{{ cliente.id }}">Cadastre os preços</a> primeiro.
+  </div>
+{% else %}
+
+{% if not tem_padrao %}
+  <div class="alert alert-info py-2">
+    <i class="bi bi-info-circle me-1"></i>
+    Sem quantidades padrão, as sugestões vêm zeradas.
+    <a href="{{ url_for('lancamentos.padrao', id_cliente=cliente.id) }}">Configure o padrão</a> para os números já virem preenchidos.
+  </div>
+{% endif %}
+
+<form method="post" action="{{ url_for('lancamentos.salvar', id_cliente=cliente.id) }}" id="formLanc" class="card-lanc">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="inicio" value="{{ inicio.isoformat() }}">
+  <input type="hidden" name="fim" value="{{ fim.isoformat() }}">
+
+  <div class="table-responsive">
+    <table class="table tabela-lanc mb-0">
+      <thead><tr>
+        <th>Dia</th>
+        {% for p in produtos %}<th>{{ p.nome }}</th>{% endfor %}
+        <th>Situação</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+      {% for d in dias %}
+        <tr class="{{ 'linha-lancada' if d.lancado else 'linha-sugestao' }}{{ ' linha-futura' if d.futuro and not d.lancado }}{{ ' linha-hoje' if d.hoje }}">
+          <td class="dia">{{ d.rotulo }}</td>
+          {% for p in produtos %}
+          <td><input type="number" class="form-control form-control-sm qtd-dia" min="0" step="1" inputmode="numeric"
+                     name="q_{{ d.iso }}_{{ p.id }}" value="{{ d.qtds[p.id] }}"></td>
+          {% endfor %}
+          <td>
+            {% if d.sem_servico %}<span class="selo selo-zero">sem serviço</span>
+            {% elif d.lancado %}<span class="selo selo-ok"><i class="bi bi-check2"></i> lançado</span>
+            {% else %}<span class="selo selo-sug">sugestão</span>{% endif %}
+          </td>
+          <td class="text-end text-nowrap">
+            <button class="btn btn-sm {{ 'btn-outline-success' if d.lancado else 'btn-success' }} btn-acao rounded-pill acao-principal"
+                    name="acao" value="dia:{{ d.iso }}">{{ 'Atualizar' if d.lancado else 'Lançar' }}</button>
+            <button class="btn btn-sm btn-outline-warning btn-acao rounded-pill" name="acao" value="feriado:{{ d.iso }}"
+                    title="Registrar o dia sem serviço (quantidades zeradas)">Feriado</button>
+            {% if d.lancado %}
+            <button class="btn btn-sm btn-link text-muted btn-acao" name="acao" value="limpar:{{ d.iso }}"
+                    title="Desfazer: o dia volta a ser só sugestão e sai da fatura"
+                    onclick="return confirm('Desfazer o lançamento de {{ d.rotulo }}? O dia sai da soma da fatura.');">
+              <i class="bi bi-arrow-counterclockwise"></i></button>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+        <tr class="linha-total">
+          <td>Total lançado</td>
+          {% for p in produtos %}<td>{{ totais[p.id] }}</td>{% endfor %}
+          <td colspan="2" class="text-muted fw-normal" style="font-size:.78rem;">{{ dias_lancados }} dia(s) lançado(s)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {% if pendentes %}
+  <div class="d-flex justify-content-end mt-3">
+    <button class="btn btn-success rounded-pill px-4 fw-bold" name="acao" value="sugestoes"
+            onclick="return confirm('Lançar {{ pendentes }} dia(s) pendente(s) até hoje com os números que estão na tela?');">
+      <i class="bi bi-check2-all me-1"></i>Lançar as {{ pendentes }} sugestões até hoje
+    </button>
+  </div>
+  {% endif %}
+</form>
+{% endif %}
+
+<script>
+// O formulário tem um botão por dia. Enter dentro de um campo acionaria o
+// PRIMEIRO botão da página (lançaria o dia errado) — aqui ele aciona o botão
+// da própria linha.
+document.querySelectorAll('.qtd-dia').forEach(function (inp) {
+  inp.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    inp.closest('tr').querySelector('.acao-principal').click();
+  });
+});
+</script>
+{% endblock %}

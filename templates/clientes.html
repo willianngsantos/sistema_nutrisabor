@@ -209,6 +209,9 @@
                         <a href="/negociar/{{ cli['id'] }}" class="btn btn-sm btn-light text-success border me-1" title="Tabela de Preços Individual">
                             <i class="bi bi-cash-coin"></i>
                         </a>
+                        <a href="{{ url_for('lancamentos.lancamentos', id_cliente=cli['id']) }}" class="btn btn-sm btn-light text-primary border me-1" title="Lançamentos diários de quantidades">
+                            <i class="bi bi-calendar-check"></i>
+                        </a>
                         <form method="POST" action="{{ url_for('cadastros.toggle_unidade', id_cliente=cli['id']) }}"
                               style="display:inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
